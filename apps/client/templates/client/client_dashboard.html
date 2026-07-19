@@ -1,0 +1,422 @@
+<!-- 1. Liaison directe avec le squelette global et net du projet -->
+{% extends "base.html" %}
+
+<!-- 2. Personnalisation dynamique de l'onglet du navigateur -->
+{% block title %}eCabinet — Gestion des Clients & KYC{% endblock %}
+
+{% block content %}
+<!-- Jeton de sécurité CSRF injecté au bon endroit pour vos requêtes API AJAX -->
+{% csrf_token %}
+<div class="space-y-6">
+
+    <!-- En-tête -->
+     <h4 class="text-2xl font-bold text-gray-800 text-center">Gestion des Clients</h4>
+    <!-- Barre de filtres -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+
+           
+            <button onclick="ouvrirModal('modal-client-form')"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm transition text-sm"> 
+                    + Ajouter
+            </button>
+
+            <div class="md:col-span-2 relative">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (nom, raison sociale, téléphone ...)</label>
+                
+                <div class="relative flex items-center">
+                    <!-- Champ de saisie -->
+                    <input type="text" id="filtre-recherche" placeholder="Rechercher un client..." 
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10">
+                    
+                    <!-- Bouton Croix (Masqué par défaut avec 'hidden') -->
+                    <button type="button" id="btn-vider" class="hidden absolute right-2 text-gray-400 hover:text-red-500 focus:outline-none">
+                        <svg xmlns="http://w3.org" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Tous</option>
+                    {% for valeur, libelle in types_client %}
+                        <option value="{{ valeur }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Créé depuis le</label>
+                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Jusqu'au</label>
+                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+
+            
+
+        </div>
+        <div class="mt-3 flex justify-end">
+            <button onclick="reinitialiserFiltres()" class="text-sm text-gray-500 hover:text-gray-700 underline">
+                Réinitialiser les filtres
+            </button>
+        </div>
+</div> 
+
+
+    <!-- Tableau -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left">Type</th>
+                    <th class="px-4 py-3 text-left">Nom / Raison sociale</th>
+                    <th class="px-4 py-3 text-left">Téléphone</th>
+                    <th class="px-4 py-3 text-left">Email</th>
+                    <th class="px-4 py-3 text-center">Dossiers</th>
+                    <th class="px-4 py-3 text-left">Créé le</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="corps-tableau-clients" class="divide-y divide-gray-100"></tbody>
+        </table>
+        <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun client trouvé.</div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between mt-4 text-sm text-gray-600">
+        <div class="flex items-center gap-2">
+            <span>Afficher</span>
+            <select id="taille-page" class="border border-gray-300 rounded-lg px-2 py-1">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+            </select>
+            <span id="info-pagination">— 0 résultat(s)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btn-precedent" onclick="pagePrecedente()"
+                    class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Précédent</button>
+            <span id="label-page">Page 1</span>
+            <button id="btn-suivant" onclick="pageSuivante()"
+                    class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Suivant</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- MODAL : Créer / Modifier un client                              -->
+<!-- ============================================================= -->
+<div id="modal-client-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-800" id="titre-modal-client-form">Nouveau client</h2>
+            <button onclick="fermerModal('modal-client-form')" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <form id="form-client" onsubmit="soumettreFormulaireClient(event)">
+            <input type="hidden" name="id">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Type de client</label>
+                    <select name="type" id="champ-type" onchange="basculerTypeClient()"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" required>
+                        {% for valeur, libelle in types_client %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="section-physique md:col-span-1">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Nom</label>
+                    <input type="text" name="nom" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="section-physique md:col-span-1">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Prénom</label>
+                    <input type="text" name="prenom" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+
+                <div class="section-morale md:col-span-2 hidden">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Raison sociale</label>
+                    <input type="text" name="raison_sociale" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">IFU / RCCM</label>
+                    <input type="text" name="ifu_rccm" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Email</label>
+                    <input type="email" name="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Téléphone principal *</label>
+                    <input type="text" name="telephone1" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Téléphone secondaire</label>
+                    <input type="text" name="telephone2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Adresse</label>
+                    <textarea name="adresse" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Notes</label>
+                    <textarea name="notes" rows="2" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="fermerModal('modal-client-form')"
+                        class="px-4 py-2 rounded-lg border text-gray-600">Annuler</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                    Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- MODAL : Voir le détail d'un client                              -->
+<!-- ============================================================= -->
+<div id="modal-client-detail" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-800">Fiche client</h2>
+            <button onclick="fermerModal('modal-client-detail')" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <dl class="grid grid-cols-3 gap-y-2 text-sm">
+            <dt class="text-gray-500">Type</dt><dd class="col-span-2" id="detail-type"></dd>
+            <dt class="text-gray-500">Nom</dt><dd class="col-span-2" id="detail-nom"></dd>
+            <dt class="text-gray-500">IFU / RCCM</dt><dd class="col-span-2" id="detail-ifu"></dd>
+            <dt class="text-gray-500">Email</dt><dd class="col-span-2" id="detail-email"></dd>
+            <dt class="text-gray-500">Téléphone(s)</dt><dd class="col-span-2" id="detail-telephones"></dd>
+            <dt class="text-gray-500">Adresse</dt><dd class="col-span-2" id="detail-adresse"></dd>
+            <dt class="text-gray-500">Notes</dt><dd class="col-span-2" id="detail-notes"></dd>
+            <dt class="text-gray-500">Dossiers liés</dt><dd class="col-span-2" id="detail-nb-dossiers"></dd>
+            <dt class="text-gray-500">Créé le</dt><dd class="col-span-2" id="detail-created-at"></dd>
+        </dl>
+        <div class="flex justify-end gap-2 mt-6">
+            <button id="btn-detail-modifier" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                Modifier
+            </button>
+        </div>
+    </div>
+</div>
+
+{% comment %} <script src="{% static 'js/modals.js' %}"></script>
+<script src="{% static 'js/alerts.js' %}"></script> {% endcomment %}
+<script>
+    // ------------------------------------------------------------------
+    // Configuration & état local du dashboard 
+    // ------------------------------------------------------------------
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const URLS = {
+        liste: "{% url 'client:api_lister_clients' %}",
+        creer: "{% url 'client:api_creer_client' %}", 
+        modifier: (id) => `/clients/api/${id}/modifier/`,
+        supprimer: (id) => `/clients/api/${id}/supprimer/`,
+    };
+
+    let etat = { page: 1, page_size: 10, cacheResultats: {} };
+    let minuteurRecherche = null;
+
+    function construireQueryString() {
+        const params = new URLSearchParams({
+            q: document.getElementById('filtre-recherche').value.trim(),
+            type: document.getElementById('filtre-type').value,
+            date_debut: document.getElementById('filtre-date-debut').value,
+            date_fin: document.getElementById('filtre-date-fin').value,
+            page: etat.page,
+            page_size: etat.page_size,
+        });
+        return params.toString();
+    }
+
+    async function chargerListe() {
+        const reponse = await fetch(`${URLS.liste}?${construireQueryString()}`);
+        const donnees = await reponse.json();
+        etat.cacheResultats = {};
+        donnees.resultats.forEach(c => etat.cacheResultats[c.id] = c);
+        afficherTableau(donnees.resultats);
+        afficherPagination(donnees.pagination);
+    }
+
+    function afficherTableau(resultats) {
+        const corps = document.getElementById('corps-tableau-clients');
+        const etatVide = document.getElementById('etat-vide');
+        corps.innerHTML = '';
+
+        if (resultats.length === 0) {
+            etatVide.classList.remove('hidden');
+            return;
+        }
+        etatVide.classList.add('hidden');
+
+        resultats.forEach(client => {
+            const ligne = document.createElement('tr');
+            ligne.className = 'hover:bg-gray-50';
+            ligne.innerHTML = `
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${client.type === 'personne_morale' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">
+                        ${client.type_libelle}
+                    </span>
+                </td>
+                <td class="px-4 py-3 font-medium text-gray-800">${echapper(client.nom_affichage)}</td>
+                <td class="px-4 py-3">${echapper(client.telephone1 || '—')}</td>
+                <td class="px-4 py-3">${echapper(client.email || '—')}</td>
+                <td class="px-4 py-3 text-center">${client.nb_dossiers}</td>
+                <td class="px-4 py-3 text-gray-500">${client.created_at || '—'}</td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    <button onclick="voirClient('${client.id}')" class="text-gray-500 hover:text-indigo-600" title="Voir">👁️</button>
+                    <button onclick="modifierClient('${client.id}')" class="text-gray-500 hover:text-indigo-600" title="Modifier">✏️</button>
+                    <button onclick="supprimerClient('${client.id}')" class="text-gray-500 hover:text-red-600" title="Supprimer">🗑️</button>
+                </td>
+            `;
+            corps.appendChild(ligne);
+        });
+    }
+
+    function afficherPagination(pagination) {
+        document.getElementById('info-pagination').textContent = `— ${pagination.nb_resultats} résultat(s)`;
+        document.getElementById('label-page').textContent = `Page ${pagination.page_courante} / ${pagination.nb_pages || 1}`;
+        document.getElementById('btn-precedent').disabled = !pagination.a_precedent;
+        document.getElementById('btn-suivant').disabled = !pagination.a_suivant;
+    }
+
+    function pagePrecedente() { etat.page = Math.max(1, etat.page - 1); chargerListe(); }
+    function pageSuivante() { etat.page += 1; chargerListe(); }
+
+    function reinitialiserFiltres() {
+        document.getElementById('filtre-recherche').value = '';
+        document.getElementById('filtre-type').value = '';
+        document.getElementById('filtre-date-debut').value = '';
+        document.getElementById('filtre-date-fin').value = '';
+        etat.page = 1;
+        chargerListe();
+    }
+
+    function echapper(texte) {
+        const div = document.createElement('div');
+        div.textContent = texte ?? '';
+        return div.innerHTML;
+    }
+
+    // ------------------------------------------------------------------
+    // Écouteurs des filtres (recherche avec debounce)
+    // ------------------------------------------------------------------
+    document.getElementById('filtre-recherche').addEventListener('input', () => {
+        clearTimeout(minuteurRecherche);
+        minuteurRecherche = setTimeout(() => { etat.page = 1; chargerListe(); }, 350);
+    });
+    ['filtre-type', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => { etat.page = 1; chargerListe(); });
+    });
+    document.getElementById('taille-page').addEventListener('change', (e) => {
+        etat.page_size = parseInt(e.target.value, 10);
+        etat.page = 1;
+        chargerListe();
+    });
+
+    // ------------------------------------------------------------------
+    // Formulaire création / édition
+    // ------------------------------------------------------------------
+    function basculerTypeClient() {
+        const estMorale = document.getElementById('champ-type').value === 'personne_morale';
+        document.querySelectorAll('.section-morale').forEach(el => el.classList.toggle('hidden', !estMorale));
+        document.querySelectorAll('.section-physique').forEach(el => el.classList.toggle('hidden', estMorale));
+    }
+
+    function modifierClient(id) {
+        const client = etat.cacheResultats[id];
+        if (!client) return;
+        document.getElementById('titre-modal-client-form').textContent = 'Modifier le client';
+        ouvrirModal('modal-client-form', client);
+        document.getElementById('champ-type').value = client.type;
+        basculerTypeClient();
+    }
+
+    function voirClient(id) {
+        const c = etat.cacheResultats[id];
+        if (!c) return;
+        document.getElementById('detail-type').textContent = c.type_libelle;
+        document.getElementById('detail-nom').textContent = c.nom_affichage;
+        document.getElementById('detail-ifu').textContent = c.ifu_rccm || '—';
+        document.getElementById('detail-email').textContent = c.email || '—';
+        document.getElementById('detail-telephones').textContent = [c.telephone1, c.telephone2].filter(Boolean).join(' / ') || '—';
+        document.getElementById('detail-adresse').textContent = c.adresse || '—';
+        document.getElementById('detail-notes').textContent = c.notes || '—';
+        document.getElementById('detail-nb-dossiers').textContent = c.nb_dossiers;
+        document.getElementById('detail-created-at').textContent = c.created_at || '—';
+        document.getElementById('btn-detail-modifier').onclick = () => {
+            fermerModal('modal-client-detail');
+            modifierClient(id);
+        };
+        ouvrirModal('modal-client-detail');
+    }
+
+    function supprimerClient(id) {
+        const client = etat.cacheResultats[id];
+        eCabinetAlerts.confirmerSuppression(
+            `Le client "${client?.nom_affichage}" sera définitivement supprimé.`,
+            async () => {
+                eCabinetAlerts.chargement("Suppression en cours...");
+                try {
+                    const reponse = await fetch(URLS.supprimer(id), {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': CSRF_TOKEN },
+                    });
+                    const donnees = await reponse.json();
+                    eCabinetAlerts.fermerChargement();
+                    if (!reponse.ok) return eCabinetAlerts.erreur(donnees.erreur);
+                    eCabinetAlerts.toast(donnees.message);
+                    chargerListe();
+                } catch (e) {
+                    eCabinetAlerts.fermerChargement();
+                    eCabinetAlerts.erreur("Impossible de contacter le serveur.");
+                }
+            }
+        );
+    }
+
+    async function soumettreFormulaireClient(evenement) {
+        evenement.preventDefault();
+        const form = document.getElementById('form-client');
+        const payload = eCabinetModals.serialiser(form);
+        const id = payload.id;
+        delete payload.id;
+
+        eCabinetAlerts.chargement("Enregistrement en cours...");
+        try {
+            const url = id ? URLS.modifier(id) : URLS.creer;
+            const reponse = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify(payload),
+            });
+            const donnees = await reponse.json();
+            eCabinetAlerts.fermerChargement();
+
+            if (!reponse.ok) return eCabinetAlerts.erreur(donnees.erreur);
+
+            fermerModal('modal-client-form');
+            eCabinetAlerts.succes(donnees.message);
+            chargerListe();
+        } catch (e) {
+            eCabinetAlerts.fermerChargement();
+            eCabinetAlerts.erreur("Impossible de contacter le serveur.");
+        }
+    }
+
+    // Chargement initial
+    document.addEventListener('DOMContentLoaded', chargerListe);
+</script>
+
+{% endblock %}

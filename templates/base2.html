@@ -1,0 +1,172 @@
+{% load static %}
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}e-Cabinet | Gestion Cabinet Avocat{% endblock %}</title>
+    
+    <!-- INJECTION OPTIMISÉE DE TAILWIND (Généré dynamiquement par django-tailwind) -->
+    {% tailwind_css %}
+    
+    <!-- SWEETALERT2 LOCAL (CSS) -->
+    <link rel="stylesheet" href="{% static 'css/sweetalert2.min.css' %}">
+
+    <!-- CHARGEMENT DES BIBLIOTHÈQUES JS LOCALES -->
+
+    <!-- 2. SCRIPTS NON-BLOQUANTS (Le mot-clé 'defer' charge en arrière-plan sans bloquer le HTML) -->
+    <script src="{% static 'js/sweetalert2.all.min.js' %}" defer></script>
+    <script defer src="{% static 'js/alpine.min.js' %}"></script>
+   
+</head>
+<!-- subpixel-antialiased + geometricPrecision éliminent définitivement l'effet de flou des textes -->
+<body class="flex flex-col h-full text-gray-900 subpixel-antialiased selection:bg-indigo-500 selection:text-white" style="image-rendering: -webkit-optimize-contrast; text-rendering: geometricPrecision;">
+
+    <!-- NAVBAR GLOBALE INTERACTIVE (Gérée localement par Alpine.js pour le mode mobile) -->
+    <header class="bg-indigo-950 text-white shadow-lg border-b border-indigo-900 sticky top-0 z-40" x-data="{ mobileMenuOpen: false }">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- LOGO & BRANDING -->
+                <div class="flex-shrink-0 flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg shadow-inner">
+                        <span class="text-xl font-bold tracking-wider text-white">⚖️</span>
+                    </div>
+                    <span class="text-xl font-black tracking-tight text-white">eCabinet</span>
+                </div>
+
+                <!-- LIENS DE NAVIGATION DYNAMIQUES (Resserrés au centre, textes nets et subtilement agrandis) -->
+                <nav class="hidden md:flex space-x-1.5 items-center">
+                    <a href="{% url 'dashboard:index' %}" 
+                    class="px-3.5 py-2 rounded-lg text-base font-bold tracking-wide transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'dashboard' %}
+                        bg-indigo-800 text-white shadow-sm
+                    {% else %} text-gray-200 hover:text-white hover:bg-indigo-900/60
+                    {% endif %}">
+                        🏠 Accueil
+                    </a>
+                    <a href="{% url 'client:liste' %}" 
+                    class="px-3.5 py-2 rounded-lg text-base font-bold tracking-wide transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'client' %}
+                        bg-indigo-800 text-white shadow-sm
+                    {% else %} text-gray-200 hover:text-white hover:bg-indigo-900/60
+                    {% endif %}">
+                        👥 Clients
+                    </a>
+                    <a href="{% url 'dossier:liste' %}" 
+                    class="px-3.5 py-2 rounded-lg text-base font-bold tracking-wide transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'dossier' %}
+                        bg-indigo-800 text-white shadow-sm
+                    {% else %} text-gray-200 hover:text-white hover:bg-indigo-900/60
+                    {% endif %}">
+                        📁 Dossiers
+                    </a>
+                    <a href="{% url 'agenda:liste' %}" class="px-3.5 py-2 rounded-lg text-base font-bold tracking-wide text-gray-200 hover:text-white hover:bg-indigo-900/60 transition-all duration-150">
+                        📅 Agenda
+                    </a>
+                    <a href="{% url 'facturation:liste' %}" class="px-3.5 py-2 rounded-lg text-base font-bold tracking-wide text-gray-200 hover:text-white hover:bg-indigo-900/60 transition-all duration-150">
+                        💳 Facturation
+                    </a>
+                </nav>
+
+                <!-- SECTION PROFIL UTILISATEUR -->
+                <div class="hidden md:flex items-center space-x-4 flex-shrink-0">
+                    <div class="text-right hidden lg:block">
+                        <p class="text-xs text-indigo-300 font-bold uppercase tracking-wider">
+                            {{ request.user.role|default:"Avocat Référent" }}</p>
+                        <p class="text-sm font-extrabold text-white">
+                            {{ request.user.prenom|default:"Maître" }} {{ request.user.nom|default:"User" }}</p>
+                    </div>
+                    <div class="h-9 w-9 rounded-full bg-indigo-700 flex items-center 
+                    justify-center font-black text-sm text-indigo-100 border border-indigo-500 
+                    shadow-sm cursor-pointer hover:bg-indigo-600 transition-all">
+                        {{ request.user.prenom|slice:":1"|default:"M" }}{{ request.user.nom|slice:":1"|default:"U" }}
+                    </div>
+                </div>
+
+                <!-- BOUTON INTERACTIF MENU HAMBURGER (Visible uniquement sur mobile/tablette) -->
+                <div class="flex md:hidden">
+                    <button @click="mobileMenuOpen = !mobileMenuOpen" type="button" class="inline-flex items-center justify-center p-2 rounded-lg text-gray-200 hover:text-white hover:bg-indigo-900 focus:outline-none transition-all">
+                        <span class="sr-only">Ouvrir le menu</span>
+                        <!-- Icône Menu (Trois barres) -->
+                        <svg x-show="!mobileMenuOpen" class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <!-- Icône Fermer (Croix) -->
+                        <svg x-show="mobileMenuOpen" class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="display: none;">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- CONFIGURATION DU MENU DÉROULANT MOBILE (Exploite Alpine.js en natif) -->
+        <div x-show="mobileMenuOpen" x-transition class="md:hidden bg-indigo-900 border-t border-indigo-800" style="display: none;">
+            {% comment %} <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3"> {% endcomment %}
+                
+            <div class="px-1.5 pt-1.5 pb-2 space-y-0.5 sm:px-2">
+                <a href="{% url 'dashboard:index' %}" class="block px-3 py-2.5 rounded-md text-base font-bold {% if request.resolver_match.app_name == 'dashboard' %}bg-indigo-800 text-white{% else %}text-gray-200 hover:text-white hover:bg-indigo-800{% endif %}">
+                    🏠 Accueil
+                </a>
+                <a href="{% url 'client:liste' %}" class="block px-3 py-2.5 rounded-md text-base font-bold {% if request.resolver_match.app_name == 'client' %}bg-indigo-800 text-white{% else %}text-gray-200 hover:text-white hover:bg-indigo-800{% endif %}">
+                    👥 Clients
+                </a>
+                <a href="{% url 'dossier:liste' %}" class="block px-3 py-2.5 rounded-md text-base font-bold {% if request.resolver_match.app_name == 'dossier' %}bg-indigo-800 text-white{% else %}text-gray-200 hover:text-white hover:bg-indigo-800{% endif %}">
+                    📁 Dossiers
+                </a>
+                <a href="{% url 'dashboard:index' %}" class="block px-3 py-2.5 rounded-md text-base font-bold text-gray-200 hover:text-white hover:bg-indigo-800">
+                    📅 Agenda
+                </a>
+                <a href="{% url 'dashboard:index' %}" class="block px-3 py-2.5 rounded-md text-base font-bold text-gray-200 hover:text-white hover:bg-indigo-800">
+                    💳 Facturation
+                </a>
+            </div>
+            <!-- Profil de l'avocat persistant dans le volet mobile -->
+            <div class="pt-4 pb-3 border-t border-indigo-800 px-5 flex items-center space-x-3">
+                <div class="h-9 w-9 rounded-full bg-indigo-700 flex items-center justify-center font-bold text-sm text-indigo-100">
+                    {{ request.user.prenom|slice:":1"|default:"M" }}
+                </div>
+                <div>
+                    <p class="text-sm font-bold text-white">{{ request.user.prenom|default:"Maître" }} {{ request.user.nom|default:"User" }}</p>
+                    <p class="text-xs text-indigo-300 font-semibold uppercase tracking-wider">{{ request.user.role|default:"Avocat" }}</p>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ZONE DE CONTENU DYNAMIQUE (Alignée sur le même axe vertical resserré) -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="min-h-[calc(100vh-12rem)]">
+            {% block content %}
+            <!-- Vos interfaces applicatives s'insèrent ici -->
+            {% endblock %}
+        </div>
+    </main>
+
+    <!-- FOOTER PREMIUM -->
+    <footer class="bg-white border-t border-gray-200 text-gray-500 text-sm mt-auto shadow-inner">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="font-bold text-indigo-900">eCabinet</span>
+                <span class="text-gray-300">|</span>
+                <p>&copy; 2026 Tous droits réservés.</p>
+            </div>
+            <div class="flex items-center space-x-4 text-xs font-bold">
+                        <!-- Suite et fin exacte du FOOTER PREMIUM -->
+                <span class="hidden sm:flex items-center text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                    Données chiffrées
+                </span>
+                <a href="#" class="hover:text-indigo-900 transition-colors">Conformité RGPD</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- INCLUSION DES SCRIPTS APPLICATIFS EN FIN DE BODY (Disponibilité maximale) -->
+    <script src="{% static 'js/alerts.js' %}"></script>
+    <script src="{% static 'js/modals.js' %}"></script>
+</body>
+</html>

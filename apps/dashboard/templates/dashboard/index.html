@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load app_filters %}
+
+{% block content %}
+<!-- Conteneur principal calé sur l'axe central avec netteté forcée -->
+<div class="space-y-6 subpixel-antialiased">
+    
+    <!-- BANDEAU DE BIENVENUE -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h1 class="text-2xl font-black text-gray-900 tracking-tight">Bonjour, Maître {{ request.user.nom|default:"Avocat" }}</h1>
+        <p class="text-base text-gray-500 mt-1">Bienvenue sur votre progiciel de pilotage eCabinet. Voici l'état de performance de votre infrastructure juridique ce matin.</p>
+    </div>
+
+    <!-- ZONE DES DEUX GRAPHISQUES EN COMPACT SIDE-BY-SIDE -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- CARTE 1 : RÉPARTITION DES DOSSIERS -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between items-center min-h-[460px]">
+            <div class="w-full text-left mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Instance & Procédures</h3>
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Répartition de vos dossiers par statut</p>
+            </div>
+            <!-- Zone fixe de rendu du Camembert -->
+            <div class="w-64 h-64 flex items-center justify-center relative">
+                <canvas id="pieDossiersCanvas"></canvas>
+            </div>
+            <!-- Extension IA Directe connectée à votre script global alerts.js -->
+            <div class="w-full mt-6 pt-4 border-t border-gray-100 text-center">
+                <button onclick="lancerInterpretationIaDirecte('SELECT statut, COUNT(id) FROM dossiers GROUP BY statut', null, this)" 
+                        class="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow-sm transition-all">
+                    🧠 Interprétation IA des Contentieux
+                </button>
+            </div>
+        </div>
+
+        <!-- CARTE 2 : PERFORMANCE FINANCIÈRE -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between items-center min-h-[460px]">
+            <div class="w-full text-left mb-4">
+                <h3 class="text-lg font-bold text-gray-900">Trésorerie & Facturation</h3>
+                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Volume des factures par état comptable</p>
+            </div>
+            <div class="w-64 h-64 flex items-center justify-center relative">
+                <canvas id="pieFacturesCanvas"></canvas>
+            </div>
+            <div class="w-full mt-6 pt-4 border-t border-gray-100 text-center">
+                <button onclick="lancerInterpretationIaDirecte('SELECT statut, COUNT(id) FROM factures GROUP BY statut', null, this)" 
+                        class="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow-sm transition-all">
+                    🧠 Interprétation IA de la Trésorerie
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- SCRIPT ASYNCHRONE DE CONSTRUTION DES CAMEMBERTS -->
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        // Fetch asynchrone vers notre API de métriques épurées
+        fetch("{% url 'dashboard:api_metrics' %}")
+            .then(response => response.json())
+            .then(data => {
+                
+                // --- 1. CONFIGURATION DU GRAPH_PIE DOSSIERS ---
+                const labelsDossiers = data.graphique_dossiers.map(item => item.statut.replace('_', ' ').toUpperCase());
+                const valeursDossiers = data.graphique_dossiers.map(item => item.total);
+                
+                new Chart(document.getElementById('pieDossiersCanvas'), {
+                    type: 'pie',
+                    data: {
+                        labels: labelsDossiers.length ? labelsDossiers : ["AUCUNE DONNÉE"],
+                        datasets: [{
+                            data: valeursDossiers.length ? valeursDossiers :,
+                            backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#6b7280'], // Palette eCabinet (Indigo, Émeraude, Ambre, Rose, Gris)
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 12 } } }
+                        }
+                    }
+                });
+
+                // --- 2. CONFIGURATION DU GRAPH_PIE FACTURES ---
+                const labelsFactures = data.graphique_factures.map(item => item.statut.toUpperCase());
+                const valeursFactures = data.graphique_factures.map(item => item.total);
+                
+                new Chart(document.getElementById('pieFacturesCanvas'), {
+                    type: 'pie',
+                    data: {
+                        labels: labelsFactures.length ? labelsFactures : ["AUCUNE DONNÉE"],
+                        datasets: [{
+                            data: valeursFactures.length ? valeursFactures :,
+                            backgroundColor: ['#9ca3af', '#6366f1', '#10b981', '#dc2626'], // (Gris, Indigo, Émeraude, Rouge)
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 12 } } }
+                        }
+                    }
+                });
+
+            }).catch(err => console.error("Erreur au chargement des métriques graphiques:", err));
+    });
+</script>
+{% endblock %}

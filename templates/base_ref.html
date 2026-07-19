@@ -1,0 +1,117 @@
+{% load static %}
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}e-Cabinet | Gestion Cabinet Avocat{% endblock %}</title>
+    
+    <!-- INJECTION OPTIMISÉE DE TAILWIND (Généré dynamiquement par django-tailwind) -->
+    {% tailwind_css %}
+    
+    <!-- SWEETALERT2 LOCAL (CSS) -->
+    <link rel="stylesheet" href="{% static 'css/sweetalert2.min.css' %}">
+
+    <!-- CHARGEMENT DES BIBLIOTHÈQUES JS LOCALES -->
+    <script src="{% static 'js/chart.umd.min.js' %}"></script>
+    <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
+    <script src="{% static 'js/alpine.min.js' %}" defer></script>
+</head>
+<body class="flex flex-col h-full text-gray-900 antialiased selection:bg-indigo-500 selection:text-white">
+
+    <!-- NAVBAR GLOBALE -->
+    <header class="bg-indigo-950 text-white shadow-lg border-b border-indigo-900 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- LOGO & BRANDING -->
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg shadow-inner">
+                        <span class="text-xl font-bold tracking-wider text-white">⚖️</span>
+                    </div>
+                    <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white to-indigo-200 bg-clip-text text-transparent">eCabinet</span>
+                </div>
+
+                <!-- LIENS DE NAVIGATION DYNAMIQUES -->
+                <nav class="hidden md:flex space-x-1">
+                    <a href="{% url 'dashboard:index' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'dashboard' %}
+                        bg-indigo-800 text-white shadow-sm
+                    {% else %}  text-indigo-200 hover:text-white hover:bg-indigo-900
+                    {% endif %}">
+                        🏠 Accueil Dashboard
+                    </a>
+                    <a href="{% url 'client:liste' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'client' %}
+                        bg-indigo-800 text-white shadow-sm
+                    {% else %}text-indigo-200 hover:text-white hover:bg-indigo-900
+                    {% endif %}">
+                        👥 Clients
+                    </a>
+                    <a href="{% url 'dossier:liste' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 {% if request.resolver_match.app_name == 'dossier' %}bg-indigo-800 text-white shadow-sm{% else %}text-indigo-200 hover:text-white hover:bg-indigo-900{% endif %}">
+                        📁 Dossiers
+                    </a>
+                    <a href="{% url 'agenda:liste' %}" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-200 hover:text-white hover:bg-indigo-900 transition-all duration-150">
+                        📅 Agenda
+                    </a>
+                    <a href="{% url 'dashboard:liste' %}" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-200 hover:text-white hover:bg-indigo-900 transition-all duration-150">
+                        💳 Facturation
+                    </a>
+                    
+                </nav>
+
+                <!-- SECTION PROFIL UTILISATEUR -->
+                <div class="flex items-center space-x-4">
+                    <div class="text-right hidden lg:block">
+                        <p class="text-xs text-indigo-300 font-medium capitalize">
+                            {{ request.user.role|default:"Avocat Référent" }}</p>
+                        <p class="text-sm font-semibold text-white">
+                            {{ request.user.first_name|default:"Maître" }} {{ request.user.last_name|default:"User" }}</p>
+                    </div>
+                    <div class="h-9 w-9 rounded-full bg-indigo-700 flex items-center 
+                    justify-center font-bold text-sm text-indigo-100 border border-indigo-500 
+                    shadow-sm cursor-pointer hover:bg-indigo-600 transition-all">
+                        {{ request.user.first_name|slice:":1"|default:"M" }}
+                        {{ request.user.last_name|slice:":1"|default:"U" }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- ZONE DE CONTENU DYNAMIQUE -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="min-h-[calc(100vh-12rem)]">
+            {% block content %}
+            <!-- Vos interfaces applicatives s'insèrent ici -->
+            {% endblock %}
+        </div>
+    </main>
+
+    <!-- FOOTER PREMIUM -->
+    <footer class="bg-white border-t border-gray-200 text-gray-500 text-sm mt-auto shadow-inner">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <span class="font-bold text-indigo-900">eCabinet</span>
+                <span class="text-gray-300">|</span>
+                <p>&copy; 2026 Tous droits réservés.</p>
+            </div>
+            <div class="flex items-center space-x-4 text-xs font-medium">
+                <span class="flex items-center text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
+                    Données chiffrées
+                </span>
+                <a href="#" class="hover:text-indigo-900 transition-colors">Conformité RGPD</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPT DE GESTIONNAIRE GLOBAL DES MODALS -->
+    <script src="{% static 'js/modals.js' %}"></script>
+</body>
+</html>

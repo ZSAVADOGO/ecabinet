@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}eCabinet — Tableau de bord Financier{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+    <div>
+        <h1 class="text-2xl font-black text-gray-800">Tableau de bord Financier</h1>
+        <p class="text-sm text-gray-500">Vue consolidée du chiffre d'affaires et des encaissements</p>
+    </div>
+
+    <!-- Filtres -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-4">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Client</label>
+                <select id="filtre-client" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Tous les clients</option>
+                    {% for c in clients %}<option value="{{ c.id }}">{{ c.nom }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Émise depuis le</label>
+                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="md:col-span-3">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Jusqu'au</label>
+                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="md:col-span-2 flex justify-end">
+                <button onclick="reinitialiserFiltres()" class="text-xs font-semibold text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg px-3 py-2 transition">
+                    Réinitialiser
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase">Chiffre d'affaires HT</p>
+            <p class="text-2xl font-black text-gray-800 mt-1" id="kpi-total">—</p>
+            <p class="text-xs text-gray-400 mt-1"><span id="kpi-nb-factures">0</span> facture(s)</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase">Encaissé</p>
+            <p class="text-2xl font-black text-green-600 mt-1" id="kpi-encaisse">—</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase">En attente</p>
+            <p class="text-2xl font-black text-blue-600 mt-1" id="kpi-attente">—</p>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <p class="text-xs font-semibold text-gray-500 uppercase">En retard</p>
+            <p class="text-2xl font-black text-red-600 mt-1" id="kpi-retard">—</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Répartition mensuelle -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <h2 class="text-sm font-bold text-gray-700 mb-3">Chiffre d'affaires par mois (HT)</h2>
+            <div id="graphique-mensuel" class="space-y-2 max-h-[340px] overflow-y-auto"></div>
+            <div id="mensuel-vide" class="hidden text-center text-gray-400 py-8 text-sm">Aucune donnée sur la période.</div>
+        </div>
+
+        <!-- Top clients -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <h2 class="text-sm font-bold text-gray-700 mb-3">Top 10 clients (HT)</h2>
+            <div class="max-h-[340px] overflow-y-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-gray-500 text-xs uppercase">
+                        <tr><th class="text-left py-2">Client</th><th class="text-right py-2">Nb factures</th><th class="text-right py-2">Total HT</th></tr>
+                    </thead>
+                    <tbody id="corps-top-clients" class="divide-y divide-gray-100"></tbody>
+                </table>
+                <div id="top-clients-vide" class="hidden text-center text-gray-400 py-8 text-sm">Aucune donnée sur la période.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const URLS = { kpis: "{% url 'facturation:api_tableau_bord' %}" };
+
+    function queryString() {
+        return new URLSearchParams({
+            client_id: document.getElementById('filtre-client').value,
+            date_debut: document.getElementById('filtre-date-debut').value,
+            date_fin: document.getElementById('filtre-date-fin').value,
+        }).toString();
+    }
+
+    function formaterMontant(v) {
+        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0 }).format(v) + ' FCFA';
+    }
+
+    async function chargerTableauBord() {
+        const r = await fetch(`${URLS.kpis}?${queryString()}`);
+        const d = await r.json();
+
+        document.getElementById('kpi-total').textContent = formaterMontant(d.kpis.total_ht);
+        document.getElementById('kpi-nb-factures').textContent = d.kpis.nb_factures;
+        document.getElementById('kpi-encaisse').textContent = formaterMontant(d.kpis.encaisse_ht);
+        document.getElementById('kpi-attente').textContent = formaterMontant(d.kpis.en_attente_ht);
+        document.getElementById('kpi-retard').textContent = formaterMontant(d.kpis.en_retard_ht);
+
+        afficherRepartitionMensuelle(d.repartition_mensuelle);
+        afficherTopClients(d.top_clients);
+    }
+
+    function afficherRepartitionMensuelle(lignes) {
+        const conteneur = document.getElementById('graphique-mensuel');
+        const vide = document.getElementById('mensuel-vide');
+        conteneur.innerHTML = '';
+        if (lignes.length === 0) { vide.classList.remove('hidden'); return; }
+        vide.classList.add('hidden');
+        lignes.forEach(l => {
+            const ligne = document.createElement('div');
+            ligne.innerHTML = `
+                <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+                    <span class="font-medium text-gray-700">${l.mois_libelle}</span>
+                    <span>${formaterMontant(l.total_ht)} · ${l.nb_factures} facture(s)</span>
+                </div>
+                <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div class="h-full bg-indigo-500 rounded-full" style="width:${l.pourcentage_barre}%"></div>
+                </div>`;
+            conteneur.appendChild(ligne);
+        });
+    }
+
+    function afficherTopClients(clients) {
+        const corps = document.getElementById('corps-top-clients');
+        const vide = document.getElementById('top-clients-vide');
+        corps.innerHTML = '';
+        if (clients.length === 0) { vide.classList.remove('hidden'); return; }
+        vide.classList.add('hidden');
+        clients.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="py-2 font-medium text-gray-800 truncate max-w-[160px]" title="${c.client_nom}">${c.client_nom}</td>
+                <td class="py-2 text-right text-gray-500">${c.nb_factures}</td>
+                <td class="py-2 text-right font-semibold text-gray-800">${formaterMontant(c.total_ht)}</td>`;
+            corps.appendChild(tr);
+        });
+    }
+
+    function reinitialiserFiltres() {
+        document.getElementById('filtre-client').value = '';
+        document.getElementById('filtre-date-debut').value = '';
+        document.getElementById('filtre-date-fin').value = '';
+        chargerTableauBord();
+    }
+
+    ['filtre-client', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => {
+        document.getElementById(id).addEventListener('change', chargerTableauBord);
+    });
+
+    document.addEventListener('DOMContentLoaded', chargerTableauBord);
+</script>
+{% endblock %}

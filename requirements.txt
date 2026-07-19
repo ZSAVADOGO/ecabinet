@@ -1,0 +1,22 @@
+Django>=5.2
+#django-tailwind
+#whitenoise
+#pdfplumber
+#python-docx
+#nltk
+#spacy
+#pandas
+#openpyxl
+#gunicorn
+
+#os # pour accéder aux variables d'environnement
+#openai # pour interagir avec l'API OpenAI
+#python-dotenv # pour charger les variables d'environnement depuis un fichier .env
+
+PyMySQL # Mysql pour python
+#scikit-learn # pour les algorithmes de machine learning
+#psycopg2-binary # PostgreSQL pour python
+#tensorflow # pour les projet avancés d'ia
+#torch # pour les projet avancés d'ia
+
+

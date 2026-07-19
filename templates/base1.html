@@ -1,0 +1,50 @@
+{% load static %}
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}e-Cabinet{% endblock %}</title>
+
+    <!-- Intégration de Tailwind CSS via django-tailwind -->
+    {% tailwind_css %}
+    
+    <!-- Inclusion de Chart.js pour les graphiques -->
+    <script src="{% static 'js/chart.umd.min.js' %}"></script>
+    
+    <!-- Alpine.js pour l'interactivité (si besoin) -->
+    <script defer src="{% static 'js/alpine.min.js' %}"></script>
+</head>
+<body class="bg-gray-100 font-sans">
+
+    <!-- Barre de navigation professionnelle -->
+    <nav class="bg-gray-800 text-white shadow-md">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <a href="{% url 'dashboard:index' %}" class="text-xl font-bold">e-Cabinet</a>
+            <div class="flex space-x-4">
+                <a href="{% url 'dashboard:index' %}" 
+                class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">🏠 Tableau de bord</a>
+                <a  class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">👥 Clients</a>
+                <a  class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">📁 Dossiers</a>
+                <a  class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">📅 Agenda</a>
+                <a  class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700">💳 Facturation</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenu principal de la page -->
+    <main class="container mx-auto p-6">
+        {% block content %}
+            <!-- Le contenu spécifique à chaque page (ex: dashboard/index.html) s'injectera ici -->
+        {% endblock %}
+    </main>
+
+    <!-- Pied de page -->
+    <footer class="bg-gray-200 text-center text-sm text-gray-600 p-4 mt-8">
+        <p>&copy; {% now "Y" %} e-Cabinet - Tous droits réservés.</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

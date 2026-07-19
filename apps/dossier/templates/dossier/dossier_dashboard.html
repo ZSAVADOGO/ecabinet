@@ -1,0 +1,467 @@
+<!-- 1. Liaison directe avec le squelette global et net du projet -->
+{% extends "base.html" %}
+
+<!-- 2. Personnalisation dynamique de l'onglet du navigateur -->
+{% block title %}eCabinet — Gestion des Clients & KYC{% endblock %}
+
+{% block content %}
+<!-- Jeton de sécurité CSRF injecté au bon endroit pour vos requêtes API AJAX -->
+{% csrf_token %}
+<div class="space-y-6">
+
+    <!-- En-tête -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Gestion des Dossiers</h1>
+            <p class="text-sm text-gray-500">Affaires suivies par le cabinet</p>
+        </div>
+        <button onclick="ouvrirModal('modal-dossier-form')"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition">
+            + Nouveau dossier
+        </button>
+    </div>
+
+    <!-- Barre de filtres -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <div class="md:col-span-2">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (référence, intitulé, juridiction, client)</label>
+                <input type="text" id="filtre-recherche" placeholder="Rechercher un dossier..."
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Statut</label>
+                <select id="filtre-statut" class="w-full border border-gray-400 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Tous</option>
+                    {% for valeur, libelle in statuts_dossier %}
+                        <option value="{{ valeur }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Type d'affaire</label>
+                <select id="filtre-type-affaire" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Tous</option>
+                    {% for valeur, libelle in types_affaire %}
+                        <option value="{{ valeur }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Ouvert depuis le</label>
+                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Jusqu'au</label>
+                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+        </div>
+        <div class="mt-3 flex justify-end">
+            <button onclick="reinitialiserFiltres()" class="text-sm text-gray-500 hover:text-gray-700 underline">
+                Réinitialiser les filtres
+            </button>
+        </div>
+    </div>
+
+    <!-- Tableau -->
+    {% comment %} <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left">Référence</th>
+                    <th class="px-4 py-3 text-left">Intitulé</th>
+                    <th class="px-4 py-3 text-left">Client</th>
+                    <th class="px-4 py-3 text-left">Type</th>
+                    <th class="px-4 py-3 text-left">Statut</th>
+                    <th class="px-4 py-3 text-left">Ouverture</th>
+                    <th class="px-4 py-3 text-left">Échéance</th>
+                    <th class="px-4 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="corps-tableau-dossiers" class="divide-y divide-gray-100"></tbody>
+        </table>
+        <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun dossier trouvé.</div>
+    </div> {% endcomment %}
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left font-semibold">Référence</th>
+                    <th class="px-4 py-3 text-left font-semibold">Intitulé</th>
+                    <th class="px-4 py-3 text-left font-semibold">Client</th>
+                    <th class="px-4 py-3 text-left font-semibold">Type</th>
+                    <th class="px-4 py-3 text-left font-semibold">Statut</th>
+                    <th class="px-4 py-3 text-left font-semibold">Ouverture</th>
+                    <th class="px-4 py-3 text-left font-semibold">Échéance</th>
+                    <th class="px-4 py-3 text-right font-semibold">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="corps-tableau-dossiers"
+                   class="divide-y divide-gray-100 [&>tr:nth-child(odd)]:bg-gray-50/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
+            </tbody>
+        </table>
+    </div>
+    <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun dossier trouvé.</div>
+</div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between mt-4 text-sm text-gray-600">
+        <div class="flex items-center gap-2">
+            <span>Afficher</span>
+            <select id="taille-page" class="border border-gray-300 rounded-lg px-2 py-1">
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+            </select>
+            <span id="info-pagination">— 0 résultat(s)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btn-precedent" onclick="pagePrecedente()"
+                    class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Précédent</button>
+            <span id="label-page">Page 1</span>
+            <button id="btn-suivant" onclick="pageSuivante()"
+                    class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Suivant</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- MODAL : Créer / Modifier un dossier                             -->
+<!-- ============================================================= -->
+<div id="modal-dossier-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-800" id="titre-modal-dossier-form">Nouveau dossier</h2>
+            <button onclick="fermerModal('modal-dossier-form')" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+
+        <form id="form-dossier" onsubmit="soumettreFormulaireDossier(event)">
+            <input type="hidden" name="id">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Référence *</label>
+                    <input type="text" name="reference" required placeholder="DOS-2026-0001"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Client *</label>
+                    <select name="client_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Sélectionner —</option>
+                        {% for client in clients %}
+                            <option value="{{ client.id }}">{{ client.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Intitulé *</label>
+                    <input type="text" name="intitule" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Type d'affaire</label>
+                    <select name="type_affaire" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        {% for valeur, libelle in types_affaire %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Statut</label>
+                    <select name="statut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        {% for valeur, libelle in statuts_dossier %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Avocat référent</label>
+                    <select name="avocat_referent_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Non assigné —</option>
+                        {% for avocat in avocats %}
+                            <option value="{{ avocat.id }}">{{ avocat.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Juridiction</label>
+                    <input type="text" name="juridiction" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Date d'ouverture</label>
+                    <input type="date" name="date_ouverture" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Prochaine échéance</label>
+                    <input type="date" name="date_prochaine_echeance" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Description</label>
+                    <textarea name="description" rows="3" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="fermerModal('modal-dossier-form')"
+                        class="px-4 py-2 rounded-lg border text-gray-600">Annuler</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                    Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================= -->
+<!-- MODAL : Voir le détail d'un dossier                             -->
+<!-- ============================================================= -->
+<div id="modal-dossier-detail" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-800">Fiche dossier</h2>
+            <button onclick="fermerModal('modal-dossier-detail')" class="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+        <dl class="grid grid-cols-3 gap-y-2 text-sm">
+            <dt class="text-gray-500">Référence</dt><dd class="col-span-2" id="detail-reference"></dd>
+            <dt class="text-gray-500">Intitulé</dt><dd class="col-span-2" id="detail-intitule"></dd>
+            <dt class="text-gray-500">Client</dt><dd class="col-span-2" id="detail-client"></dd>
+            <dt class="text-gray-500">Type</dt><dd class="col-span-2" id="detail-type"></dd>
+            <dt class="text-gray-500">Statut</dt><dd class="col-span-2" id="detail-statut"></dd>
+            <dt class="text-gray-500">Avocat référent</dt><dd class="col-span-2" id="detail-avocat"></dd>
+            <dt class="text-gray-500">Juridiction</dt><dd class="col-span-2" id="detail-juridiction"></dd>
+            <dt class="text-gray-500">Ouverture</dt><dd class="col-span-2" id="detail-ouverture"></dd>
+            <dt class="text-gray-500">Échéance</dt><dd class="col-span-2" id="detail-echeance"></dd>
+            <dt class="text-gray-500">Description</dt><dd class="col-span-2" id="detail-description"></dd>
+        </dl>
+        <div class="flex justify-end gap-2 mt-6">
+            <button id="btn-detail-modifier" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">
+                Modifier
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const URLS = {
+        liste: "{% url 'dossier:api_lister_dossiers' %}",
+        creer: "{% url 'dossier:api_creer_dossier' %}",
+        modifier: (id) => `/dossiers/api/${id}/modifier/`,
+        supprimer: (id) => `/dossiers/api/${id}/supprimer/`,
+    };
+
+    let etat = { page: 1, page_size: 10, cacheResultats: {} };
+    let minuteurRecherche = null;
+
+    function construireQueryString() {
+        const params = new URLSearchParams({
+            q: document.getElementById('filtre-recherche').value.trim(),
+            statut: document.getElementById('filtre-statut').value,
+            type_affaire: document.getElementById('filtre-type-affaire').value,
+            date_debut: document.getElementById('filtre-date-debut').value,
+            date_fin: document.getElementById('filtre-date-fin').value,
+            page: etat.page,
+            page_size: etat.page_size,
+        });
+        return params.toString();
+    }
+
+    async function chargerListe() {
+        const reponse = await fetch(`${URLS.liste}?${construireQueryString()}`);
+        const donnees = await reponse.json();
+        etat.cacheResultats = {};
+        donnees.resultats.forEach(d => etat.cacheResultats[d.id] = d);
+        afficherTableau(donnees.resultats);
+        afficherPagination(donnees.pagination);
+    }
+
+    const BADGE_STATUT = {
+        ouvert: 'bg-blue-100 text-blue-700',
+        en_cours: 'bg-amber-100 text-amber-700',
+        plaide: 'bg-purple-100 text-purple-700',
+        clos: 'bg-gray-200 text-gray-700',
+        archive: 'bg-gray-100 text-gray-500',
+    };
+
+    function afficherTableau(resultats) {
+        const corps = document.getElementById('corps-tableau-dossiers');
+        const etatVide = document.getElementById('etat-vide');
+        corps.innerHTML = '';
+
+        if (resultats.length === 0) {
+            etatVide.classList.remove('hidden');
+            return;
+        }
+        etatVide.classList.add('hidden');
+
+        resultats.forEach(d => {
+            const echeanceDepassee = d.date_prochaine_echeance && new Date(d.date_prochaine_echeance) < new Date();
+            const echeanceDepassee = d.date_prochaine_echeance && new Date(d.date_prochaine_echeance) < new Date() && !['clos', 'archive'].includes(d.statut);
+            const ligne = document.createElement('tr');
+            ligne.className = 'hover:bg-gray-50';
+            ligne.innerHTML = `
+                <td class="px-4 py-3 font-mono text-xs">${echapper(d.reference)}</td>
+                <td class="px-4 py-3 font-medium text-gray-800">${echapper(d.intitule)}</td>
+                <td class="px-4 py-3">${echapper(d.client_nom)}</td>
+                <td class="px-4 py-3">${d.type_affaire_libelle}</td>
+                <td class="px-4 py-3">
+                    <span class="px-2 py-1 rounded-full text-xs font-medium ${BADGE_STATUT[d.statut] || 'bg-gray-100 text-gray-600'}">
+                        ${d.statut_libelle}
+                    </span>
+                </td>
+                <td class="px-4 py-3 text-gray-500">${formaterDate(d.date_ouverture)}</td>
+                <td class="px-4 py-3 ${echeanceDepassee ? 'text-red-600 font-semibold' : 'text-gray-500'}">
+                    ${formaterDate(d.date_prochaine_echeance)}
+                </td>
+                <td class="px-4 py-3 text-right space-x-2">
+                    <button onclick="voirDossier('${d.id}')" class="text-gray-500 hover:text-indigo-600" title="Voir">👁️</button>
+                    <button onclick="modifierDossier('${d.id}')" class="text-gray-500 hover:text-indigo-600" title="Modifier">✏️</button>
+                    <button onclick="supprimerDossier('${d.id}')" class="text-gray-500 hover:text-red-600" title="Supprimer">🗑️</button>
+                </td>
+            `;
+            corps.appendChild(ligne);
+        });
+    }
+
+    function afficherPagination(pagination) {
+        document.getElementById('info-pagination').textContent = `— ${pagination.nb_resultats} résultat(s)`;
+        document.getElementById('label-page').textContent = `Page ${pagination.page_courante} / ${pagination.nb_pages || 1}`;
+        document.getElementById('btn-precedent').disabled = !pagination.a_precedent;
+        document.getElementById('btn-suivant').disabled = !pagination.a_suivant;
+    }
+
+    function pagePrecedente() { etat.page = Math.max(1, etat.page - 1); chargerListe(); }
+    function pageSuivante() { etat.page += 1; chargerListe(); }
+
+    function reinitialiserFiltres() {
+        document.getElementById('filtre-recherche').value = '';
+        document.getElementById('filtre-statut').value = '';
+        document.getElementById('filtre-type-affaire').value = '';
+        document.getElementById('filtre-date-debut').value = '';
+        document.getElementById('filtre-date-fin').value = '';
+        etat.page = 1;
+        chargerListe();
+    }
+
+    function echapper(texte) {
+        const div = document.createElement('div');
+        div.textContent = texte ?? '';
+        return div.innerHTML;
+    }
+
+    function formaterDate(iso) {
+        if (!iso) return '—';
+        const [a, m, j] = iso.split('-');
+        return `${j}/${m}/${a}`;
+    }
+
+    ['filtre-statut', 'filtre-type-affaire', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => { etat.page = 1; chargerListe(); });
+    });
+    document.getElementById('filtre-recherche').addEventListener('input', () => {
+        clearTimeout(minuteurRecherche);
+        minuteurRecherche = setTimeout(() => { etat.page = 1; chargerListe(); }, 350);
+    });
+    document.getElementById('taille-page').addEventListener('change', (e) => {
+        etat.page_size = parseInt(e.target.value, 10);
+        etat.page = 1;
+        chargerListe();
+    });
+
+    function modifierDossier(id) {
+        const d = etat.cacheResultats[id];
+        if (!d) return;
+        document.getElementById('titre-modal-dossier-form').textContent = 'Modifier le dossier';
+        ouvrirModal('modal-dossier-form', {
+            id: d.id,
+            reference: d.reference,
+            intitule: d.intitule,
+            type_affaire: d.type_affaire,
+            statut: d.statut,
+            client_id: d.client_id,
+            avocat_referent_id: d.avocat_referent_id || '',
+            juridiction: d.juridiction,
+            date_ouverture: d.date_ouverture,
+            date_prochaine_echeance: d.date_prochaine_echeance,
+            description: d.description,
+        });
+    }
+
+    function voirDossier(id) {
+        const d = etat.cacheResultats[id];
+        if (!d) return;
+        document.getElementById('detail-reference').textContent = d.reference;
+        document.getElementById('detail-intitule').textContent = d.intitule;
+        document.getElementById('detail-client').textContent = d.client_nom;
+        document.getElementById('detail-type').textContent = d.type_affaire_libelle;
+        document.getElementById('detail-statut').textContent = d.statut_libelle;
+        document.getElementById('detail-avocat').textContent = d.avocat_referent_nom || '—';
+        document.getElementById('detail-juridiction').textContent = d.juridiction || '—';
+        document.getElementById('detail-ouverture').textContent = formaterDate(d.date_ouverture);
+        document.getElementById('detail-echeance').textContent = formaterDate(d.date_prochaine_echeance);
+        document.getElementById('detail-description').textContent = d.description || '—';
+        document.getElementById('btn-detail-modifier').onclick = () => {
+            fermerModal('modal-dossier-detail');
+            modifierDossier(id);
+        };
+        ouvrirModal('modal-dossier-detail');
+    }
+
+    function supprimerDossier(id) {
+        const d = etat.cacheResultats[id];
+        eCabinetAlerts.confirmerSuppression(
+            `Le dossier "${d?.reference} — ${d?.intitule}" sera définitivement supprimé.`,
+            async () => {
+                eCabinetAlerts.chargement("Suppression en cours...");
+                try {
+                    const reponse = await fetch(URLS.supprimer(id), {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': CSRF_TOKEN },
+                    });
+                    const donnees = await reponse.json();
+                    eCabinetAlerts.fermerChargement();
+                    if (!reponse.ok) return eCabinetAlerts.erreur(donnees.erreur);
+                    eCabinetAlerts.toast(donnees.message);
+                    chargerListe();
+                } catch (e) {
+                    eCabinetAlerts.fermerChargement();
+                    eCabinetAlerts.erreur("Impossible de contacter le serveur.");
+                }
+            }
+        );
+    }
+
+    async function soumettreFormulaireDossier(evenement) {
+        evenement.preventDefault();
+        const form = document.getElementById('form-dossier');
+        const payload = eCabinetModals.serialiser(form);
+        const id = payload.id;
+        delete payload.id;
+
+        eCabinetAlerts.chargement("Enregistrement en cours...");
+        try {
+            const url = id ? URLS.modifier(id) : URLS.creer;
+            const reponse = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+                body: JSON.stringify(payload),
+            });
+            const donnees = await reponse.json();
+            eCabinetAlerts.fermerChargement();
+
+            if (!reponse.ok) return eCabinetAlerts.erreur(donnees.erreur);
+
+            fermerModal('modal-dossier-form');
+            eCabinetAlerts.succes(donnees.message);
+            chargerListe();
+        } catch (e) {
+            eCabinetAlerts.fermerChargement();
+            eCabinetAlerts.erreur("Impossible de contacter le serveur.");
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', chargerListe);
+</script>
+
+{% endblock %}

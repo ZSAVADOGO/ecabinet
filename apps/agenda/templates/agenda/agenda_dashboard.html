@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}eCabinet — Agenda{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+
+<div class="space-y-5">
+
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-black text-gray-800">Agenda du Cabinet</h1>
+            <p class="text-sm text-gray-500">Audiences, RDV clients et délais de procédure</p>
+        </div>
+       {% comment %}  <button onclick="ouvrirModal('modal-evenement-form')"
+                class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm text-sm transition">
+            + Nouvel événement
+        </button> {% endcomment %}
+    </div>
+
+    {% comment %} <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-4">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Recherche (titre, dossier)</label>
+                <input type="text" id="filtre-recherche" placeholder="Rechercher un événement..."
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Type</label>
+                <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Tous</option>
+                    {% for valeur, libelle in types_evenement %}
+                        <option value="{{ valeur }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Du</label>
+                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Au</label>
+                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div class="md:col-span-2 flex items-center gap-2 pb-2">
+                <input type="checkbox" id="filtre-critique" class="rounded border-gray-300">
+                <label for="filtre-critique" class="text-xs font-semibold text-gray-500">Critiques uniquement</label>
+            </div>
+        </div>
+        <div class="mt-3 flex justify-end">
+            <button onclick="reinitialiserFiltres()" class="text-xs font-semibold text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg px-3 py-2 transition">
+                Réinitialiser
+            </button>
+        </div>
+    </div> {% endcomment %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+
+        <!-- 1. Bouton Ajouter compact et aligné -->
+        <div class="w-max mb-0.5">
+            <button onclick="ouvrirModal('modal-evenement-form')"
+                class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm text-sm transition">
+                + Ajouter
+            </button>
+        </div>
+
+        <!-- 2. Champ Recherche Libre avec Bouton Croix (Taille réduite avec py-1.5) -->
+        <div class="md:col-span-2 relative">
+            <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (titre, dossier)</label>
+            <div class="relative flex items-center">
+                <input type="text" id="filtre-recherche" placeholder="Rechercher..."
+                       class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10">
+                
+                <!-- Bouton Croix (Lien d'affichage corrigé) -->
+                <button type="button" id="btn-vider" class="hidden absolute right-2 text-gray-400 hover:text-red-500 focus:outline-none">
+                    <svg xmlns="http://w3.org" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 3. Menu Déroulant Type (Taille réduite avec py-1.5) -->
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+            <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Tous</option>
+                {% for valeur, libelle in types_evenement %}
+                    <option value="{{ valeur }}">{{ libelle }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- 4. Filtre Date Début (Taille réduite avec py-1.5) -->
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Du</label>
+            <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <!-- 5. Filtre Date Fin (Taille réduite avec py-1.5) -->
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Au</label>
+            <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <!-- 6. Case à Cocher "Critiques" (Hauteur calée sur 34px pour s'aligner sur les champs réduits) -->
+        <div class="flex items-center gap-2 h-[34px] mb-0.5">
+            <input type="checkbox" id="filtre-critique" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+            <label for="filtre-critique" class="text-xs font-medium text-gray-500 cursor-pointer user-select-none">Critiques</label>
+        </div>
+
+    </div>
+
+    <!-- Pied du bloc : Bouton Réinitialiser -->
+    <div class="mt-3 flex justify-end">
+        <button onclick="reinitialiserFiltres()" class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none">
+            Réinitialiser les filtres
+        </button>
+    </div>
+</div>
+
+
+
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <div class="max-h-[60vh] overflow-y-auto">
+                <table class="w-full text-sm border-collapse">
+                    <thead class="sticky top-0 z-10 bg-gray-50 text-gray-500 uppercase text-[11px] tracking-wide">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold w-[26%]">Titre</th>
+                            <th class="px-4 py-3 text-left font-semibold w-[14%]">Type</th>
+                            <th class="px-4 py-3 text-left font-semibold w-[24%]">Dossier lié</th>
+                            <th class="px-4 py-3 text-left font-semibold w-[16%]">Date / Heure</th>
+                            <th class="px-4 py-3 text-center font-semibold w-[8%]">Critique</th>
+                            <th class="px-4 py-3 text-right font-semibold w-[12%]">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corps-tableau" class="divide-y divide-gray-100"></tbody>
+                </table>
+                <div id="etat-vide" class="hidden text-center text-gray-400 py-14">
+                    <div class="text-3xl mb-2">📅</div>Aucun événement trouvé.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
+        <div class="flex items-center gap-2">
+            <span>Afficher</span>
+            <select id="taille-page" class="border border-gray-300 rounded-lg px-2 py-1">
+                <option value="10">10</option><option value="25">25</option><option value="50">50</option>
+            </select>
+            <span id="info-pagination" class="font-medium text-gray-500">— 0 résultat(s)</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btn-precedent" onclick="pagePrecedente()" class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>← Précédent</button>
+            <span id="label-page" class="font-semibold text-gray-700 px-2">Page 1</span>
+            <button id="btn-suivant" onclick="pageSuivante()" class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Suivant →</button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL Créer / Modifier -->
+<div id="modal-evenement-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-800" id="titre-modal-form">Nouvel événement</h2>
+            <button onclick="fermerModal('modal-evenement-form')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+        <form id="form-evenement" onsubmit="soumettreFormulaire(event)">
+            <input type="hidden" name="id">
+            <div class="grid grid-cols-1 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Titre *</label>
+                    <input type="text" name="titre" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                        <select name="type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                            {% for valeur, libelle in types_evenement %}
+                                <option value="{{ valeur }}">{{ libelle }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1">Date et heure *</label>
+                        <input type="datetime-local" name="date_heure" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Dossier lié</label>
+                    <select name="dossier_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Aucun —</option>
+                        {% for d in dossiers %}
+                            <option value="{{ d.id }}">{{ d.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="critique" id="champ-critique" class="rounded border-gray-300">
+                    <label for="champ-critique" class="text-sm text-gray-600">Marquer comme critique (délai impératif)</label>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="fermerModal('modal-evenement-form')" class="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-50">Annuler</button>
+                <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const URLS = {
+        liste: "{% url 'agenda:api_lister_evenements' %}",
+        creer: "{% url 'agenda:api_creer_evenement' %}",
+        modifier: (id) => `/agenda/api/${id}/modifier/`,
+        supprimer: (id) => `/agenda/api/${id}/supprimer/`,
+    };
+    let etat = { page: 1, page_size: 10, cache: {} };
+    let minuteur = null;
+
+    const BADGE_TYPE = { audience: 'bg-purple-100 text-purple-700', rdv_client: 'bg-blue-100 text-blue-700',
+                         delai_procedure: 'bg-red-100 text-red-700', autre: 'bg-gray-100 text-gray-600' };
+
+    function queryString() {
+        return new URLSearchParams({
+            q: document.getElementById('filtre-recherche').value.trim(),
+            type: document.getElementById('filtre-type').value,
+            critique: document.getElementById('filtre-critique').checked ? 'true' : '',
+            date_debut: document.getElementById('filtre-date-debut').value,
+            date_fin: document.getElementById('filtre-date-fin').value,
+            page: etat.page, page_size: etat.page_size,
+        }).toString();
+    }
+
+    async function chargerListe() {
+        const r = await fetch(`${URLS.liste}?${queryString()}`);
+        const d = await r.json();
+        etat.cache = {};
+        d.resultats.forEach(e => etat.cache[e.id] = e);
+        afficherTableau(d.resultats);
+        afficherPagination(d.pagination);
+    }
+
+    function afficherTableau(resultats) {
+        const corps = document.getElementById('corps-tableau');
+        const vide = document.getElementById('etat-vide');
+        corps.innerHTML = '';
+        if (resultats.length === 0) { vide.classList.remove('hidden'); return; }
+        vide.classList.add('hidden');
+        resultats.forEach(e => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-indigo-50/40';
+            tr.innerHTML = `
+                <td class="px-4 py-3 font-medium text-gray-800">${echapper(e.titre)}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${BADGE_TYPE[e.type] || ''}">${e.type_libelle}</span></td>
+                <td class="px-4 py-3 text-gray-600">${e.dossier_reference ? echapper(e.dossier_reference + ' — ' + e.dossier_intitule) : '—'}</td>
+                <td class="px-4 py-3 text-gray-500">${formaterDateHeure(e.date_heure)}</td>
+                <td class="px-4 py-3 text-center">${e.critique ? '⚠️' : ''}</td>
+                <td class="px-4 py-3 text-right space-x-1">
+                    <button onclick="modifierEvenement('${e.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-indigo-100 hover:text-indigo-700" title="Modifier">✏️</button>
+                    <button onclick="supprimerEvenement('${e.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-red-100 hover:text-red-600" title="Supprimer">🗑️</button>
+                </td>`;
+            corps.appendChild(tr);
+        });
+    }
+
+    function afficherPagination(p) {
+        document.getElementById('info-pagination').textContent = `— ${p.nb_resultats} résultat(s)`;
+        document.getElementById('label-page').textContent = `Page ${p.page_courante} / ${p.nb_pages || 1}`;
+        document.getElementById('btn-precedent').disabled = !p.a_precedent;
+        document.getElementById('btn-suivant').disabled = !p.a_suivant;
+    }
+
+    function pagePrecedente() { etat.page = Math.max(1, etat.page - 1); chargerListe(); }
+    function pageSuivante() { etat.page += 1; chargerListe(); }
+
+    function reinitialiserFiltres() {
+        ['filtre-recherche', 'filtre-type', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('filtre-critique').checked = false;
+        etat.page = 1; chargerListe();
+    }
+
+    function echapper(t) { const d = document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; }
+    function formaterDateHeure(iso) {
+        if (!iso) return '—';
+        const dt = new Date(iso);
+        return dt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    document.getElementById('filtre-recherche').addEventListener('input', () => {
+        clearTimeout(minuteur); minuteur = setTimeout(() => { etat.page = 1; chargerListe(); }, 350);
+    });
+    ['filtre-type', 'filtre-date-debut', 'filtre-date-fin', 'filtre-critique'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => { etat.page = 1; chargerListe(); });
+    });
+    document.getElementById('taille-page').addEventListener('change', (e) => {
+        etat.page_size = parseInt(e.target.value, 10); etat.page = 1; chargerListe();
+    });
+
+    function modifierEvenement(id) {
+        const e = etat.cache[id];
+        if (!e) return;
+        document.getElementById('titre-modal-form').textContent = 'Modifier l\'événement';
+        ouvrirModal('modal-evenement-form', {
+            id: e.id, titre: e.titre, type: e.type,
+            date_heure: e.date_heure ? e.date_heure.slice(0, 16) : '',
+            dossier_id: e.dossier_id || '',
+        });
+        document.getElementById('champ-critique').checked = e.critique;
+    }
+
+    function supprimerEvenement(id) {
+        const e = etat.cache[id];
+        eCabinetAlerts.confirmerSuppression(`L'événement "${e?.titre}" sera définitivement supprimé.`, async () => {
+            eCabinetAlerts.chargement("Suppression en cours...");
+            const r = await fetch(URLS.supprimer(id), { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } });
+            const d = await r.json();
+            eCabinetAlerts.fermerChargement();
+            if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
+            eCabinetAlerts.toast(d.message);
+            chargerListe();
+        });
+    }
+
+    async function soumettreFormulaire(evt) {
+        evt.preventDefault();
+        const form = document.getElementById('form-evenement');
+        const payload = eCabinetModals.serialiser(form);
+        payload.critique = document.getElementById('champ-critique').checked;
+        const id = payload.id; delete payload.id;
+
+        eCabinetAlerts.chargement("Enregistrement en cours...");
+        const url = id ? URLS.modifier(id) : URLS.creer;
+        const r = await fetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+            body: JSON.stringify(payload),
+        });
+        const d = await r.json();
+        eCabinetAlerts.fermerChargement();
+        if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
+        fermerModal('modal-evenement-form');
+        eCabinetAlerts.succes(d.message);
+        chargerListe();
+    }
+
+    document.addEventListener('DOMContentLoaded', chargerListe);
+</script>
+{% endblock %}
