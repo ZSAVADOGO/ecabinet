@@ -2568,27 +2568,6 @@
   .w-64 {
     width: calc(var(--spacing) * 64);
   }
-  .w-\[8\%\] {
-    width: 8%;
-  }
-  .w-\[10\%\] {
-    width: 10%;
-  }
-  .w-\[12\%\] {
-    width: 12%;
-  }
-  .w-\[14\%\] {
-    width: 14%;
-  }
-  .w-\[16\%\] {
-    width: 16%;
-  }
-  .w-\[24\%\] {
-    width: 24%;
-  }
-  .w-\[26\%\] {
-    width: 26%;
-  }
   .w-full {
     width: 100%;
   }
@@ -2612,6 +2591,9 @@
   }
   .max-w-xl {
     max-width: var(--container-xl);
+  }
+  .min-w-0 {
+    min-width: 0px;
   }
   .flex-shrink-0 {
     flex-shrink: 0;
@@ -3109,6 +3091,9 @@
     --tw-tracking: var(--tracking-wider);
     letter-spacing: var(--tracking-wider);
   }
+  .whitespace-nowrap {
+    white-space: nowrap;
+  }
   @layer daisyui.l1.l2 {
     .alert-info {
       color: var(--color-info-content);
@@ -3416,6 +3401,9 @@
     }
     .md\:grid-cols-7 {
       grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .md\:grid-cols-8 {
+      grid-template-columns: repeat(8, minmax(0, 1fr));
     }
     .md\:grid-cols-12 {
       grid-template-columns: repeat(12, minmax(0, 1fr));

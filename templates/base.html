@@ -9,8 +9,8 @@
 
     {% tailwind_css %}
     <link rel="stylesheet" href="{% static 'css/sweetalert2.min.css' %}">
-    <script src="{% static 'js/chart.umd.min.js' %}"></script>
-    <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
+    <script src="{% static 'js/chart.umd.min.js' %}" defer></script>
+    <script src="{% static 'js/sweetalert2.all.min.js' %}" defer></script>
     <script src="{% static 'js/alpine.min.js' %}" defer></script>
 </head>
 <body class="flex flex-col h-full text-gray-900 antialiased selection:bg-indigo-500 selection:text-white">
@@ -149,8 +149,8 @@
             </div>
         </div>
     </footer>
-    <script src="{% static 'js/modals.js' %}"></script>
-    <script src="{% static 'js/alerts.js' %}"></script>
-    <script src="{% static 'js/filtres.js' %}"></script>
+    <script src="{% static 'js/modals.js' %}"defer></script>
+    <script src="{% static 'js/alerts.js' %}" defer></script>
+    <script src="{% static 'js/filtres.js' %}" defer></script>
 </body>
 </html>

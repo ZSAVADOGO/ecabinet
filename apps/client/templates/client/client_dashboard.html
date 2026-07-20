@@ -9,88 +9,59 @@
 {% csrf_token %}
 <div class="space-y-6">
 
-    <!-- En-tête -->
-     <h4 class="text-2xl font-bold text-gray-800 text-center">Gestion des Clients</h4>
-    <!-- Barre de filtres -->
+
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-        <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
 
-           
-            {% comment %} <button onclick="ouvrirModal('modal-client-form')"
-                class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm transition text-sm"> 
-                    + Ajouter
-            </button> {% endcomment %}
+        <!-- 1. Ajouter -->
+        <div class="w-max mb-0.5">
             <a href="{% url 'client:client_creation_wizard' %}"
-   class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm transition text-sm text-center">
-    + Ajouter
-</a>
-
-
-            <div class="md:col-span-2 relative">
-                <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (nom, raison sociale, téléphone ...)</label>
-                
-                <div class="relative flex items-center">
-                    <!-- Champ de saisie -->
-                    <input type="text" id="filtre-recherche" placeholder="Rechercher un client..." 
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10">
-                    
-                    <!-- Bouton Croix (Masqué par défaut avec 'hidden') -->
-                    <button type="button" id="btn-vider" class="hidden absolute right-2 text-gray-400 hover:text-red-500 focus:outline-none">
-                        <svg xmlns="http://w3.org" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-
-
-            <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">Tous</option>
-                    {% for valeur, libelle in types_client %}
-                        <option value="{{ valeur }}">{{ libelle }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Créé depuis le</label>
-                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-gray-500 mb-1">Jusqu'au</label>
-                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-            </div>
-
-            
-
+                class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm text-sm transition">
+                + Ajouter
+            </a>
         </div>
-        <div class="mt-3 flex justify-end">
-            <button onclick="reinitialiserFiltres()" class="text-sm text-gray-500 hover:text-gray-700 underline">
-                Réinitialiser les filtres
+
+        <!-- 2. Recherche libre avec croix -->
+        <div class="md:col-span-2 relative" data-clearable>
+            <input type="text" id="filtre-recherche" placeholder="Rechercher (nom, raison sociale, téléphone...)" aria-label="Recherche"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-9">
+            <button type="button" data-clear-btn tabindex="-1"
+                class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
             </button>
         </div>
-</div> 
 
+        <!-- 3. Type -->
+        <div>
+            <select id="filtre-type" aria-label="Type"
+                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Type : Tous</option>
+                {% for valeur, libelle in types_client %}
+                    <option value="{{ valeur }}">{{ libelle }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-    <!-- Tableau -->
-    {% comment %} <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-                <tr>
-                    <th class="px-4 py-3 text-left">Type</th>
-                    <th class="px-4 py-3 text-left">Nom / Raison sociale</th>
-                    <th class="px-4 py-3 text-left">Téléphone</th>
-                    <th class="px-4 py-3 text-left">Email</th>
-                    <th class="px-4 py-3 text-center">Dossiers</th>
-                    <th class="px-4 py-3 text-left">Créé le</th>
-                    <th class="px-4 py-3 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="corps-tableau-clients" class="divide-y divide-gray-100"></tbody>
-        </table>
-        <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun client trouvé.</div>
-    </div> {% endcomment %}
+        <!-- 4-5. Dates + icône reset groupée -->
+        <div class="md:col-span-2 flex items-center gap-2">
+            <input type="date" id="filtre-date-debut" aria-label="Créé depuis le" data-reset-group="dates-client"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="date" id="filtre-date-fin" aria-label="Jusqu'au" data-reset-group="dates-client"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button type="button" data-reset-btn="dates-client" title="Réinitialiser les filtres"
+                onclick="reinitialiserGroupe('dates-client')"
+                class="hidden shrink-0 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-gray-100 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
+        </div>
+
+    </div>
+</div>
+
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="overflow-x-auto">
         <table class="w-full text-sm">

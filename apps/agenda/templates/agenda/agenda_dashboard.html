@@ -8,56 +8,82 @@
 
 <div class="space-y-5">
 
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    {% comment %}<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-2xl font-black text-gray-800">Agenda du Cabinet</h1>
             <p class="text-sm text-gray-500">Audiences, RDV clients et délais de procédure</p>
         </div>
-       {% comment %}  <button onclick="ouvrirModal('modal-evenement-form')"
-                class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-lg shadow-sm text-sm transition">
-            + Nouvel événement
-        </button> {% endcomment %}
-    </div>
 
-    {% comment %} <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
-            <div class="md:col-span-4">
-                <label class="block text-xs font-semibold text-gray-500 mb-1">Recherche (titre, dossier)</label>
-                <input type="text" id="filtre-recherche" placeholder="Rechercher un événement..."
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
+
+            <!-- 1. Bouton Ajouter compact et aligné -->
+            <div class="w-max mb-0.5">
+                <button onclick="ouvrirModal('modal-evenement-form')"
+                    class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm text-sm transition">
+                    + Ajouter
+                </button>
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-semibold text-gray-500 mb-1">Type</label>
-                <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+
+            <!-- 2. Champ Recherche Libre avec Bouton Croix (Taille réduite avec py-1.5) -->
+            <div class="md:col-span-2 relative">
+                <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (titre, dossier)</label>
+                <div class="relative flex items-center">
+                    <input type="text" id="filtre-recherche" placeholder="Rechercher..."
+                        class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10">
+                    
+                    <!-- Bouton Croix (Lien d'affichage corrigé) -->
+                    <button type="button" id="btn-vider" class="hidden absolute right-2 text-gray-400 hover:text-red-500 focus:outline-none">
+                        <svg xmlns="http://w3.org" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. Menu Déroulant Type (Taille réduite avec py-1.5) -->
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     <option value="">Tous</option>
                     {% for valeur, libelle in types_evenement %}
                         <option value="{{ valeur }}">{{ libelle }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-semibold text-gray-500 mb-1">Du</label>
-                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+
+            <!-- 4. Filtre Date Début (Taille réduite avec py-1.5) -->
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Du</label>
+                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-semibold text-gray-500 mb-1">Au</label>
-                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+
+            <!-- 5. Filtre Date Fin (Taille réduite avec py-1.5) -->
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Au</label>
+                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
             </div>
-            <div class="md:col-span-2 flex items-center gap-2 pb-2">
-                <input type="checkbox" id="filtre-critique" class="rounded border-gray-300">
-                <label for="filtre-critique" class="text-xs font-semibold text-gray-500">Critiques uniquement</label>
+
+            <!-- 6. Case à Cocher "Critiques" (Hauteur calée sur 34px pour s'aligner sur les champs réduits) -->
+            <div class="flex items-center gap-2 h-[34px] mb-0.5">
+                <input type="checkbox" id="filtre-critique" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
+                <label for="filtre-critique" class="text-xs font-medium text-gray-500 cursor-pointer user-select-none">Critiques</label>
             </div>
+
         </div>
+
+        <!-- Pied du bloc : Bouton Réinitialiser -->
         <div class="mt-3 flex justify-end">
-            <button onclick="reinitialiserFiltres()" class="text-xs font-semibold text-gray-500 hover:text-red-600 border border-gray-200 hover:border-red-200 rounded-lg px-3 py-2 transition">
-                Réinitialiser
+            <button onclick="reinitialiserFiltres()" class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none">
+                Réinitialiser les filtres
             </button>
         </div>
     </div> {% endcomment %}
-<div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-7 gap-3 items-end">
 
-        <!-- 1. Bouton Ajouter compact et aligné -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+    <div class="grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
+
+        <!-- 1. Ajouter -->
         <div class="w-max mb-0.5">
             <button onclick="ouvrirModal('modal-evenement-form')"
                 class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm text-sm transition">
@@ -65,100 +91,59 @@
             </button>
         </div>
 
-        <!-- 2. Champ Recherche Libre avec Bouton Croix (Taille réduite avec py-1.5) -->
-        <div class="md:col-span-2 relative">
-            <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (titre, dossier)</label>
-            <div class="relative flex items-center">
-                <input type="text" id="filtre-recherche" placeholder="Rechercher..."
-                       class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-10">
-                
-                <!-- Bouton Croix (Lien d'affichage corrigé) -->
-                <button type="button" id="btn-vider" class="hidden absolute right-2 text-gray-400 hover:text-red-500 focus:outline-none">
-                    <svg xmlns="http://w3.org" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+        <!-- 2. Recherche libre avec croix -->
+        <div class="md:col-span-2 relative" data-clearable>
+            <input type="text" id="filtre-recherche" placeholder="Rechercher (titre, dossier)" aria-label="Recherche"
+                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-9">
+            <button type="button" data-clear-btn tabindex="-1"
+                class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
 
-        <!-- 3. Menu Déroulant Type (Taille réduite avec py-1.5) -->
+        <!-- 3. Type -->
         <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
-            <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Tous</option>
+            <select id="filtre-type" aria-label="Type"
+                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Type : Tous</option>
                 {% for valeur, libelle in types_evenement %}
                     <option value="{{ valeur }}">{{ libelle }}</option>
                 {% endfor %}
             </select>
         </div>
 
-        <!-- 4. Filtre Date Début (Taille réduite avec py-1.5) -->
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Du</label>
-            <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <!-- 4-5-6. Dates + icône reset groupée (3 colonnes pour respirer) -->
+        <div class="md:col-span-3 flex items-center gap-2">
+            <input type="date" id="filtre-date-debut" aria-label="Du" data-reset-group="dates-agenda"
+                   class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="date" id="filtre-date-fin" aria-label="Au" data-reset-group="dates-agenda"
+                   class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button type="button" data-reset-btn="dates-agenda" title="Réinitialiser les filtres"
+                onclick="reinitialiserGroupe('dates-agenda')"
+                class="hidden shrink-0 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-gray-100 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+            </button>
         </div>
 
-        <!-- 5. Filtre Date Fin (Taille réduite avec py-1.5) -->
-        <div>
-            <label class="block text-xs font-medium text-gray-500 mb-1">Au</label>
-            <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        </div>
-
-        <!-- 6. Case à Cocher "Critiques" (Hauteur calée sur 34px pour s'aligner sur les champs réduits) -->
-        <div class="flex items-center gap-2 h-[34px] mb-0.5">
+        <!-- 7. Case "Critiques" -->
+        <div class="flex items-center gap-2 h-[34px] mb-0.5 whitespace-nowrap">
             <input type="checkbox" id="filtre-critique" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-            <label for="filtre-critique" class="text-xs font-medium text-gray-500 cursor-pointer user-select-none">Critiques</label>
+            <label for="filtre-critique" class="text-xs font-medium text-gray-500 cursor-pointer select-none">Critiques</label>
         </div>
 
-    </div>
-
-    <!-- Pied du bloc : Bouton Réinitialiser -->
-    <div class="mt-3 flex justify-end">
-        <button onclick="reinitialiserFiltres()" class="text-sm text-gray-500 hover:text-gray-700 underline focus:outline-none">
-            Réinitialiser les filtres
-        </button>
     </div>
 </div>
 
-
-
-
-   {% comment %}  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="overflow-x-auto">
-            <div class="max-h-[60vh] overflow-y-auto">
-                <table class="w-full text-sm border-collapse">
-                    <thead class="sticky top-0 z-10 bg-gray-50 text-gray-500 uppercase text-[11px] tracking-wide">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-semibold w-[26%]">Titre</th>
-                            <th class="px-4 py-3 text-left font-semibold w-[14%]">Type</th>
-                            <th class="px-4 py-3 text-left font-semibold w-[24%]">Dossier lié</th>
-                            <th class="px-4 py-3 text-left font-semibold w-[16%]">Date / Heure</th>
-                            <th class="px-4 py-3 text-center font-semibold w-[8%]">Critique</th>
-                            <th class="px-4 py-3 text-right font-semibold w-[12%]">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="corps-tableau" class="divide-y divide-gray-100"></tbody>
-                </table>
-                <div id="etat-vide" class="hidden text-center text-gray-400 py-14">
-                    <div class="text-3xl mb-2">📅</div>Aucun événement trouvé.
-                </div>
-            </div>
-        </div>
-    </div> {% endcomment %}
 
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
     <div class="overflow-x-auto">
         <div class="max-h-[60vh] overflow-y-auto">
             <table class="w-full text-sm border-collapse">
                 <thead class="sticky top-0 z-10 bg-indigo-950 text-indigo-200 uppercase text-[11px] tracking-wide">
-                    {% comment %} <tr>
-                        <th class="px-4 py-3 text-left font-semibold w-[24%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Titre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-left font-semibold w-[14%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-left font-semibold w-[24%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Dossier lié <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-left font-semibold w-[16%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="date">Date / Heure <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-center font-semibold w-[10%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Critique <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-right font-semibold w-[12%]">Actions</th>
-                    </tr> {% endcomment %}
                     <tr>
                         <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Titre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
                         <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
