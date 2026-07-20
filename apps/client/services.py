@@ -9,7 +9,7 @@ from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import models
+from django.db.models import Count
 from django.db.models import Q
 from django.db.models.deletion import RestrictedError
 
@@ -40,8 +40,8 @@ def client_vers_dict(client: Client) -> dict:
         "telephone1": client.telephone1,
         "telephone2": client.telephone2,
         "adresse": client.adresse,
-        "notes": client.notes,
-        "nb_dossiers": client.dossiers.count(),
+        "notes": client.notes, 
+        "nb_dossiers": client.nb_dossiers if hasattr(client, 'nb_dossiers') else client.dossiers.count(),
         "created_at": client.created_at.strftime("%d/%m/%Y %H:%M") if client.created_at else None,
     }
 
@@ -62,7 +62,7 @@ def lister_clients(
     - filtre optionnel par plage de dates de création (date_debut / date_fin, format YYYY-MM-DD)
     - pagination (page, page_size)
     """
-    qs = Client.objects.all()
+    qs = Client.objects.annotate(nb_dossiers=Count("dossiers"))
 
     if recherche:
         q_recherche = Q()

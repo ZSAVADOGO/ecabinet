@@ -123,7 +123,7 @@
 
 
 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+   {% comment %}  <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="overflow-x-auto">
             <div class="max-h-[60vh] overflow-y-auto">
                 <table class="w-full text-sm border-collapse">
@@ -144,7 +144,40 @@
                 </div>
             </div>
         </div>
+    </div> {% endcomment %}
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <div class="max-h-[60vh] overflow-y-auto">
+            <table class="w-full text-sm border-collapse">
+                <thead class="sticky top-0 z-10 bg-indigo-950 text-indigo-200 uppercase text-[11px] tracking-wide">
+                    {% comment %} <tr>
+                        <th class="px-4 py-3 text-left font-semibold w-[24%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Titre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left font-semibold w-[14%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left font-semibold w-[24%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Dossier lié <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left font-semibold w-[16%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="date">Date / Heure <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-center font-semibold w-[10%] cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Critique <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-right font-semibold w-[12%]">Actions</th>
+                    </tr> {% endcomment %}
+                    <tr>
+                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Titre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Dossier lié <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Date / Heure <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Critique <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                        <th class="px-4 py-3 text-right font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="corps-tableau"
+                       class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-100/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
+                </tbody>
+            </table>
+            <div id="etat-vide" class="hidden text-center text-gray-400 py-14">
+                <div class="text-3xl mb-2">📅</div>Aucun événement trouvé.
+            </div>
+        </div>
     </div>
+</div>
 
     <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
         <div class="flex items-center gap-2">
@@ -259,7 +292,7 @@
                 <td class="px-4 py-3 font-medium text-gray-800">${echapper(e.titre)}</td>
                 <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${BADGE_TYPE[e.type] || ''}">${e.type_libelle}</span></td>
                 <td class="px-4 py-3 text-gray-600">${e.dossier_reference ? echapper(e.dossier_reference + ' — ' + e.dossier_intitule) : '—'}</td>
-                <td class="px-4 py-3 text-gray-500">${formaterDateHeure(e.date_heure)}</td>
+                <td class="px-4 py-3 text-gray-500" data-sort="${e.date_heure}">${formaterDateHeure(e.date_heure)}</td>
                 <td class="px-4 py-3 text-center">${e.critique ? '⚠️' : ''}</td>
                 <td class="px-4 py-3 text-right space-x-1">
                     <button onclick="modifierEvenement('${e.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-indigo-100 hover:text-indigo-700" title="Modifier">✏️</button>

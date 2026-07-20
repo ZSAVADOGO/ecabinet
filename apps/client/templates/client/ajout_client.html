@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Nouveau client | eCabinet{% endblock %}
+{% block content %}
+<div x-data="{
+    slide:1,
+    ajouterDossier:false, ajouterFacture:false, ajouterAgenda:false,
+    client:{type:'personne_physique', nom:'', prenom:'', raison_sociale:'', ifu_rccm:'', email:'', telephone1:'', telephone2:'', adresse:'', notes:''},
+    dossier:{intitule:'', type_affaire:'civil', statut:'ouvert', juridiction:'', date_ouverture:'', date_prochaine_echeance:'', description:''},
+    facture:{montant_ht:'', montant_ttc:'', statut:'emise', date_echeance:'', description:''},
+    agenda:{titre:'', type:'audience', date_heure:'', critique:false, description:''},
+    get maxSlide(){ return 1 + (this.ajouterDossier?1:0) + (this.ajouterDossier&&this.ajouterFacture?1:0) + (this.ajouterDossier&&this.ajouterFacture&&this.ajouterAgenda?1:0); },
+    get checkboxActive(){ return this.slide===1?this.ajouterDossier:this.slide===2?this.ajouterFacture:this.slide===3?this.ajouterAgenda:false; },
+    suivant(){ if(this.slide<this.maxSlide) this.slide++; },
+    precedent(){ if(this.slide>1) this.slide--; },
+    async enregistrer(){
+        const payload={client:this.client};
+        if(this.ajouterDossier) payload.dossier=this.dossier;
+        if(this.ajouterDossier && this.ajouterFacture) payload.facture=this.facture;
+        if(this.ajouterDossier && this.ajouterFacture && this.ajouterAgenda) payload.agenda=this.agenda;
+        await envoyerFormulaire('{% url 'client:api_creer_client' %}', payload);
+    }
+}" class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+
+    <!-- BLOC 1 : FORMULAIRE / WIZARD -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="font-semibold text-indigo-950">Nouveau client</h2>
+            <span class="text-xs text-gray-400" x-text="'Étape ' + slide + ' / ' + maxSlide"></span>
+        </div>
+
+        <div class="p-6 flex-grow space-y-4">
+            <!-- SLIDE 1 : CLIENT -->
+            <template x-if="slide===1">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-medium text-gray-500">Type de client</label>
+                        <select x-model="client.type" class="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-sm">
+                            <option value="personne_physique">Personne Physique</option>
+                            <option value="personne_morale">Personne Morale</option>
+                        </select>
+                    </div>
+                    <div x-show="client.type==='personne_physique'" class="grid grid-cols-2 gap-3">
+                        <input x-model="client.nom" placeholder="Nom" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <input x-model="client.prenom" placeholder="Prénom" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    </div>
+                    <div x-show="client.type==='personne_morale'">
+                        <input x-model="client.raison_sociale" placeholder="Raison sociale" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    </div>
+                    <input x-model="client.ifu_rccm" placeholder="IFU / RCCM" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input x-model="client.telephone1" placeholder="Téléphone 1" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <input x-model="client.telephone2" placeholder="Téléphone 2" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    </div>
+                    <input x-model="client.email" type="email" placeholder="Email" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    <textarea x-model="client.adresse" placeholder="Adresse" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
+                    <textarea x-model="client.notes" placeholder="Notes" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
+                    <label class="flex items-center gap-2 text-sm pt-2 border-t border-gray-100">
+                        <input type="checkbox" x-model="ajouterDossier" class="rounded text-indigo-700"> Ajouter un dossier ?
+                    </label>
+                </div>
+            </template>
+
+            <!-- SLIDE 2 : DOSSIER -->
+            <template x-if="slide===2">
+                <div class="space-y-4">
+                    <input x-model="dossier.intitule" placeholder="Intitulé du dossier" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    <div class="grid grid-cols-2 gap-3">
+                        <select x-model="dossier.type_affaire" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                            <option value="civil">Civil</option><option value="penal">Pénal</option>
+                            <option value="commercial">Commercial</option><option value="social">Social</option>
+                            <option value="famille">Famille</option><option value="administratif">Administratif</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                        <select x-model="dossier.statut" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                            <option value="ouvert">Ouvert</option><option value="en_cours">En cours</option>
+                            <option value="plaide">Plaidé</option><option value="clos">Clos</option><option value="archive">Archivé</option>
+                        </select>
+                    </div>
+                    <input x-model="dossier.juridiction" placeholder="Juridiction" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-xs text-gray-500">Date d'ouverture</label><input x-model="dossier.date_ouverture" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
+                        <div><label class="text-xs text-gray-500">Échéance</label><input x-model="dossier.date_prochaine_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
+                    </div>
+                    <textarea x-model="dossier.description" placeholder="Description" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
+                    <label class="flex items-center gap-2 text-sm pt-2 border-t border-gray-100">
+                        <input type="checkbox" x-model="ajouterFacture" class="rounded text-indigo-700"> Ajouter une facture ?
+                    </label>
+                </div>
+            </template>
+
+            <!-- SLIDE 3 : FACTURE -->
+            <template x-if="slide===3">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input x-model="facture.montant_ht" type="number" step="0.01" placeholder="Montant HT" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <input x-model="facture.montant_ttc" type="number" step="0.01" placeholder="Montant TTC" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    </div>
+                    <select x-model="facture.statut" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <option value="emise">Émise</option><option value="payee">Payée</option><option value="en_retard">En retard</option>
+                    </select>
+                    <div><label class="text-xs text-gray-500">Échéance</label><input x-model="facture.date_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
+                    <textarea x-model="facture.description" placeholder="Description" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
+                    <label class="flex items-center gap-2 text-sm pt-2 border-t border-gray-100">
+                        <input type="checkbox" x-model="ajouterAgenda" class="rounded text-indigo-700"> Ajouter un agenda ?
+                    </label>
+                </div>
+            </template>
+
+            <!-- SLIDE 4 : AGENDA -->
+            <template x-if="slide===4">
+                <div class="space-y-4">
+                    <input x-model="agenda.titre" placeholder="Titre de l'événement" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    <select x-model="agenda.type" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <option value="audience">Audience</option><option value="reunion">Réunion</option><option value="echeance">Échéance</option>
+                    </select>
+                    <input x-model="agenda.date_heure" type="datetime-local" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    <textarea x-model="agenda.description" placeholder="Description" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" x-model="agenda.critique" class="rounded text-red-600"> Événement critique
+                    </label>
+                </div>
+            </template>
+        </div>
+
+        <div class="px-6 py-4 border-t border-gray-100 flex justify-between">
+            <button @click="precedent()" :disabled="slide===1" class="px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600 disabled:opacity-40">Précédent</button>
+            <div class="space-x-2">
+                <button @click="suivant()" :disabled="!checkboxActive || slide>=maxSlide" class="px-4 py-2 rounded-md text-sm font-medium bg-indigo-100 text-indigo-800 disabled:opacity-40">Suivant</button>
+                <button @click="enregistrer()" :disabled="checkboxActive" class="px-4 py-2 rounded-md text-sm font-medium bg-indigo-950 text-white disabled:opacity-40">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOC 2 : RECAPITULATIF -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 space-y-5">
+        <h2 class="font-semibold text-indigo-950 border-b border-gray-100 pb-3">Récapitulatif</h2>
+        <div>
+            <p class="text-xs uppercase text-gray-400 mb-1">Client</p>
+            <p class="text-sm text-gray-700" x-text="client.type==='personne_physique' ? ((client.prenom||'—')+' '+(client.nom||'—')) : (client.raison_sociale||'—')"></p>
+            <p class="text-xs text-gray-400" x-text="client.telephone1 || client.email"></p>
+        </div>
+        <div x-show="ajouterDossier" class="pt-3 border-t border-gray-100">
+            <p class="text-xs uppercase text-gray-400 mb-1">Dossier</p>
+            <p class="text-sm text-gray-700" x-text="dossier.intitule || '—'"></p>
+            <p class="text-xs text-gray-400" x-text="dossier.type_affaire + ' · ' + dossier.statut"></p>
+        </div>
+        <div x-show="ajouterDossier && ajouterFacture" class="pt-3 border-t border-gray-100">
+            <p class="text-xs uppercase text-gray-400 mb-1">Facture</p>
+            <p class="text-sm text-gray-700" x-text="(facture.montant_ttc || '0') + ' F CFA TTC'"></p>
+        </div>
+        <div x-show="ajouterDossier && ajouterFacture && ajouterAgenda" class="pt-3 border-t border-gray-100">
+            <p class="text-xs uppercase text-gray-400 mb-1">Agenda</p>
+            <p class="text-sm text-gray-700" x-text="agenda.titre || '—'"></p>
+            <p class="text-xs text-gray-400" x-text="agenda.date_heure"></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -15,6 +15,8 @@ class EvenementAgenda(AuditableModel):
     type = models.CharField(max_length=20, choices=TypeEvenement.choices, default=TypeEvenement.AUTRE, db_index=True)
     date_heure = models.DateTimeField(db_index=True)
     critique = models.BooleanField(default=False)  # Forclusion -> Alerte renforcée
+    description = models.CharField(max_length=255, db_index=True, null=True, blank=True)
+
 
     # Jointure avec Dossier (onDelete: CASCADE, nullable: true)
     dossier = models.ForeignKey(Dossier, on_delete=models.CASCADE, null=True, blank=True, related_name='evenements')

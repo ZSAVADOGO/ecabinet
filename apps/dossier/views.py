@@ -7,18 +7,24 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
-from django.views.decorators.http import require_GET, require_http_methods
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.db import transaction  # Résout "transaction" is not defined
 
 from dossier.models import Dossier
+
+from agenda.models import EvenementAgenda
+from facturation.models import Facture
 #from dossier.services import nom_affichage
 #from dossier.services import nom_affichage
 from dossier.services import (dossier_vers_dict, lister_dossiers, obtenir_dossier, creer_dossier, modifier_dossier, supprimer_dossier, options_clients, options_avocats)
 
 
 
-
+def dossier_creation_wizard(request):
+    # Cette vue se contente d'afficher le fichier HTML du formulaire multi-pages
+    return render(request, "dossier/ajout_dossier.html")
 
 ##@login_required
 def dossier_dashboard(request):
@@ -76,6 +82,32 @@ def api_creer_dossier(request):
         {"message": "Dossier créé avec succès.", "dossier": dossier_vers_dict(dossier)},
         status=201,
     )
+# views.py — dossier (même logique, point d'entrée différent)
+""" @require_POST
+@transaction.atomic
+def api_creer_dossier(request):
+    try:
+        data = json.loads(request.body)
+        d = data['dossier']
+        dossier = Dossier.objects.create(
+            client_id=d['client_id'], avocat_referent=request.user,
+            intitule=d['intitule'], type_affaire=d['type_affaire'], statut=d['statut'],
+            juridiction=d.get('juridiction'), date_ouverture=d.get('date_ouverture') or None,
+            date_prochaine_echeance=d.get('date_prochaine_echeance') or None, description=d.get('description'),
+        )
+        if 'facture' in data:
+            f = data['facture']
+            Facture.objects.create(dossier=dossier, montant_ht=f.get('montant_ht') or 0,
+                montant_ttc=f.get('montant_ttc') or 0, statut=f['statut'],
+                date_echeance=f.get('date_echeance') or None, description=f.get('description'))
+        if 'agenda' in data:
+            a = data['agenda']
+            EvenementAgenda.objects.create(dossier=dossier, titre=a['titre'], type=a['type'],
+                date_heure=a.get('date_heure') or None, critique=a.get('critique', False),
+                description=a.get('description'))
+        return JsonResponse({'message': 'Dossier créé avec succès.', 'redirect': '/dossiers/'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400) """
 
 
 ##@login_required

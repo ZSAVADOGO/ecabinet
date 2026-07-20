@@ -12,6 +12,7 @@ from datetime import datetime
 from django.db.models import Count, Sum
 from django.db.models.functions import TruncMonth
 
+from client.models import Client
 from client.services import nom_affichage
 from facturation.models import Facture
 
@@ -58,11 +59,15 @@ def obtenir_tableau_bord(date_debut="", date_fin="", client_id=""):
         .order_by("-total_ht")[:10]
     )
     top_clients = []
+    # Optimisation N+1 : On récupère tous les clients nécessaires en une seule requête
+    client_ids = [ligne["client_id"] for ligne in top_clients_qs]
+    clients_par_id = {str(c.id): c for c in Client.objects.filter(id__in=client_ids)}
+
     for ligne in top_clients_qs:
-        client = Facture.objects.filter(client_id=ligne["client_id"]).select_related("client").first().client
+        client = clients_par_id.get(str(ligne["client_id"]))
         top_clients.append({
             "client_id": str(ligne["client_id"]),
-            "client_nom": nom_affichage(client),
+            "client_nom": nom_affichage(client) if client else "Client Inconnu",
             "total_ht": float(ligne["total_ht"] or 0),
             "nb_factures": ligne["nb"],
         })

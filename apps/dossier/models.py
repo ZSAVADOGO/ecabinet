@@ -3,6 +3,9 @@ from django.db import models
 from django.conf import settings
 from client.models import Client, AuditableModel
 
+from django.utils import timezone  # Résout "timezone" is not defined
+
+
 class Dossier(AuditableModel):
     class StatutDossier(models.TextChoices):
         OUVERT = 'ouvert', 'Ouvert'
@@ -39,3 +42,12 @@ class Dossier(AuditableModel):
 
     class Meta:
         db_table = 'dossiers'
+    
+    # models.py (Dossier) — génération auto de la référence
+    def save(self, *args, **kwargs):
+        if not self.reference:
+            annee = timezone.now().year
+            dernier = Dossier.objects.filter(reference__startswith=f'DOS-{annee}-').order_by('-reference').first()
+            n = int(dernier.reference.split('-')[-1]) + 1 if dernier else 1
+            self.reference = f'DOS-{annee}-{n:04d}'
+        super().save(*args, **kwargs)

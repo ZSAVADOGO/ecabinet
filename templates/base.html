@@ -38,10 +38,33 @@
                     {% else %}
                     text-indigo-200 hover:text-white hover:bg-indigo-900
                     {% endif %}">🏠 Accueil</a>
-                    <a href="{% url 'client:liste' %}" class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 {% if request.resolver_match.app_name == 'client' %}bg-indigo-800 text-white shadow-sm{% else %}text-indigo-200 hover:text-white hover:bg-indigo-900{% endif %}">👥 Clients</a>
-                    <a href="{% url 'dossier:liste' %}" class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 {% if request.resolver_match.app_name == 'dossier' %}bg-indigo-800 text-white shadow-sm{% else %}text-indigo-200 hover:text-white hover:bg-indigo-900{% endif %}">📁 Dossiers</a>
-                    <a href="{% url 'agenda:liste' %}" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-200 hover:text-white hover:bg-indigo-900 transition-all duration-150">📅 Agenda</a>
-                    <a href="{% url 'facturation:liste' %}" class="px-3 py-2 rounded-md text-sm font-medium text-indigo-200 hover:text-white hover:bg-indigo-900 transition-all duration-150">💳 Facturation</a>
+                    <a href="{% url 'client:liste' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'client' %}
+                    bg-indigo-800 text-white shadow-sm
+                    {% else %}text-indigo-200 hover:text-white hover:bg-indigo-900
+                    {% endif %}">👥 Clients</a>
+
+                    <a href="{% url 'dossier:liste' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'dossier' %}
+                    bg-indigo-800 text-white shadow-sm
+                    {% else %}text-indigo-200 hover:text-white hover:bg-indigo-900
+                    {% endif %}">📁 Dossiers</a>
+
+                    <a href="{% url 'agenda:liste' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'agenda' %}
+                    bg-indigo-800 text-white shadow-sm
+                    {% else %}text-indigo-200 hover:text-white hover:bg-indigo-900
+                    {% endif %}">📅 Agenda</a>
+
+                    <a href="{% url 'facturation:liste' %}" 
+                    class="px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 
+                    {% if request.resolver_match.app_name == 'facturation' %}
+                    bg-indigo-800 text-white shadow-sm
+                    {% else %}text-indigo-200 hover:text-white hover:bg-indigo-900
+                    {% endif %}">💳 Facturation</a>
 
                     <!-- BOUTON PARAMETRAGE (séparé par une bordure verticale plutôt qu'un "|") -->
                     <div class="relative border-l border-indigo-800 pl-2 ml-1">
@@ -126,7 +149,8 @@
             </div>
         </div>
     </footer>
-
     <script src="{% static 'js/modals.js' %}"></script>
+    <script src="{% static 'js/alerts.js' %}"></script>
+    <script src="{% static 'js/filtres.js' %}"></script>
 </body>
 </html>

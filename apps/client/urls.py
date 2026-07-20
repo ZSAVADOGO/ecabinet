@@ -10,7 +10,7 @@ urlpatterns = [
     #path('', lambda request: HttpResponse('Page Liste des Clients...'), name='liste'),
     path("", views.client_dashboard, name="liste"),
     
-            # Endpoints de l'API AJAX (accessibles via /clients/api/liste/, etc.)
+    path("creer/client/", views.client_creation_wizard, name="client_creation_wizard"),
     path("api/liste/", views.api_lister_clients, name="api_lister_clients"),
     path("api/creer/", views.api_creer_client, name="api_creer_client"),
     path("api/<uuid:client_id>/", views.api_detail_client, name="api_detail_client"),

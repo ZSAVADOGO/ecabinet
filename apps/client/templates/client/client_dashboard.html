@@ -16,10 +16,15 @@
         <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
 
            
-            <button onclick="ouvrirModal('modal-client-form')"
+            {% comment %} <button onclick="ouvrirModal('modal-client-form')"
                 class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm transition text-sm"> 
                     + Ajouter
-            </button>
+            </button> {% endcomment %}
+            <a href="{% url 'client:client_creation_wizard' %}"
+   class="inline-block bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm transition text-sm text-center">
+    + Ajouter
+</a>
+
 
             <div class="md:col-span-2 relative">
                 <label class="block text-xs font-medium text-gray-500 mb-1">Recherche (nom, raison sociale, téléphone ...)</label>
@@ -69,7 +74,7 @@
 
 
     <!-- Tableau -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    {% comment %} <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
                 <tr>
@@ -85,7 +90,35 @@
             <tbody id="corps-tableau-clients" class="divide-y divide-gray-100"></tbody>
         </table>
         <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun client trouvé.</div>
+    </div> {% endcomment %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
+                    onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
+                    onclick="sortTable(this)" data-type="text">Nom / Raison sociale <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
+                    onclick="sortTable(this)" data-type="text">Téléphone <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
+                    onclick="sortTable(this)" data-type="text">Email <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    <th class="px-4 py-3 text-center cursor-pointer select-none hover:text-white" 
+                    onclick="sortTable(this)" data-type="number">Dossiers <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
+                    onclick="sortTable(this)" 
+                    data-type="date">Créé le <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    <th class="px-4 py-3 text-right font-semibold">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="corps-tableau-clients"
+                   class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-100/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
+            </tbody>
+        </table>
     </div>
+    <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun client trouvé.</div>
+</div>
 
     <!-- Pagination -->
     <div class="flex items-center justify-between mt-4 text-sm text-gray-600">
@@ -211,14 +244,12 @@
     </div>
 </div>
 
-{% comment %} <script src="{% static 'js/modals.js' %}"></script>
-<script src="{% static 'js/alerts.js' %}"></script> {% endcomment %}
 <script>
     // ------------------------------------------------------------------
     // Configuration & état local du dashboard 
     // ------------------------------------------------------------------
     const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const URLS = {
+    const URLS = { 
         liste: "{% url 'client:api_lister_clients' %}",
         creer: "{% url 'client:api_creer_client' %}", 
         modifier: (id) => `/clients/api/${id}/modifier/`,
@@ -273,7 +304,7 @@
                 <td class="px-4 py-3">${echapper(client.telephone1 || '—')}</td>
                 <td class="px-4 py-3">${echapper(client.email || '—')}</td>
                 <td class="px-4 py-3 text-center">${client.nb_dossiers}</td>
-                <td class="px-4 py-3 text-gray-500">${client.created_at || '—'}</td>
+                <td class="px-4 py-3 text-gray-500" data-sort="${client.created_at}">${client.created_at || '—'}</td>
                 <td class="px-4 py-3 text-right space-x-2">
                     <button onclick="voirClient('${client.id}')" class="text-gray-500 hover:text-indigo-600" title="Voir">👁️</button>
                     <button onclick="modifierClient('${client.id}')" class="text-gray-500 hover:text-indigo-600" title="Modifier">✏️</button>
