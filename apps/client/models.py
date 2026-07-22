@@ -36,6 +36,9 @@ class Client(AuditableModel):
 
     class Meta:
         db_table = 'clients'
+        indexes = [
+            models.Index(fields=['nom', 'prenom']),
+        ]
         constraints = [
             models.CheckConstraint(
                 check=(

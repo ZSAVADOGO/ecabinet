@@ -67,30 +67,69 @@
         <table class="w-full text-sm">
             <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
                 <tr>
-                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
-                    onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
-                    onclick="sortTable(this)" data-type="text">Nom / Raison sociale <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
-                    onclick="sortTable(this)" data-type="text">Téléphone <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
-                    onclick="sortTable(this)" data-type="text">Email <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                    <th class="px-4 py-3 text-center cursor-pointer select-none hover:text-white" 
-                    onclick="sortTable(this)" data-type="number">Dossiers <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                    <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
-                    onclick="sortTable(this)" 
-                    data-type="date">Créé le <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                    
+                <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white"
+    onclick="sortTable(this)" data-type="text" data-champ="type">
+   Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span>
+</th>
+
+<th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white"
+    onclick="sortTable(this)" data-type="text" data-champ="nom">
+   Nom / Raison sociale <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span>
+</th>
+
+<th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white"
+    data-type="text" data-champ="telephone1">
+   Téléphone 
+</th>
+
+<th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white"
+    onclick="sortTable(this)" data-type="text" data-champ="email">
+   Email <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span>
+</th>
+
+<th class="px-4 py-3 text-center cursor-pointer select-none hover:text-white"
+    onclick="sortTable(this)" data-type="number" data-champ="nb_dossiers">
+   Dossiers <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span>
+</th>
+
+<th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white"
+    onclick="sortTable(this)" data-type="date" data-champ="created_at">
+   Créé le <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span>
+</th>
+                    
                     <th class="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
             </thead>
-            <tbody id="corps-tableau-clients"
-                   class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-100/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
-            </tbody>
+           
+            <tbody id="corps-tableau-clients" 
+        class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-100/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
+    {% for c in resultats_initiaux %}
+    <tr class="hover:bg-gray-50" data-id="{{ c.id }}">
+        <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-medium 
+            {% if c.type == 'personne_morale' %}
+            bg-blue-100 text-blue-700{% else %}
+            bg-green-100 text-green-700{% endif %}">
+            {{ c.type_libelle }}</span></td>
+        <td class="px-4 py-3 font-medium text-gray-800">{{ c.nom_affichage }}</td>
+        <td class="px-4 py-3">{{ c.telephone1|default:"—" }}</td>
+        <td class="px-4 py-3">{{ c.email|default:"—" }}</td>
+        <td class="px-4 py-3 text-center">{{ c.nb_dossiers }}</td>
+        <td class="px-4 py-3 text-gray-500" data-sort="{{ c.created_at }}">{{ c.created_at|default:"—" }}</td>
+        <td class="px-4 py-3 text-right space-x-2">
+            <button onclick="voirClient('{{ c.id }}')">👁️</button>
+            <button onclick="modifierClient('{{ c.id }}')">✏️</button>
+            <button onclick="supprimerClient('{{ c.id }}')">🗑️</button>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+
         </table>
     </div>
     <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun client trouvé.</div>
 </div>
-
+{{ pagination_initiale|json_script:"pagination-initiale-data" }}
     <!-- Pagination -->
     <div class="flex items-center justify-between mt-4 text-sm text-gray-600">
         <div class="flex items-center gap-2">
@@ -227,20 +266,23 @@
         supprimer: (id) => `/clients/api/${id}/supprimer/`,
     };
 
-    let etat = { page: 1, page_size: 10, cacheResultats: {} };
-    let minuteurRecherche = null;
+let etat = { page: 1, page_size: 10, tri: '-created_at', cacheResultats: {} };
+let minuteurRecherche = null;
 
-    function construireQueryString() {
-        const params = new URLSearchParams({
-            q: document.getElementById('filtre-recherche').value.trim(),
-            type: document.getElementById('filtre-type').value,
-            date_debut: document.getElementById('filtre-date-debut').value,
-            date_fin: document.getElementById('filtre-date-fin').value,
-            page: etat.page,
-            page_size: etat.page_size,
-        });
-        return params.toString();
-    }
+function construireQueryString() {
+    const params = new URLSearchParams({
+        q: document.getElementById('filtre-recherche').value.trim(),
+        type: document.getElementById('filtre-type').value,
+        date_debut: document.getElementById('filtre-date-debut').value,
+        date_fin: document.getElementById('filtre-date-fin').value,
+        page: etat.page,
+        page_size: etat.page_size,
+        tri: etat.tri,
+    });
+    return params.toString();
+}
+
+window.trierListe = (champ, prefixe) => { etat.tri = prefixe + champ; etat.page = 1; chargerListe(); };
 
     async function chargerListe() {
         const reponse = await fetch(`${URLS.liste}?${construireQueryString()}`);
@@ -417,8 +459,12 @@
         }
     }
 
-    // Chargement initial
-    document.addEventListener('DOMContentLoaded', chargerListe);
+
+document.addEventListener('DOMContentLoaded', () => {
+    const donnees = JSON.parse(document.getElementById('pagination-initiale-data').textContent);
+    afficherPagination(donnees);
+});
+
 </script>
 
 {% endblock %}

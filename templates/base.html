@@ -72,7 +72,7 @@
                             ⚙️ Paramétrage
                         </button>
                         <div x-show="paramMenu" x-cloak x-transition class="absolute right-0 mt-1 w-48 bg-white text-gray-800 rounded-md shadow-lg border border-gray-100 py-1 z-50">
-                            <a href="#" class="block px-4 py-2 text-sm hover:bg-indigo-50">👤 Utilisateur</a>
+                            <a href="{% url 'authentication:liste' %}" class="block px-4 py-2 text-sm hover:bg-indigo-50">👤 Utilisateur</a>
                             <a href="#" class="block px-4 py-2 text-sm hover:bg-indigo-50">🛠️ Configuration</a>
                         </div>
                     </div>

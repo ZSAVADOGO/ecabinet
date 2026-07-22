@@ -86,23 +86,23 @@
             </button>
         </div>
 
-        <!-- 3. Statut -->
-        <div>
-            <select id="filtre-statut" aria-label="Statut"
-                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Statut : Tous</option>
-                {% for valeur, libelle in statuts_dossier %}
-                    <option value="{{ valeur }}">{{ libelle }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <!-- 4. Type d'affaire -->
+        <!-- 3. Type d'affaire -->
         <div>
             <select id="filtre-type-affaire" aria-label="Type d'affaire"
                 class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                 <option value="">Affaire : Toutes</option>
                 {% for valeur, libelle in types_affaire %}
+                    <option value="{{ valeur }}">{{ libelle }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+         <!-- 4. Statut -->
+        <div>
+            <select id="filtre-statut" aria-label="Statut"
+                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                <option value="">Statut : Tous</option>
+                {% for valeur, libelle in statuts_dossier %}
                     <option value="{{ valeur }}">{{ libelle }}</option>
                 {% endfor %}
             </select>
@@ -126,52 +126,8 @@
     </div>
 </div>
 
-    <!-- Tableau -->
-    {% comment %} <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table class="w-full text-sm">
-            <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
-                <tr>
-                    <th class="px-4 py-3 text-left">Référence</th>
-                    <th class="px-4 py-3 text-left">Intitulé</th>
-                    <th class="px-4 py-3 text-left">Client</th>
-                    <th class="px-4 py-3 text-left">Type</th>
-                    <th class="px-4 py-3 text-left">Statut</th>
-                    <th class="px-4 py-3 text-left">Ouverture</th>
-                    <th class="px-4 py-3 text-left">Échéance</th>
-                    <th class="px-4 py-3 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="corps-tableau-dossiers" class="divide-y divide-gray-100"></tbody>
-        </table>
-        <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun dossier trouvé.</div>
-    </div> {% endcomment %}
-
-    {% comment %} 
-    2em 
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
-                <tr>
-                    <th class="px-4 py-3 text-left font-semibold">Référence</th>
-                    <th class="px-4 py-3 text-left font-semibold">Intitulé</th>
-                    <th class="px-4 py-3 text-left font-semibold">Client</th>
-                    <th class="px-4 py-3 text-left font-semibold">Type</th>
-                    <th class="px-4 py-3 text-left font-semibold">Statut</th>
-                    <th class="px-4 py-3 text-left font-semibold">Ouverture</th>
-                    <th class="px-4 py-3 text-left font-semibold">Échéance</th>
-                    <th class="px-4 py-3 text-right font-semibold">Actions</th>
-                </tr>
-            </thead>
-            <tbody id="corps-tableau-dossiers"
-                   class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-100/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
-            </tbody>
-        </table>
-    </div>
-    <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun dossier trouvé.</div>
-</div> {% endcomment %}
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="overflow-x-auto">
+    {% comment %} <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
                 <tr>
@@ -190,7 +146,29 @@
             </tbody>
         </table>
         <div id="etat-vide" class="hidden text-center text-gray-400 py-10">Aucun dossier trouvé.</div>
-    </div>
+    </div> {% endcomment %}
+    <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+    <table class="w-full text-sm">
+        <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs tracking-wider">
+            <tr>
+                <!-- 1 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Référence <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 2 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Affaire / Client <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 6 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Statut <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 3 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 4 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Juridiction <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 5 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Avocat <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 7 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="date">Échéance <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- Actions Toujours à droite -->
+                            <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white">Actions</th>
+            </tr>
+        </thead>
+        <tbody id="corps-tableau-dossiers"
+               class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-50/50 [&>tr]:hover:bg-indigo-50/60 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
+        </tbody>
+    </table>
+    <div id="etat-vide" class="hidden text-center text-gray-400 py-10 font-medium">Aucun dossier trouvé.</div>
+</div>
+
 </div>
 
     <!-- Pagination -->
@@ -363,15 +341,39 @@
         afficherPagination(donnees.pagination);
     }
 
-    const BADGE_STATUT = {
-        ouvert: 'bg-blue-100 text-blue-700',
-        en_cours: 'bg-amber-100 text-amber-700',
-        plaide: 'bg-purple-100 text-purple-700',
-        clos: 'bg-gray-200 text-gray-700',
-        archive: 'bg-gray-100 text-gray-500',
-    };
+const BADGE_STATUT = {
+  // OUVERT : Un bleu cyan/royal électrique, très visible mais corporate
+  ouvert: 'bg-blue-600 text-white font-semibold shadow-sm',
+  
+  // EN COURS : Un orange/ambre vif (couleur d'alerte/action par excellence)
+  en_cours: 'bg-amber-500 text-white font-semibold shadow-sm',
+  
+  // PLAIDÉ : Un rouge/bordeaux profond et puissant (intensité maximale pour l'audience)
+  plaide: 'bg-red-600 text-white font-semibold shadow-sm',
+  
+  // CLOS : Un vert émeraude franc (symbole de validation et de succès immédiat)
+  clos: 'bg-emerald-600 text-white font-semibold shadow-sm',
+  
+  // ARCHIVÉ : Reste volontairement en retrait (gris neutre) pour ne pas polluer l'attention
+  archive: 'bg-gray-400 text-white font-medium',
+};
 
-    function afficherTableau(resultats) {
+{% comment %} const BADGE_STATUT = {
+  // NOUVEAU / À TRAITER : Bleu institutionnel, inspire la confiance et le départ du dossier
+  ouvert: 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-medium',
+  // ACTION CRUCIALE / EN COURS : Ambre/Orange pour l'activité, le suivi des délais
+  en_cours: 'bg-amber-50 text-amber-800 border border-amber-200 font-medium',
+  // LE CŒUR DU MÉTIER / AUDIENCE : Rouge/Bordeaux. Plaider est l'action au degré maximal d'intensité
+  plaide: 'bg-rose-50 text-rose-700 border border-rose-200 font-medium',
+  // SUCCÈS / ACHÈVEMENT : Vert. Le dossier est finalisé avec succès, l'action est terminée
+  clos: 'bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium',
+  // HISTORIQUE : Gris ardoise neutre. Dossier archivé, aucune action requise
+  archive: 'bg-slate-100 text-slate-600 font-medium',
+}; {% endcomment %}
+
+
+
+    {% comment %} function afficherTableau(resultats) {
         const corps = document.getElementById('corps-tableau-dossiers');
         const etatVide = document.getElementById('etat-vide');
         corps.innerHTML = '';
@@ -408,7 +410,74 @@
             `;
             corps.appendChild(ligne);
         });
+    } {% endcomment %}
+    
+function afficherTableau(resultats) {
+    const corps = document.getElementById('corps-tableau-dossiers');
+    const etatVide = document.getElementById('etat-vide');
+    corps.innerHTML = '';
+
+    if (resultats.length === 0) {
+        etatVide.classList.remove('hidden');
+        return;
     }
+    etatVide.classList.add('hidden');
+
+    resultats.forEach(d => {
+        // Détection d'urgence UX : Alerte si la date butoir est dépassée sur un dossier actif
+        const echeanceDepassee = d.date_prochaine_echeance && new Date(d.date_prochaine_echeance) < new Date() && !['clos', 'archive'].includes(d.statut);
+        
+        const ligne = document.createElement('tr');
+        // Évite les conflits avec le sélecteur Tailwind injecté en CSS [>tr]
+        ligne.className = 'transition-colors'; 
+        
+        ligne.innerHTML = `
+            <!-- 1. Référence -->
+            <td class="font-mono text-xs font-semibold text-gray-700">${echapper(d.reference)}</td>
+            
+            <!-- 2. Affaire / Client (Fusion UX pour maximiser l'espace) -->
+            <td>
+                <div class="font-medium text-gray-900 truncate max-w-xs" title="${echapper(d.client_nom)} / ${echapper(d.intitule)}">${echapper(d.client_nom)} / ${echapper(d.intitule)}</div>
+            </td>
+
+             <!-- 3. Statut (Badges Premium Subtils) -->
+            <td>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold tracking-wide ${BADGE_STATUT[d.statut] || 'bg-gray-100 text-gray-600'}">
+                    ${echapper(d.statut_libelle)}
+                </span>
+            </td>
+            
+            <!-- 4. Type d'affaire -->
+            <td class="text-gray-600 text-xs font-medium capitalize">${echapper(d.type_affaire_libelle)}</td>
+            
+            <!-- 5. Juridiction -->
+            <td class="text-gray-600 truncate max-w-[160px]" title="${echapper(d.juridiction || 'N/A')}">
+                ${echapper(d.juridiction) || '<span class="text-gray-400 italic text-xs">Non saisie</span>'}
+            </td>
+            
+            <!-- 6. Avocat Référent -->
+            <td class="text-gray-700 font-medium">${echapper(d.avocat_referent_nom || 'Non assigné')}</td>
+            
+           
+            
+            <!-- 7. Échéance Critique -->
+            <td class="${echeanceDepassee ? 'bg-rose-50 text-rose-700 font-bold border-l-2 border-rose-500' : 'text-gray-600 font-medium'}" data-sort="${d.date_prochaine_echeance || ''}">
+                <div class="flex items-center space-x-1">
+                    ${echeanceDepassee ? '<span class="text-rose-500">⚠️</span>' : ''}
+                    <span>${formaterDate(d.date_prochaine_echeance) || '<span class="text-gray-400 font-normal italic text-xs">Aucune</span>'}</span>
+                </div>
+            </td>
+            
+            <!-- Actions -->
+            <td class="text-right space-x-1.5">
+                <button onclick="voirDossier('${d.id}')" class="p-1 text-gray-400 hover:text-indigo-600 transition-colors inline-flex items-center" title="Consulter le dossier">👁️</button>
+                <button onclick="modifierDossier('${d.id}')" class="p-1 text-gray-400 hover:text-amber-600 transition-colors inline-flex items-center" title="Modifier">✏️</button>
+                <button onclick="supprimerDossier('${d.id}')" class="p-1 text-gray-400 hover:text-rose-600 transition-colors inline-flex items-center" title="Supprimer">🗑️</button>
+            </td>
+        `;
+        corps.appendChild(ligne);
+    });
+}
 
     function afficherPagination(pagination) {
         document.getElementById('info-pagination').textContent = `— ${pagination.nb_resultats} résultat(s)`;

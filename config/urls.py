@@ -46,4 +46,8 @@ urlpatterns = [
     
     # 7. Portail Extranet
     path('portail/', include('portal.urls')),
+
+    # 2. Application Utilisateur
+    #path('utilisateur/', include('authentication.urls')),
+    path('utilisateur/', include('apps.authentication.urls')),
 ]

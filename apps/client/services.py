@@ -9,21 +9,32 @@ from datetime import datetime
 
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Count
-from django.db.models import Q
+
+from django.db.models import Count, Q, Value, CharField
+from django.db.models.functions import Coalesce, Lower, Concat
+
 from django.db.models.deletion import RestrictedError
 
 from client.models import Client
 
+
 # Champs sur lesquels porte la recherche libre (3-4 champs, cf. cahier des charges)
 CHAMPS_RECHERCHE = ["nom", "prenom", "raison_sociale", "telephone1", "email"]
+CHAMPS_TRI_MAPPING = {
+    "type": "type",
+    "nom": "nom_tri",          # champ calculé, pas le "nom" brut
+    "telephone1": "telephone1",
+    "email": "email",
+    "nb_dossiers": "nb_dossiers",
+    "created_at": "created_at",
+}
 
 
 def nom_affichage(client: Client) -> str:
     """Calcule un nom d'affichage unique, quel que soit le type de client."""
     if client.type == Client.ClientType.PERSONNE_MORALE:
         return client.raison_sociale or "(Raison sociale non renseignée)"
-    return f"{client.prenom or ''} {client.nom or ''}".strip() or "(Nom non renseigné)"
+    return f"{client.nom or ''} {client.prenom or ''}".strip() or "(Nom non renseigné)"
 
 
 def client_vers_dict(client: Client) -> dict:
@@ -45,8 +56,12 @@ def client_vers_dict(client: Client) -> dict:
         "created_at": client.created_at.strftime("%d/%m/%Y %H:%M") if client.created_at else None,
     }
 
-
-def lister_clients(
+ # Retourne un dict prêt à être sérialisé en JSON pour le tableau du dashboard :
+    #- recherche libre sur nom / prenom / raison_sociale / telephone1 / email
+   # - filtre optionnel par type de client
+    #- filtre optionnel par plage de dates de création (date_debut / date_fin, format YYYY-MM-DD)
+  #  - pagination (page, page_size)
+"""def lister_clients(
     recherche: str = "",
     type_client: str = "",
     date_debut: str = "",
@@ -55,13 +70,6 @@ def lister_clients(
     page_size: int = 10,
     tri: str = "-created_at",
 ):
-    """
-    Retourne un dict prêt à être sérialisé en JSON pour le tableau du dashboard :
-    - recherche libre sur nom / prenom / raison_sociale / telephone1 / email
-    - filtre optionnel par type de client
-    - filtre optionnel par plage de dates de création (date_debut / date_fin, format YYYY-MM-DD)
-    - pagination (page, page_size)
-    """
     qs = Client.objects.annotate(nb_dossiers=Count("dossiers"))
 
     if recherche:
@@ -93,7 +101,119 @@ def lister_clients(
             "a_precedent": page_obj.has_previous(),
             "a_suivant": page_obj.has_next(),
         },
+    } """
+
+def lister_clients(
+    recherche: str = "",
+    type_client: str = "",
+    date_debut: str = "",
+    date_fin: str = "",
+    page: int = 1,
+    page_size: int = 10,
+    tri: str = "-created_at",
+):
+    base_qs = Client.objects.all()
+
+    if recherche:
+        q_recherche = Q()
+        for champ in CHAMPS_RECHERCHE:
+            q_recherche |= Q(**{f"{champ}__icontains": recherche})
+        base_qs = base_qs.filter(q_recherche)
+
+    if type_client:
+        base_qs = base_qs.filter(type=type_client)
+    if date_debut:
+        base_qs = base_qs.filter(created_at__date__gte=_parse_date(date_debut))
+    if date_fin:
+        base_qs = base_qs.filter(created_at__date__lte=_parse_date(date_fin))
+
+    total = base_qs.count()  # COUNT(*) simple, toujours sans annotation
+
+    # Traduction du champ demandé par le frontend vers le vrai champ SQL à trier
+    champ_demande = tri.lstrip('-')
+    prefixe = '-' if tri.startswith('-') else ''
+    champ_reel = CHAMPS_TRI_MAPPING.get(champ_demande, 'created_at')
+    tri_final = f"{prefixe}{champ_reel}"
+
+    page = max(page, 1)
+    offset = (page - 1) * page_size
+    resultats_page = list(
+        base_qs.annotate(
+            nb_dossiers=Count("dossiers"),
+            #nom_tri=Coalesce(Lower('raison_sociale'), Lower('nom'), Value(''), output_field=CharField()),
+            nom_tri=Coalesce(
+                Lower('raison_sociale'),
+                #Lower(Concat(Coalesce('prenom', Value('')), Value(' '), Coalesce('nom', Value('')))),
+                Lower(Concat(Coalesce('nom', Value('')), Value(' '), Coalesce('prenom', Value('')))),
+                Value(''),
+                output_field=CharField(),
+            )
+        ).order_by(tri_final)[offset:offset + page_size]
+    )
+
+    nb_pages = max((total + page_size - 1) // page_size, 1)
+
+    return {
+        "resultats": [client_vers_dict(c) for c in resultats_page],
+        "pagination": {
+            "page_courante": page,
+            "nb_pages": nb_pages,
+            "nb_resultats": total,
+            "page_size": page_size,
+            "a_precedent": page > 1,
+            "a_suivant": page < nb_pages,
+        },
     }
+
+""" Bon mais ne trie pas bien le nom et raison sociale
+def lister_clients(
+    recherche: str = "",
+    type_client: str = "",
+    date_debut: str = "",
+    date_fin: str = "",
+    page: int = 1,
+    page_size: int = 10,
+    tri: str = "-created_at",
+):
+    # 1. Base filtrée SANS annotation -> le comptage reste un simple COUNT(*)
+    base_qs = Client.objects.all()
+
+    if recherche:
+        q_recherche = Q()
+        for champ in CHAMPS_RECHERCHE:
+            q_recherche |= Q(**{f"{champ}__icontains": recherche})
+        base_qs = base_qs.filter(q_recherche)
+
+    if type_client:
+        base_qs = base_qs.filter(type=type_client)
+    if date_debut:
+        base_qs = base_qs.filter(created_at__date__gte=_parse_date(date_debut))
+    if date_fin:
+        base_qs = base_qs.filter(created_at__date__lte=_parse_date(date_fin))
+
+    total = base_qs.count()  # COUNT(*) simple, sans JOIN ni GROUP BY
+
+    # 2. L'annotation + le tri ne s'appliquent qu'à la page demandée, pas à tout le jeu de résultats
+    page = max(page, 1)
+    offset = (page - 1) * page_size
+    resultats_page = list(
+        base_qs.annotate(nb_dossiers=Count("dossiers"))
+               .order_by(tri)[offset:offset + page_size]
+    )
+
+    nb_pages = max((total + page_size - 1) // page_size, 1)
+
+    return {
+        "resultats": [client_vers_dict(c) for c in resultats_page],
+        "pagination": {
+            "page_courante": page,
+            "nb_pages": nb_pages,
+            "nb_resultats": total,
+            "page_size": page_size,
+            "a_precedent": page > 1,
+            "a_suivant": page < nb_pages,
+        },
+    } """
 
 
 def obtenir_client(client_id) -> Client:

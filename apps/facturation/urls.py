@@ -5,7 +5,7 @@ from facturation import views
 
 app_name = "facturation"
 
-urlpatterns = [
+urlpatterns = [ 
     path("", views.facturation_dashboard, name="liste"),
     path("api/liste/", views.api_lister_factures, name="api_lister_factures"),
     path("api/creer/", views.api_creer_facture, name="api_creer_facture"),

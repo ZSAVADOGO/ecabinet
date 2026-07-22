@@ -15,6 +15,7 @@ from client.services import nom_affichage   #Pouvoir
 from dossier.models import Dossier
 
 from apps.authentication.models import User
+#from apps.authentication.models import Collaborateur
 
 #User = get_user_model()
 
@@ -163,7 +164,9 @@ def options_avocats():
     """Alimente le <select> avocat référent du modal Dossier."""
     return [
         {"id": str(u.id), "nom": u.get_full_name() or u.username}
-        for u in User.objects.filter(role__in=["associe", "avocat"]).order_by("prenom")
+        #for u in User.objects.filter(role__in=["associe", "avocat"]).order_by("prenom")
+        for u in User.objects.filter(role__in=["associe", "avocat"]).order_by("first_name")
+
     ]
 
 

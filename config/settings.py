@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'tailwind',
     'theme',  # C'est le nom de l'application contenant Tailwind que nous allons créer
     'django_browser_reload',  # Facultatif (rechargement automatique)
+    
 ]
 
 
@@ -100,11 +101,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'db_ecabinet',
+        'NAME': 'db_ecabinet3',
         'USER': 'root',
         'PASSWORD': 'Adm!n!StraTeur123',
         'HOST': '127.0.0.1',
         'PORT': '3306',
+        'CONN_MAX_AGE': 60,   # réutilise la connexion MySQL au lieu d'en rouvrir une à chaque requête
     }
 }
 
@@ -114,6 +116,7 @@ DATABASES = {
 
 #AUTH_USER_MODEL = 'apps.authentication.User'
 AUTH_USER_MODEL = 'authentication.User'
+#AUTH_USER_MODEL = 'authentication.Collaborateur' 
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -163,5 +166,3 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-

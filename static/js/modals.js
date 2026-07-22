@@ -1,77 +1,4 @@
-/**
- * Gestionnaire Global et Sécurisé des Modals - eCabinet
- */
-
-/* const eCabinetModals = {
-    // Fonction principale pour ouvrir n'importe quel modal par son ID HTML
-    ouvrir(modalId, entiteId = null) {
-        const modal = document.getElementById(modalId);
-        if (!modal) {
-            console.error(`eCabinet [Erreur] : Le modal avec l'ID "${modalId}" n'existe pas.`);
-            return;
-        }
-
-        // Si un ID d'entité (ex: ID d'un client à modifier) est passé, on l'injecte dans le formulaire caché
-        if (entiteId) {
-            const inputId = modal.querySelector('.modal-entite-id');
-            if (inputId) inputId.value = entiteId;
-        }
-
-        // Activation visuelle via les classes Tailwind CSS (retire 'hidden', applique l'affichage flex)
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        
-        // Bloque le défilement de la page principale en arrière-plan pour le confort UX
-        document.body.classList.add('overflow-hidden');
-    },
-
-    // Fonction pour fermer un modal spécifique
-    fermer(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        }
-    }
-};
-
-// Exposition de l'objet à la fenêtre globale du navigateur pour vos templates HTML
-window.ouvrirModal = eCabinetModals.ouvrir;
-window.fermerModal = eCabinetModals.fermer;
-
-// Écouteur de sécurité : Fermeture automatique si clic sur l'arrière-plan flouté
-document.addEventListener('DOMContentLoaded', () => {
-    const overlays = document.querySelectorAll('.modal-overlay');
-    overlays.forEach(overlay => {
-        overlay.addEventListener('click', (evenement) => {
-            // Si l'utilisateur clique strictement sur le fond et pas sur la boîte blanche interne
-            if (evenement.target === overlay) {
-                eCabinetModals.fermer(overlay.id);
-            }
-        });
-    });
-    console.log("⚙️ eCabinet : Le gestionnaire de fenêtres surgissantes (Modals) est prêt.");
-});
-*/
-
-/**
- * Gestionnaire Global et Sécurisé des Modals - eCabinet
- * ------------------------------------------------------
- * Corrections apportées (v2) :
- *  - `ouvrir()` accepte désormais un objet `data` complet (pas seulement un ID)
- *    pour préremplir TOUS les champs d'un formulaire d'édition
- *    (ex: Client -> nom, prenom, raison_sociale, ifu_rccm, telephone1, telephone2...
- *     Dossier -> reference, intitule, type_affaire, statut, client_id, avocat_referent_id...)
- *  - Reset automatique du formulaire à l'ouverture en mode "création" (data absent)
- *    pour éviter qu'un modal réutilisé garde les valeurs d'une édition précédente.
- *  - Fermeture au clavier (touche Échap) en plus du clic sur l'overlay.
- *  - Focus automatique sur le premier champ du modal (accessibilité).
- *  - Verrouillage anti-bug : gère plusieurs modals ouverts/fermés successivement
- *    sans laisser `overflow-hidden` bloqué sur le body.
- */
-
-function sortTable(th) {
+/* function sortTable(th) {
     const table = th.closest('table');
     const tbody = table.querySelector('tbody');
     const ths = [...th.parentElement.children];
@@ -93,18 +20,39 @@ function sortTable(th) {
         return (x > y ? 1 : x < y ? -1 : 0) * (asc ? 1 : -1);
     });
     rows.forEach(r => tbody.appendChild(r));
+} */
+function sortTable(th) {
+    const table = th.closest('table');
+    const ths = [...th.parentElement.children];
+    const idx = ths.indexOf(th);
+    const asc = th.dataset.order !== 'asc';
+    ths.forEach(h => { h.dataset.order = ''; const a = h.querySelector('.sort-arrow'); if (a) a.textContent = '↕'; });
+    th.dataset.order = asc ? 'asc' : 'desc';
+    const arrow = th.querySelector('.sort-arrow'); if (arrow) arrow.textContent = asc ? '↑' : '↓';
+
+    // Tri serveur si la page l'expose (dashboards paginés)
+    const champ = th.dataset.champ;
+    if (champ && typeof window.trierListe === 'function') {
+        window.trierListe(champ, asc ? '' : '-');
+        return;
+    }
+
+    // Fallback : tri local (tables non paginées, ex. petites listes agenda)
+    const tbody = table.querySelector('tbody');
+    const type = th.dataset.type || 'text';
+    const rows = [...tbody.querySelectorAll('tr')];
+    rows.sort((a, b) => {
+        let x = a.children[idx]?.dataset.sort ?? a.children[idx]?.textContent.trim() ?? '';
+        let y = b.children[idx]?.dataset.sort ?? b.children[idx]?.textContent.trim() ?? '';
+        if (type === 'number') { x = parseFloat(x.replace(/[^0-9.-]/g, '')) || 0; y = parseFloat(y.replace(/[^0-9.-]/g, '')) || 0; }
+        else if (type === 'date') { x = new Date(x.replace(' ', 'T')).getTime() || 0; y = new Date(y.replace(' ', 'T')).getTime() || 0; }
+        return (x > y ? 1 : x < y ? -1 : 0) * (asc ? 1 : -1);
+    });
+    const frag = document.createDocumentFragment();
+    rows.forEach(r => frag.appendChild(r));
+    tbody.appendChild(frag);
 }
 
-/*async function envoyerFormulaire(url, payload) {
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (res.ok) { Swal.fire('Succès', data.message || 'Enregistré avec succès.', 'success').then(() => location.href = data.redirect || '/'); }
-    else { Swal.fire('Erreur', data.error || 'Une erreur est survenue.', 'error'); }
-}*/
 async function envoyerFormulaire(url, payload) {
     console.log("Envoi du formulaire vers l'URL :", url, "avec le payload :", payload);
     try {
@@ -152,13 +100,6 @@ function getCookie(name) {
 const eCabinetModals = {
     _pileModalsOuverts: [],
 
-    /**
-     * Ouvre un modal par son ID HTML.
-     * @param {string} modalId - ID du modal à ouvrir.
-     * @param {Object|string|null} data - Soit un objet complet à injecter dans le
-     *        formulaire (mode édition), soit directement un ID d'entité (rétro-compatibilité),
-     *        soit null (mode création -> le formulaire est réinitialisé).
-     */
     ouvrir(modalId, data = null) {
         const modal = document.getElementById(modalId);
         if (!modal) {
@@ -192,10 +133,6 @@ const eCabinetModals = {
         if (premierChamp) setTimeout(() => premierChamp.focus(), 50);
     },
 
-    /**
-     * Remplit récursivement les champs d'un formulaire à partir d'un objet de données.
-     * Cherche les éléments par [name="clé"], à défaut par .modal-champ-clé.
-     */
     _remplirFormulaire(modal, data) {
         Object.entries(data).forEach(([cle, valeur]) => {
             const champ = modal.querySelector(`[name="${cle}"]`);
