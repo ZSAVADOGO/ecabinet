@@ -4,8 +4,8 @@
 <div x-data="{
     slide:1,
     ajouterFacture:false, ajouterAgenda:false,
-    dossier:{client_id:'', intitule:'', type_affaire:'civil', statut:'ouvert', juridiction:'', date_ouverture:'', date_prochaine_echeance:'', description:''},
-    facture:{montant_ht:'', montant_ttc:'', statut:'emise', date_echeance:'', description:''},
+    dossier:{client_id:'', intitule:'', reference:'',type_affaire:'civil', statut:'ouvert', tribunal_id:'', date_ouverture:'', date_prochaine_echeance:'', description:''},
+    facture:{montant_ht:'', montant_ttc:'', statut:'', date_echeance:'', description:''},
     agenda:{titre:'', type:'audience', date_heure:'', critique:false, description:''},
     get maxSlide(){ return 1 + (this.ajouterFacture?1:0) + (this.ajouterFacture&&this.ajouterAgenda?1:0); },
     get checkboxActive(){ return this.slide===1?this.ajouterFacture:this.slide===2?this.ajouterAgenda:false; },
@@ -28,74 +28,270 @@
 
         <div class="p-6 flex-grow space-y-4">
             <!-- SLIDE 1 : DOSSIER -->
-            <template x-if="slide===1">
-                <div class="space-y-4">
-                    <div>
-                        <label class="text-xs font-medium text-gray-500">Client</label>
-                        <select x-model="dossier.client_id" class="w-full mt-1 border border-gray-200 rounded-md px-3 py-2 text-sm">
-                            <option value="">— Sélectionner un client —</option>
-                            {% for c in clients %}
-                            <option value="{{ c.id }}">{{ c.nom|default:c.raison_sociale }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <input x-model="dossier.intitule" placeholder="Intitulé du dossier" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                    <div class="grid grid-cols-2 gap-3">
-                        <select x-model="dossier.type_affaire" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
-                            <option value="civil">Civil</option><option value="penal">Pénal</option>
-                            <option value="commercial">Commercial</option><option value="social">Social</option>
-                            <option value="famille">Famille</option><option value="administratif">Administratif</option>
-                            <option value="autre">Autre</option>
-                        </select>
-                        <select x-model="dossier.statut" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
-                            <option value="ouvert">Ouvert</option><option value="en_cours">En cours</option>
-                            <option value="plaide">Plaidé</option><option value="clos">Clos</option><option value="archive">Archivé</option>
-                        </select>
-                    </div>
-                    <input x-model="dossier.juridiction" placeholder="Juridiction" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><label class="text-xs text-gray-500">Date d'ouverture</label><input x-model="dossier.date_ouverture" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
-                        <div><label class="text-xs text-gray-500">Échéance</label><input x-model="dossier.date_prochaine_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
-                    </div>
-                    <textarea x-model="dossier.description" placeholder="Description" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
-                    <label class="flex items-center gap-2 text-sm pt-2 border-t border-gray-100">
-                        <input type="checkbox" x-model="ajouterFacture" class="rounded text-indigo-700"> Ajouter une facture ?
-                    </label>
-                </div>
-            </template>
+<template x-if="slide===1">
+    <div class="space-y-4"
+         x-init="
+            if(!dossier.statut) { dossier.statut = 'ouvert'; }
+            if(!dossier.type_affaire) { dossier.type_affaire = 'autre'; }
+         ">
 
-            <!-- SLIDE 2 : FACTURE -->
-            <template x-if="slide===2">
-                <div class="space-y-4">
-                    <div class="grid grid-cols-2 gap-3">
-                        <input x-model="facture.montant_ht" type="number" step="0.01" placeholder="Montant HT" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
-                        <input x-model="facture.montant_ttc" type="number" step="0.01" placeholder="Montant TTC" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
-                    </div>
-                    <select x-model="facture.statut" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                        <option value="emise">Émise</option><option value="payee">Payée</option><option value="en_retard">En retard</option>
-                    </select>
-                    <div><label class="text-xs text-gray-500">Échéance</label><input x-model="facture.date_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
-                    <textarea x-model="facture.description" placeholder="Description" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
-                    <label class="flex items-center gap-2 text-sm pt-2 border-t border-gray-100">
-                        <input type="checkbox" x-model="ajouterAgenda" class="rounded text-indigo-700"> Ajouter un agenda ?
-                    </label>
-                </div>
-            </template>
+        <!-- Ligne 1 : Référence (1/3) & Intitulé (2/3) -->
+        <div class="grid grid-cols-3 gap-3">
+           
+            <div class="col-span-1" 
+                x-init="
+                    if(!dossier.reference) { dossier.reference = '{{ prochaine_reference }}'; }
+                ">
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Référence <span class="text-rose-500">*</span></label>
+                <!-- readonly et cursor-not-allowed empêchent la modification et guident l'utilisateur -->
+                <input x-model="dossier.reference" readonly tabindex="-1" required
+                    class="w-full border border-gray-200 !bg-slate-100 font-mono text-gray-500 rounded-md px-3 py-2 text-sm cursor-not-allowed select-none">
+            </div>
+
+            <div class="col-span-2">
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Intitulé du dossier <span class="text-rose-500">*</span></label>
+                <input x-model="dossier.intitule" required placeholder="Nom ou objet de l'affaire" 
+                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+        </div>
+
+        <!-- Ligne 2 : Alignement Client (Obligatoire) & Avocat Référent (Optionnel) -->
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Client <span class="text-rose-500">*</span></label>
+                <select x-model="dossier.client_id" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">— Sélectionner un client —</option>
+                    {% for c in clients %}
+                        <option value="{{ c.id }}">{{ c.nom|default:c.raison_sociale }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Avocat Référent <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                <select x-model="dossier.avocat_referent_id" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">— Non assigné —</option>
+                    {% for a in avocats %}
+                        <option value="{{ a.id }}">Me. {{ a.first_name }} {{ a.last_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+       
+        <!-- Ligne 3 : Type d'affaire & Statut initial (Générés depuis le modèle Django) -->
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Type d'affaire <span class="text-rose-500">*</span></label>
+                <select x-model="dossier.type_affaire" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    {% for cle, libelle in type_affaire %}
+                        <option value="{{ cle }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Statut initial <span class="text-rose-500">*</span></label>
+                <select x-model="dossier.statut" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    {% for cle, libelle in statut_dossier %}
+                        <option value="{{ cle }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Ligne 4 : Tribunal (Optionnel) -->
+        <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Tribunal / Juridiction <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+            <select x-model="dossier.tribunal_id" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="">— Sélectionner un tribunal —</option>
+                {% for t in tribunaux %}
+                    <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Ligne 5 : Dates (Optionnelles) -->
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Date d'ouverture <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                <input x-model="dossier.date_ouverture" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Prochaine Échéance <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                <input x-model="dossier.date_prochaine_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+        </div>
+
+        <!-- Ligne 6 : Description (Optionnelle) -->
+        <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Description / Notes <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+            <textarea x-model="dossier.description" placeholder="Résumé des faits, contexte, pièces manquantes..." rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+        </div>
+
+        <!-- Étape conditionnelle suivante (Facturation) -->
+        <div class="pt-2 border-t border-gray-100">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                <input type="checkbox" x-model="ajouterFacture" class="rounded text-indigo-700 focus:ring-indigo-500 h-4 w-4"> 
+                <span>Ajouter une facture ou une provision à l'ouverture ?</span>
+            </label>
+        </div>
+    </div>
+</template>
+
+<!-- SLIDE 2 : FACTURE -->
+<template x-if="slide===2">
+    <div class="space-y-4" 
+         x-init="
+            if(!facture.statut) { facture.statut = 'brouillon'; }
+            if(!facture.taux_tva) { facture.taux_tva = 18.00; }
+            if(!facture.date_emission) { facture.date_emission = new Date().toISOString().split('T')[0]; }
+         ">
+        
+        <div>
+            <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro de facture / provision <span class="text-rose-500">*</span></label>
+            <input x-model="facture.numero" required placeholder="Ex: FAC-2026-0001" 
+                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+       
+        <div class="grid grid-cols-5 gap-3" 
+     x-effect="
+        if(facture.montant_ht) {
+            let taux = parseFloat(facture.taux_tva) || 0;
+            let tva = taux / 100;
+            facture.montant_ttc = (parseFloat(facture.montant_ht) * (1 + tva)).toFixed(2);
+        } else {
+            facture.montant_ttc = '';
+        }
+     ">
+    
+    <!-- 1. Montant HT (Prend 2 colonnes sur 5) -->
+    <div class="col-span-2">
+        <label class="text-xs font-semibold text-gray-600 block mb-1">Montant HT <span class="text-rose-500">*</span></label>
+        <div class="relative">
+            <input x-model="facture.montant_ht" type="number" step="0.01" required placeholder="0.00" 
+                   class="w-full border border-gray-200 rounded-md pl-3 pr-12 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span>
+        </div>
+    </div>
+
+    <!-- 2. Taux TVA modifiable (Prend 1 colonne sur 5) -->
+    <div class="col-span-1">
+        <label class="text-xs font-semibold text-gray-600 block mb-1">TVA (%)</label>
+        <div class="relative">
+            <input x-model="facture.taux_tva" type="number" step="0.01" min="0" placeholder="18" 
+                   class="w-full border border-gray-200 rounded-md pl-2 pr-5 py-2 text-sm font-medium text-center focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            <span class="absolute right-2 top-2 text-gray-400 text-xs">%</span>
+        </div>
+    </div>
+
+    <!-- 3. Montant TTC Auto-calculé (Prend 2 colonnes sur 5) -->
+    <div class="col-span-2">
+        <label class="text-xs font-medium text-gray-400 block mb-1">Montant TTC</label>
+        <div class="relative">
+            <input x-model="facture.montant_ttc" type="number" step="0.01" readonly tabindex="-1" placeholder="0.00" 
+                   class="w-full border border-gray-200 !bg-gray-50 text-gray-500 font-semibold rounded-md pl-3 pr-12 py-2 text-sm cursor-not-allowed">
+            <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span>
+        </div>
+    </div>
+
+</div>
+
+
+        <div>
+            <label class="text-xs font-semibold text-gray-600 block mb-1">Statut de la facture <span class="text-rose-500">*</span></label>
+            <select x-model="facture.statut" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                {% for cle, libelle in statut_facture %}
+                    <option value="{{ cle }}">{{ libelle }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'émission <span class="text-rose-500">*</span></label>
+                <input x-model="facture.date_emission" type="date" required 
+                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="text-xs font-medium text-gray-500 block mb-1">Date d'échéance <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                <input x-model="facture.date_echeance" type="date" 
+                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+        </div>
+
+        <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Libellé / Description <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+            <input x-model="facture.description" type="text" placeholder="Ex: Provision sur honoraires d'ouverture de dossier" maxlength="255"
+                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <div class="pt-2 border-t border-gray-100">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                <input type="checkbox" x-model="ajouterAgenda" class="rounded text-indigo-700 focus:ring-indigo-500 h-4 w-4"> 
+                <span>Ajouter un événement ou un rappel à l'agenda ?</span>
+            </label>
+        </div>
+    </div>
+</template>
 
             <!-- SLIDE 3 : AGENDA -->
-            <template x-if="slide===3">
-                <div class="space-y-4">
-                    <input x-model="agenda.titre" placeholder="Titre de l'événement" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                    <select x-model="agenda.type" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                        <option value="audience">Audience</option><option value="reunion">Réunion</option><option value="echeance">Échéance</option>
-                    </select>
-                    <input x-model="agenda.date_heure" type="datetime-local" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
-                    <textarea x-model="agenda.description" placeholder="Description" rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></textarea>
-                    <label class="flex items-center gap-2 text-sm">
-                        <input type="checkbox" x-model="agenda.critique" class="rounded text-red-600"> Événement critique
-                    </label>
+<template x-if="slide===3">
+    <div class="space-y-4"
+         x-init="
+            if(!agenda.type) { agenda.type = 'autre'; }
+            if(agenda.critique === undefined) { agenda.critique = false; }
+         ">
+        
+        <!-- Ligne 1 : Titre de l'événement (Obligatoire) -->
+        <div>
+            <label class="text-xs font-semibold text-gray-600 block mb-1">Titre de l'événement <span class="text-rose-500">*</span></label>
+            <input x-model="agenda.titre" required placeholder="Ex: Audience de plaidoirie, Remise des conclusions..." 
+                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <!-- Ligne 2 : Type d'événement (Obligatoire - Aligné sur TextChoices) -->
+        <!-- Ligne 2 : Type d'événement (Généré dynamiquement via le modèle Django) -->
+<div>
+    <label class="text-xs font-semibold text-gray-600 block mb-1">Type d'événement <span class="text-rose-500">*</span></label>
+    <select x-model="agenda.type" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+        <!-- Itération sur les choix renvoyés par EvenementAgenda.TypeEvenement.choices -->
+        {% for cle, libelle in types_agenda %}
+            <option value="{{ cle }}">{{ libelle }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+
+        <!-- Ligne 3 : Date et Heure (Obligatoire - DateTimeField) -->
+        <div>
+            <label class="text-xs font-semibold text-gray-600 block mb-1">Date et heure <span class="text-rose-500">*</span></label>
+            <input x-model="agenda.date_heure" type="datetime-local" required 
+                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <!-- Ligne 4 : Description (Optionnelle - Max 255 caractères selon le modèle CharField) -->
+        <div>
+            <label class="text-xs font-medium text-gray-500 block mb-1">Notes / Précisions <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+            <input x-model="agenda.description" type="text" placeholder="Ex: Salle d'audience n°4, apporter le dossier de plaidoirie" maxlength="255"
+                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+        </div>
+
+        <!-- Ligne 5 : Interrupteur d'alerte critique (Forclusion / Urgence maximale) -->
+        <div class="pt-2">
+            <label :class="agenda.critique ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-gray-50 border-gray-100 text-gray-700'"
+                   class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all duration-200">
+                <input type="checkbox" x-model="agenda.critique" class="rounded text-rose-600 focus:ring-rose-500 h-4 w-4">
+                <div class="flex flex-col">
+                    <span class="text-sm font-semibold">Marquer comme événement critique</span>
+                    <span class="text-xs text-gray-500" :class="agenda.critique ? 'text-rose-600 font-medium' : 'text-gray-400'">
+                        Active une alerte renforcée pour éviter tout dépassement de délai légal (Forclusion).
+                    </span>
                 </div>
-            </template>
+            </label>
+        </div>
+
+    </div>
+</template>
+
         </div>
 
         <div class="px-6 py-4 border-t border-gray-100 flex justify-between">

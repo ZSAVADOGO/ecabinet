@@ -56,53 +56,6 @@ def client_vers_dict(client: Client) -> dict:
         "created_at": client.created_at.strftime("%d/%m/%Y %H:%M") if client.created_at else None,
     }
 
- # Retourne un dict prêt à être sérialisé en JSON pour le tableau du dashboard :
-    #- recherche libre sur nom / prenom / raison_sociale / telephone1 / email
-   # - filtre optionnel par type de client
-    #- filtre optionnel par plage de dates de création (date_debut / date_fin, format YYYY-MM-DD)
-  #  - pagination (page, page_size)
-"""def lister_clients(
-    recherche: str = "",
-    type_client: str = "",
-    date_debut: str = "",
-    date_fin: str = "",
-    page: int = 1,
-    page_size: int = 10,
-    tri: str = "-created_at",
-):
-    qs = Client.objects.annotate(nb_dossiers=Count("dossiers"))
-
-    if recherche:
-        q_recherche = Q()
-        for champ in CHAMPS_RECHERCHE:
-            q_recherche |= Q(**{f"{champ}__icontains": recherche})
-        qs = qs.filter(q_recherche)
-
-    if type_client:
-        qs = qs.filter(type=type_client)
-
-    if date_debut:
-        qs = qs.filter(created_at__date__gte=_parse_date(date_debut))
-    if date_fin:
-        qs = qs.filter(created_at__date__lte=_parse_date(date_fin))
-
-    qs = qs.order_by(tri)
-
-    paginator = Paginator(qs, page_size)
-    page_obj = paginator.get_page(page)
-
-    return {
-        "resultats": [client_vers_dict(c) for c in page_obj.object_list],
-        "pagination": {
-            "page_courante": page_obj.number,
-            "nb_pages": paginator.num_pages,
-            "nb_resultats": paginator.count,
-            "page_size": page_size,
-            "a_precedent": page_obj.has_previous(),
-            "a_suivant": page_obj.has_next(),
-        },
-    } """
-
 def lister_clients(
     recherche: str = "",
     type_client: str = "",
@@ -164,56 +117,6 @@ def lister_clients(
             "a_suivant": page < nb_pages,
         },
     }
-
-""" Bon mais ne trie pas bien le nom et raison sociale
-def lister_clients(
-    recherche: str = "",
-    type_client: str = "",
-    date_debut: str = "",
-    date_fin: str = "",
-    page: int = 1,
-    page_size: int = 10,
-    tri: str = "-created_at",
-):
-    # 1. Base filtrée SANS annotation -> le comptage reste un simple COUNT(*)
-    base_qs = Client.objects.all()
-
-    if recherche:
-        q_recherche = Q()
-        for champ in CHAMPS_RECHERCHE:
-            q_recherche |= Q(**{f"{champ}__icontains": recherche})
-        base_qs = base_qs.filter(q_recherche)
-
-    if type_client:
-        base_qs = base_qs.filter(type=type_client)
-    if date_debut:
-        base_qs = base_qs.filter(created_at__date__gte=_parse_date(date_debut))
-    if date_fin:
-        base_qs = base_qs.filter(created_at__date__lte=_parse_date(date_fin))
-
-    total = base_qs.count()  # COUNT(*) simple, sans JOIN ni GROUP BY
-
-    # 2. L'annotation + le tri ne s'appliquent qu'à la page demandée, pas à tout le jeu de résultats
-    page = max(page, 1)
-    offset = (page - 1) * page_size
-    resultats_page = list(
-        base_qs.annotate(nb_dossiers=Count("dossiers"))
-               .order_by(tri)[offset:offset + page_size]
-    )
-
-    nb_pages = max((total + page_size - 1) // page_size, 1)
-
-    return {
-        "resultats": [client_vers_dict(c) for c in resultats_page],
-        "pagination": {
-            "page_courante": page,
-            "nb_pages": nb_pages,
-            "nb_resultats": total,
-            "page_size": page_size,
-            "a_precedent": page > 1,
-            "a_suivant": page < nb_pages,
-        },
-    } """
 
 
 def obtenir_client(client_id) -> Client:

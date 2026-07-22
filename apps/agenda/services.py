@@ -60,7 +60,7 @@ def _queryset_filtre(recherche="", type_evenement="", dossier_id="", critique=""
 
 def lister_evenements(
     recherche="", type_evenement="", dossier_id="", critique="",
-    date_debut="", date_fin="", page=1, page_size=10, tri="date_heure",
+    date_debut="", date_fin="", page=1, page_size=10, tri="-date_heure",
 ):
     qs = _queryset_filtre(recherche, type_evenement, dossier_id, critique, date_debut, date_fin).order_by(tri)
     paginator = Paginator(qs, page_size)

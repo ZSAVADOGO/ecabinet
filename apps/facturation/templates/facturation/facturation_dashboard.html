@@ -173,7 +173,7 @@
 </div>
 
 <!-- MODAL Créer / Modifier -->
-<div id="modal-facture-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
+{% comment %} <div id="modal-facture-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-xl p-6">
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-bold text-gray-800" id="titre-modal-form">Nouvelle facture</h2>
@@ -231,9 +231,495 @@
             </div>
         </form>
     </div>
+</div> {% endcomment %}
+<div id="modal-facture-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-xl p-6">
+        <!-- En-tête du Modal -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold text-gray-800" id="titre-modal-form">Nouvelle facture</h2>
+            <button onclick="fermerModal('modal-facture-form')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+        
+        <!-- Formulaire de Modification -->
+        <form id="form-facture" onsubmit="soumettreFormulaire(event)">
+            {% csrf_token %}
+            <input type="hidden" name="id">
+            
+            <div class="space-y-4">
+                <!-- Ligne 1 : Numéro & Statut -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro de facture <span class="text-gray-400 font-normal">(auto si vide)</span></label>
+                        <input type="text" name="numero" placeholder="Ex: FAC-2026-0001" 
+                               class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Statut de la facture <span class="text-rose-500">*</span></label>
+                        <select name="statut" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            {% for valeur, libelle in statuts_facture %}
+                                <option value="{{ valeur }}">{{ libelle }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Ligne 2 : Client Associé -->
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Client <span class="text-rose-500">*</span></label>
+                    <select name="client_id" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">— Sélectionner un client —</option>
+                        {% for c in clients %}
+                            <option value="{{ c.id }}">{{ c.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Ligne 3 : Dossier Associé -->
+                <div>
+                    <label class="text-xs font-medium text-gray-500 block mb-1">Dossier lié <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                    <select name="dossier_id" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="">— Aucun dossier —</option>
+                        {% for d in dossiers %}
+                            <option value="{{ d.id }}" data-client="{{ d.client_id }}">{{ d.label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- ZONE FINANCIÈRE DE CALCUL (Même grille imbriquée et sémantique que le Slide 2) -->
+                <div class="grid grid-cols-5 gap-3">
+                    <!-- 1. Montant HT (2/5) -->
+                    <div class="col-span-2">
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Montant HT <span class="text-rose-500">*</span></label>
+                        <div class="relative">
+                            <input type="number" step="0.01" min="0" name="montant_ht" id="facture-montant-ht" required placeholder="0.00" 
+                                   class="w-full border border-gray-200 rounded-md pl-3 pr-12 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span>
+                        </div>
+                    </div>
+
+                    <!-- 2. Taux TVA (1/5) -->
+                    <div class="col-span-1">
+                        <label class="text-xs font-semibold text-gray-600 block mb-1 text-center">TVA (%)</label>
+                        <div class="relative">
+                            <input type="number" step="0.01" min="0" name="taux_tva" id="facture-taux-tva" value="18.00" required placeholder="18" 
+                                   class="w-full border border-gray-200 rounded-md pl-2 pr-5 py-2 text-sm font-medium text-center focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            <span class="absolute right-2 top-2 text-gray-400 text-xs">%</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Montant TTC Auto-calculé (2/5) -->
+                    <div class="col-span-2">
+                        <label class="text-xs font-medium text-gray-400 block mb-1">
+                            Montant TTC <span id="label-taux-tva" class="text-[10px] text-indigo-500 font-mono">(18%)</span>
+                        </label>
+                        <div class="relative">
+                            <input type="number" step="0.01" name="montant_ttc" id="facture-montant-ttc" readonly tabindex="-1" placeholder="0.00" 
+                                   class="w-full border border-gray-200 !bg-gray-50 text-gray-500 font-semibold rounded-md pl-3 pr-12 py-2 text-sm cursor-not-allowed">
+                            <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ligne 5 : Dates (Émission & Échéance) -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'émission <span class="text-rose-500">*</span></label>
+                        <input type="date" name="date_emission" required 
+                               class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 block mb-1">Date d'échéance <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                        <input type="date" name="date_echeance" 
+                               class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Ligne 6 : Libellé / Description -->
+                <div>
+                    <label class="text-xs font-medium text-gray-500 block mb-1">Libellé / Description <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                    <input type="text" name="description" placeholder="Ex: Provision sur honoraires d'ouverture de dossier" maxlength="255"
+                           class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+
+            <!-- Pied du Modal (Boutons d'Action) -->
+            <div class="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
+                <button type="button" onclick="fermerModal('modal-facture-form')" 
+                        class="px-4 py-2 rounded-md border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    Annuler
+                </button>
+                <button type="submit" 
+                        class="px-4 py-2 rounded-md bg-indigo-600 text-sm font-medium text-white hover:bg-indigo-700 transition-colors shadow-sm">
+                    Enregistrer
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
+
+
 <script>
+    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const URLS = {
+        liste: "{% url 'facturation:api_lister_factures' %}",
+        creer: "{% url 'facturation:api_creer_facture' %}",
+        modifier: (id) => `/facturation/api/${id}/modifier/`,
+        supprimer: (id) => `/facturation/api/${id}/supprimer/`,
+    };
+    let etat = { page: 1, page_size: 10, cache: {} };
+    let minuteur = null;
+
+    const BADGE_STATUT = { 
+        brouillon: 'bg-gray-100 text-gray-600', 
+        envoyee: 'bg-blue-100 text-blue-700',
+        payee: 'bg-green-100 text-green-700', 
+        en_retard: 'bg-red-100 text-red-700' 
+    };
+
+    {% comment %} function calculerMontantTtcModal() {
+    const inputHt = document.getElementById('facture-montant-ht');
+    const inputTva = document.getElementById('facture-taux-tva');
+    const inputTtc = document.getElementById('facture-montant-ttc');
+    const labelTva = document.getElementById('label-taux-tva');
+
+    if (!inputHt || !inputTva || !inputTtc) return;
+
+    // Récupération dynamique des valeurs en cours sur l'écran
+    const ht = parseFloat(inputHt.value) || 0;
+    const tauxTva = parseFloat(inputTva.value) || 0;
+    
+    // Mise à jour dynamique du libellé pour refléter le taux exact appliqué
+    if (labelTva) {
+        labelTva.textContent = `(${tauxTva}%)`;
+    }
+    
+    if (ht > 0) {
+        // Formule mathématique universelle : HT * (1 + (Taux / 100))
+        const facteurTva = tauxTva / 100;
+        inputTtc.value = (ht * (1 + facteurTva)).toFixed(2);
+    } else {
+        inputTtc.value = '';
+    }
+} {% endcomment %}
+ function calculerMontantTtcModal() {
+    const inputHt = document.getElementById('facture-montant-ht');
+    const inputTva = document.getElementById('facture-taux-tva');
+    const inputTtc = document.getElementById('facture-montant-ttc');
+    const labelTva = document.getElementById('label-taux-tva');
+
+    if (!inputHt || !inputTva || !inputTtc) return;
+
+    // Récupération des valeurs numériques réelles
+    const ht = parseFloat(inputHt.value) || 0;
+    const tauxTva = parseFloat(inputTva.value) || 0;
+    
+    // Met à jour dynamiquement le badge (ex: "(18%)" ou "(0%)" ou "(20%)")
+    if (labelTva) {
+        labelTva.textContent = `(${tauxTva}%)`;
+    }
+    
+    if (ht > 0) {
+        // Formule mathématique pure sans constante figée dans le code
+        const facteurTva = tauxTva / 100;
+        inputTtc.value = (ht * (1 + facteurTva)).toFixed(2);
+    } else {
+        inputTtc.value = '';
+    }
+}
+
+
+function modifierFacture(id) {
+    const f = etat.cache[id];
+    if (!f) return;
+    
+    document.getElementById('titre-modal-form').textContent = 'Modifier la facture';
+    
+    ouvrirModal('modal-facture-form', {
+        id: f.id, 
+        numero: f.numero, 
+        statut: f.statut, 
+        client_id: f.client_id,
+        dossier_id: f.dossier_id || '', 
+        montant_ht: f.montant_ht, 
+        taux_tva: f.taux_tva, // Utilise la TVA réelle enregistrée sur cette facture précise
+        date_emission: f.date_emission, 
+        date_echeance: f.date_echeance || '',
+    });
+
+    // UX : Force l'affichage immédiat du montant TTC enregistré
+    const inputTtc = document.getElementById('facture-montant-ttc');
+    if (inputTtc) {
+        inputTtc.value = f.montant_ttc;
+    }
+
+    calculerMontantTtcModal();
+}
+
+    // -------------------------------------------------------------------------------
+
+    function queryString() {
+        return new URLSearchParams({
+            q: document.getElementById('filtre-recherche').value.trim(),
+            statut: document.getElementById('filtre-statut').value,
+            date_debut: document.getElementById('filtre-date-debut').value,
+            date_fin: document.getElementById('filtre-date-fin').value,
+            page: etat.page, page_size: etat.page_size,
+        }).toString();
+    }
+
+    async function chargerListe() {
+        const r = await fetch(`${URLS.liste}?${queryString()}`);
+        const d = await r.json();
+        etat.cache = {};
+        d.resultats.forEach(f => etat.cache[f.id] = f);
+        afficherTableau(d.resultats);
+        afficherPagination(d.pagination);
+    }
+
+    function formaterMontant(v) {
+        return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0 }).format(v) + ' FCFA';
+    }
+
+    function afficherTableau(resultats) {
+        const corps = document.getElementById('corps-tableau');
+        const vide = document.getElementById('etat-vide');
+        corps.innerHTML = '';
+        if (resultats.length === 0) { vide.classList.remove('hidden'); return; }
+        vide.classList.add('hidden');
+        resultats.forEach(f => {
+            const echeanceDepassee = f.date_echeance && new Date(f.date_echeance) < new Date() && f.statut !== 'payee';
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-indigo-50/40';
+            tr.innerHTML = `
+                <td class="px-4 py-3 font-mono text-xs">${echapper(f.numero)}</td>
+                <td class="px-4 py-3 font-medium text-gray-800 truncate max-w-[200px]" title="${echapper(f.client_nom)}">${echapper(f.client_nom)}</td>
+                <td class="px-4 py-3 text-gray-500">${f.dossier_reference ? echapper(f.dossier_reference) : '—'}</td>
+                <td class="px-4 py-3 text-right text-gray-600">${formaterMontant(f.montant_ht)}</td>
+                <td class="px-4 py-3 text-right font-semibold text-gray-800">${formaterMontant(f.montant_ttc)}</td>
+                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${BADGE_STATUT[f.statut] || ''}">${f.statut_libelle}</span></td>
+                <td class="px-4 py-3 ${echeanceDepassee ? 'text-red-600 font-semibold' : 'text-gray-500'}" data-sort="${f.date_echeance}">${formaterDate(f.date_echeance)}</td>
+                <td class="px-4 py-3 text-right space-x-1">
+                    <button onclick="modifierFacture('${f.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-indigo-100 hover:text-indigo-700" title="Modifier">✏️</button>
+                    <button onclick="supprimerFacture('${f.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-red-100 hover:text-red-600" title="Supprimer">🗑️</button>
+                </td>`;
+            corps.appendChild(tr);
+        });
+    }
+
+    function afficherPagination(p) {
+        document.getElementById('info-pagination').textContent = `— ${p.nb_resultats} résultat(s)`;
+        document.getElementById('label-page').textContent = `Page ${p.page_courante} / ${p.nb_pages || 1}`;
+        document.getElementById('btn-precedent').disabled = !p.a_precedent;
+        document.getElementById('btn-suivant').disabled = !p.a_suivant;
+    }
+
+    function pagePrecedente() { etat.page = Math.max(1, etat.page - 1); chargerListe(); }
+    function pageSuivante() { etat.page += 1; chargerListe(); }
+
+    function reinitialiserFiltres() {
+        ['filtre-recherche', 'filtre-statut', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => document.getElementById(id).value = '');
+        etat.page = 1; chargerListe();
+    }
+
+    function echapper(t) { const d = document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; }
+    function formaterDate(iso) { if (!iso) return '—'; const [a, m, j] = iso.split('-'); return `${j}/${m}/${a}`; }
+
+    document.getElementById('filtre-recherche').addEventListener('input', () => {
+        clearTimeout(minuteur); minuteur = setTimeout(() => { etat.page = 1; chargerListe(); }, 350);
+    });
+    ['filtre-statut', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => { etat.page = 1; chargerListe(); });
+    });
+    document.getElementById('taille-page').addEventListener('change', (e) => {
+        etat.page_size = parseInt(e.target.value, 10); etat.page = 1; chargerListe();
+    });
+
+    {% comment %} function ouvrirNouvelleFacture() {
+        document.getElementById('titre-modal-form').textContent = 'Nouvelle facture';
+        ouvrirModal('modal-facture-form');
+        document.querySelector('[name=date_emission]').value = new Date().toISOString().slice(0, 10);
+        
+        // UX : Réinitialise à 18% et vide le TTC lors d'une nouvelle saisie
+        document.getElementById('facture-taux-tva').value = "18.00";
+        document.getElementById('facture-montant-ttc').value = "";
+        document.getElementById('label-taux-tva').textContent = "(18%)";
+    } {% endcomment %}
+     function ouvrirNouvelleFacture() {
+    document.getElementById('titre-modal-form').textContent = 'Nouvelle facture';
+    ouvrirModal('modal-facture-form');
+    document.querySelector('[name=date_emission]').value = new Date().toISOString().slice(0, 10);
+    
+    // On récupère le taux par défaut inscrit initialement dans l'attribut HTML
+    const inputTva = document.getElementById('facture-taux-tva');
+    const tauxInitial = inputTva ? (parseFloat(inputTva.value) || 0) : 0;
+    
+    document.getElementById('facture-montant-ttc').value = "";
+    if (document.getElementById('label-taux-tva')) {
+        document.getElementById('label-taux-tva').textContent = `(${tauxInitial}%)`;
+    }
+}
+
+
+    {% comment %} function modifierFacture(id) {
+        const f = etat.cache[id];
+        if (!f) return;
+        document.getElementById('titre-modal-form').textContent = 'Modifier la facture';
+        ouvrirModal('modal-facture-form', {
+            id: f.id, numero: f.numero, statut: f.statut, client_id: f.client_id,
+            dossier_id: f.dossier_id || '', montant_ht: f.montant_ht, taux_tva: f.taux_tva || '18.00',
+            date_emission: f.date_emission, date_echeance: f.date_echeance || '',
+        });
+
+        // UX CRITIQUE : Déclenche immédiatement le calcul automatique après le chargement des données
+        calculerMontantTtcModal();
+    } {% endcomment %}
+    {% comment %} function modifierFacture(id) {
+    const f = etat.cache[id];
+    if (!f) return;
+    document.getElementById('titre-modal-form').textContent = 'Modifier la facture';
+    
+    ouvrirModal('modal-facture-form', {
+        id: f.id, 
+        numero: f.numero, 
+        statut: f.statut, 
+        client_id: f.client_id,
+        dossier_id: f.dossier_id || '', 
+        montant_ht: f.montant_ht, 
+        taux_tva: f.taux_tva || '18.00',
+        
+        // 1. AJOUT CRITIQUE ICI : On passe la valeur brute du TTC issue de la base de données
+        montant_ttc: f.montant_ttc, 
+        
+        date_emission: f.date_emission, 
+        date_echeance: f.date_echeance || '',
+    });
+
+    // 2. SÉCURITÉ : On s'assure que l'input HTML reçoit une chaîne de texte propre (sans fioritures)
+    const inputTtc = document.getElementById('facture-montant-ttc');
+    if (inputTtc) {
+        inputTtc.value = f.montant_ttc;
+    }
+
+    // UX CRITIQUE : Déclenche immédiatement le recalcul automatique pour rafraîchir l'affichage
+    calculerMontantTtcModal();
+} {% endcomment %}
+
+
+    function supprimerFacture(id) {
+        const f = etat.cache[id];
+        eCabinetAlerts.confirmerSuppression(`La facture "${f?.numero}" sera définitivement supprimée.`, async () => {
+            eCabinetAlerts.chargement("Suppression en cours...");
+            const r = await fetch(URLS.supprimer(id), { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } });
+            const d = await r.json();
+            eCabinetAlerts.fermerChargement();
+            if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
+            eCabinetAlerts.toast(d.message);
+            chargerListe();
+        });
+    }
+
+   async function soumettreFormulaire(evt) {
+    evt.preventDefault();
+    const form = document.getElementById('form-facture');
+    const payload = eCabinetModals.serialiser(form);
+    
+    const inputHt = document.getElementById('facture-montant-ht');
+    const inputTva = document.getElementById('facture-taux-tva');
+
+    if (inputHt && inputTva) {
+        const htPure = parseFloat(inputHt.value) || 0;
+        const tvaPure = parseFloat(inputTva.value) || 0;
+        
+        // On écrase les structures corrompues en calculant dynamiquement la donnée propre à envoyer
+        payload.montant_ht = htPure.toFixed(2);
+        payload.taux_tva = tvaPure.toFixed(2);
+        payload.montant_ttc = (htPure * (1 + (tvaPure / 100))).toFixed(2);
+    }
+
+    // Traitement des jointures vides
+    if (!payload.dossier_id || payload.dossier_id.trim() === "") payload.dossier_id = null;
+    if (!payload.date_echeance || payload.date_echeance.trim() === "") payload.date_echeance = null;
+
+    const id = payload.id; delete payload.id;
+    eCabinetAlerts.chargement("Enregistrement en cours...");
+    
+    const url = id ? URLS.modifier(id) : URLS.creer;
+    const r = await fetch(url, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify(payload),
+    });
+    
+    const d = await r.json();
+    eCabinetAlerts.fermerChargement();
+    if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
+    
+    fermerModal('modal-facture-form');
+    eCabinetAlerts.succes(d.message);
+    chargerListe();
+}
+
+    {% comment %} async function soumettreFormulaire(evt) {
+    evt.preventDefault();
+    const form = document.getElementById('form-facture');
+    const payload = eCabinetModals.serialiser(form);
+    
+    // SÉCURITÉ 1 : Forcer la récupération du TTC si le sérialiseur l'a manqué
+    const inputTtc = document.getElementById('facture-montant-ttc');
+    if (inputTtc && inputTtc.value) {
+        payload.montant_ttc = inputTtc.value;
+    }
+
+    // SÉCURITÉ 2 : Si dossier_id vaut "" (chaîne vide), on l'exclut ou on le passe à null
+    // pour éviter que Django ne reçoive une chaîne vide au lieu d'un vide relationnel
+    if (!payload.dossier_id || payload.dossier_id.trim() === "") {
+        payload.dossier_id = null;
+    }
+    
+    if (!payload.date_echeance || payload.date_echeance.trim() === "") {
+        payload.date_echeance = null;
+    }
+
+    const id = payload.id; 
+    delete payload.id;
+
+    eCabinetAlerts.chargement("Enregistrement en cours...");
+    const url = id ? URLS.modifier(id) : URLS.creer;
+    
+    const r = await fetch(url, {
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify(payload),
+    });
+    
+    const d = await r.json();
+    eCabinetAlerts.fermerChargement();
+    
+    if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
+    
+    fermerModal('modal-facture-form');
+    eCabinetAlerts.succes(d.message);
+    chargerListe();
+} {% endcomment %}
+
+
+    // Initialisation globale des écouteurs au chargement initial de la page
+    document.addEventListener('DOMContentLoaded', () => {
+        chargerListe();
+
+        // Liaison des écouteurs d'événements pour le calcul en temps réel
+        const inputHt = document.getElementById('facture-montant-ht');
+        const inputTva = document.getElementById('facture-taux-tva');
+        if (inputHt && inputTva) {
+            inputHt.addEventListener('input', calculerMontantTtcModal);
+            inputTva.addEventListener('input', calculerMontantTtcModal);
+        }
+    });
+</script>
+
+
+{% comment %} <script>
     const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
     const URLS = {
         liste: "{% url 'facturation:api_lister_factures' %}",
@@ -375,5 +861,5 @@
     }
 
     document.addEventListener('DOMContentLoaded', chargerListe);
-</script>
+</script> {% endcomment %}
 {% endblock %}

@@ -7,6 +7,10 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_http_methods
 
+from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
+
+User = get_user_model()
+
 from facturation.services import (
     facture_vers_dict,
     lister_factures,
@@ -62,9 +66,13 @@ def api_detail_facture(request, facture_id):
 #@login_required
 @require_http_methods(["POST"])
 def api_creer_facture(request):
+    user_pour_test = request.user
+    if not user_pour_test.is_authenticated:
+        user_pour_test = User.objects.first()
+
     try:
         payload = json.loads(request.body)
-        facture = creer_facture(payload, request.user)
+        facture = creer_facture(payload, user_pour_test)
     except ValidationError as exc:
         return JsonResponse({"erreur": _message_validation(exc)}, status=400)
     except json.JSONDecodeError:
@@ -79,9 +87,12 @@ def api_creer_facture(request):
 #@login_required
 @require_http_methods(["POST"])
 def api_modifier_facture(request, facture_id):
+    user_pour_test = request.user
+    if not user_pour_test.is_authenticated:
+        user_pour_test = User.objects.first()
     try:
         payload = json.loads(request.body)
-        facture = modifier_facture(facture_id, payload, request.user)
+        facture = modifier_facture(facture_id, payload, user_pour_test)
     except ObjectDoesNotExist:
         return JsonResponse({"erreur": "Facture introuvable."}, status=404)
     except ValidationError as exc:

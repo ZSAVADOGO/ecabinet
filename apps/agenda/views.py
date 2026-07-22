@@ -10,6 +10,10 @@ from django.views.decorators.http import require_GET, require_http_methods
 from agenda.services import (evenement_vers_dict,_queryset_filtre, lister_evenements,obtenir_evenement,
 creer_evenement,modifier_evenement,supprimer_evenement,options_dossiers)
 
+from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
+
+User = get_user_model()
+
 
 #@login_required
 def agenda_dashboard(request):
@@ -54,9 +58,12 @@ def api_detail_evenement(request, evenement_id):
 #@login_required
 @require_http_methods(["POST"])
 def api_creer_evenement(request):
+    user_pour_test = request.user
+    if not user_pour_test.is_authenticated:
+        user_pour_test = User.objects.first()
     try:
         payload = json.loads(request.body)
-        evt = creer_evenement(payload, request.user)
+        evt = creer_evenement(payload, user_pour_test)
     except ValidationError as exc:
         return JsonResponse({"erreur": _message_validation(exc)}, status=400)
     except json.JSONDecodeError:
@@ -71,9 +78,12 @@ def api_creer_evenement(request):
 #@login_required
 @require_http_methods(["POST"])
 def api_modifier_evenement(request, evenement_id):
+    user_pour_test = request.user
+    if not user_pour_test.is_authenticated:
+            user_pour_test = User.objects.first()
     try:
         payload = json.loads(request.body)
-        evt = modifier_evenement(evenement_id, payload, request.user)
+        evt = modifier_evenement(evenement_id, payload, user_pour_test)
     except ObjectDoesNotExist:
         return JsonResponse({"erreur": "Événement introuvable."}, status=404)
     except ValidationError as exc:

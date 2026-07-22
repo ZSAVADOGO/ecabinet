@@ -8,7 +8,7 @@ Modèle de référence : Facture (table `factures`)
 """
 
 from datetime import datetime
-
+from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Q
@@ -105,6 +105,7 @@ def creer_facture(payload: dict, utilisateur) -> Facture:
         dossier_id=payload.get("dossier_id") or None,
         montant_ht=payload["montant_ht"],
         taux_tva=payload.get("taux_tva", 18.00),
+        montant_ttc=payload.get("montant_ttc"),
         statut=payload.get("statut", "brouillon"),
         date_emission=payload["date_emission"],
         date_echeance=payload.get("date_echeance") or None,
@@ -123,6 +124,10 @@ def modifier_facture(facture_id, payload: dict, utilisateur) -> Facture:
     facture.dossier_id = payload.get("dossier_id") or None
     facture.montant_ht = payload.get("montant_ht", facture.montant_ht)
     facture.taux_tva = payload.get("taux_tva", facture.taux_tva)
+    # RÉCUPÉRATION DIRECTE DEPUIS LE HTML / PAYLOAD
+    if payload.get("montant_ttc"):
+        facture.montant_ttc = Decimal(str(payload.get("montant_ttc")))
+    #facture.montant_ttc=payload.get("montant_ttc", facture.montant_ttc),
     facture.statut = payload.get("statut", facture.statut)
     facture.date_emission = payload.get("date_emission", facture.date_emission)
     facture.date_echeance = payload.get("date_echeance") or None

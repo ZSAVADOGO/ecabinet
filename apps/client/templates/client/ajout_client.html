@@ -5,7 +5,7 @@
     slide:1,
     ajouterDossier:false, ajouterFacture:false, ajouterAgenda:false,
     client:{type:'personne_physique', nom:'', prenom:'', raison_sociale:'', ifu_rccm:'', email:'', telephone1:'', telephone2:'', adresse:'', notes:''},
-    dossier:{intitule:'', type_affaire:'civil', statut:'ouvert', juridiction:'', date_ouverture:'', date_prochaine_echeance:'', description:''},
+    dossier:{intitule:'', type_affaire:'civil', statut:'ouvert', tribunal_id:'', date_ouverture:'', date_prochaine_echeance:'', description:''},
     facture:{montant_ht:'', montant_ttc:'', statut:'emise', date_echeance:'', description:''},
     agenda:{titre:'', type:'audience', date_heure:'', critique:false, description:''},
     get maxSlide(){ return 1 + (this.ajouterDossier?1:0) + (this.ajouterDossier&&this.ajouterFacture?1:0) + (this.ajouterDossier&&this.ajouterFacture&&this.ajouterAgenda?1:0); },
@@ -76,7 +76,12 @@
                             <option value="plaide">Plaidé</option><option value="clos">Clos</option><option value="archive">Archivé</option>
                         </select>
                     </div>
-                    <input x-model="dossier.juridiction" placeholder="Juridiction" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                    {% comment %} <input x-model="dossier.juridiction" placeholder="Juridiction" 
+                    class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"> {% endcomment %}
+                    <select x-model="dossier.tribunal_id" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <option value="">— Sélectionner un tribunal —</option>
+                        {% for t in tribunaux %}<option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>{% endfor %}
+                    </select>
                     <div class="grid grid-cols-2 gap-3">
                         <div><label class="text-xs text-gray-500">Date d'ouverture</label><input x-model="dossier.date_ouverture" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>
                         <div><label class="text-xs text-gray-500">Échéance</label><input x-model="dossier.date_prochaine_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm"></div>

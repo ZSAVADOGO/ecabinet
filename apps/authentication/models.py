@@ -3,6 +3,9 @@ from datetime import date
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+#from apps.authentication.models import Tribunal
+
+
 # ==========================================
 # 1. ENTITÉ SPÉCIALITÉ (Toujours requise pour la relation)
 # ==========================================
@@ -43,13 +46,17 @@ class TypeTribunal(models.Model):
         return f"{self.libelle} ({self.code})"
 
 
+
 # ==========================================
 # 3. ENTITÉ TRIBUNAL / JURIDICTION
 # ==========================================
 class Tribunal(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=255, help_text="Ex: Tribunal Judiciaire de Paris")
-    
+    code = models.CharField(
+        max_length=20, unique=True, db_index=True, null=True, blank=True,
+        help_text="Ex: T.G.I.O — abréviation utilisée dans les documents/courriers"
+    )
     # Clé étrangère vers le type évolutif
     type_tribunal = models.ForeignKey(
         TypeTribunal, 
@@ -74,6 +81,24 @@ class Tribunal(models.Model):
     def __str__(self):
         return f"{self.nom} ({self.ville})"
 
+# ==========================================
+# . ENTITÉ CHAMBRE
+# ==========================================
+
+class Chambre(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tribunal = models.ForeignKey(Tribunal, on_delete=models.CASCADE, related_name='chambres')
+    libelle = models.CharField(max_length=150, help_text="Ex: Chambre de Conseil, Correctionnelle, ECOFI")
+    notes = models.TextField(null=True, blank=True)
+    class Meta:
+        db_table = 'chambres'
+        verbose_name = "Chambre"
+        verbose_name_plural = "Chambres"
+        unique_together = ('tribunal', 'libelle')
+        ordering = ['tribunal', 'libelle']
+
+    def __str__(self):
+        return f"{self.libelle} ({self.tribunal.code})"
 
 # ==========================================
 # 2. ENTITÉ UNIQUE USER (FUSIONNÉE)
