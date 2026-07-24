@@ -149,8 +149,6 @@ class User(AbstractUser):
     updated_at = models.DateTimeField(auto_now=True)
 
     # Identité (Champs explicites demandés, synchronisés avec first/last name de Django)
-    #nom = models.CharField(max_length=255, db_index=True)
-    #prenom = models.CharField(max_length=255, db_index=True)
     last_name = models.CharField(max_length=255, db_index=True, verbose_name="Nom")
     first_name = models.CharField(max_length=255, db_index=True, verbose_name="Prénom")
 

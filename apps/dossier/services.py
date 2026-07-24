@@ -6,7 +6,7 @@ Couche service pour le module Dossier.
 from datetime import datetime
 
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.paginator import Paginator
 from django.db.models import Q
 
@@ -14,14 +14,20 @@ from client.models import Client
 from client.services import nom_affichage   #Pouvoir
 from dossier.models import Dossier
 
+from datetime import date
+
 from apps.authentication.models import User
 #from apps.authentication.models import Collaborateur
 from django.db import transaction, IntegrityError
+#from apps.authentication.models import PartiePrenante  # adapte le chemin d'import si le modèle vit ailleurs
+
+
+from apps.authentication.models import Chambre
 
 
 from django.utils import timezone
 from facturation.models import Facture
-from agenda.models import EvenementAgenda
+from agenda.models import EvenementAgenda, PartiePrenante
 
 #User = get_user_model()
 
@@ -29,65 +35,42 @@ from agenda.models import EvenementAgenda
 CHAMPS_RECHERCHE_DOSSIER = ["reference", "intitule"]
 CHAMPS_RECHERCHE_CLIENT = ["client__nom", "client__prenom", "client__raison_sociale"]
 
-""" 
 def dossier_vers_dict(dossier: Dossier) -> dict:
-    return {
-        "id": str(dossier.id),
-        "reference": dossier.reference,
-        "intitule": dossier.intitule,
-        "type_affaire": dossier.type_affaire,
-        "type_affaire_libelle": dossier.get_type_affaire_display(),
-        "statut": dossier.statut,
-        "statut_libelle": dossier.get_statut_display(),
-        "client_id": str(dossier.client_id),
-        "client_nom": nom_affichage(dossier.client),
-        "avocat_referent_id": str(dossier.avocat_referent_id) if dossier.avocat_referent_id else None,
-        "avocat_referent_nom": (
-            dossier.avocat_referent.get_full_name() or dossier.avocat_referent.username
-        ) if dossier.avocat_referent_id else None,
-        #"juridiction": dossier.juridiction,
-        "tribunal": {"id": str(dossier.tribunal.id), "code": dossier.tribunal.code, "nom": dossier.tribunal.nom} if dossier.tribunal else None,
-        "date_ouverture": dossier.date_ouverture.isoformat() if dossier.date_ouverture else None,
-        "date_prochaine_echeance": (
-            dossier.date_prochaine_echeance.isoformat() if dossier.date_prochaine_echeance else None
-        ),
-        "description": dossier.description,
-        "created_at": dossier.created_at.strftime("%d/%m/%Y %H:%M") if dossier.created_at else None,
-    }
- """
-def dossier_vers_dict(dossier: Dossier) -> dict:
-    # Fonction locale utilitaire pour formater en ISO de manière sécurisée
-    def format_date_iso(valeur_date):
-        if not valeur_date:
+    def format_date_iso(valeur):
+        if not valeur:
             return None
-        # Si c'est déjà une chaîne de caractères (str), on la renvoie telle quelle
-        if isinstance(valeur_date, str):
-            return valeur_date
-        # Si c'est un vrai objet date/datetime Python, on appelle isoformat()
-        return valeur_date.isoformat()
+        return valeur if isinstance(valeur, str) else valeur.isoformat()
 
     return {
         "id": str(dossier.id),
         "reference": dossier.reference,
+        "numero_role": dossier.numero_role,
         "intitule": dossier.intitule,
         "type_affaire": dossier.type_affaire,
         "type_affaire_libelle": dossier.get_type_affaire_display(),
         "statut": dossier.statut,
         "statut_libelle": dossier.get_statut_display(),
+        "degre_instance": dossier.degre_instance,
+        "degre_instance_libelle": dossier.get_degre_instance_display(),
         "client_id": str(dossier.client_id),
         "client_nom": nom_affichage(dossier.client),
+        "partie_adverse": dossier.partie_adverse,
+        "avocat_adverse": dossier.avocat_adverse,
         "avocat_referent_id": str(dossier.avocat_referent_id) if dossier.avocat_referent_id else None,
-        "avocat_referent_nom": (
-            dossier.avocat_referent.get_full_name() or dossier.avocat_referent.username
-        ) if dossier.avocat_referent_id else None,
-        "tribunal": {"id": str(dossier.tribunal.id), "code": dossier.tribunal.code, "nom": dossier.tribunal.nom} if dossier.tribunal else None,
-        
-        # UTILISATION DE LA METHODE SECURISÉE ICI 
+        "avocat_referent_nom": (dossier.avocat_referent.get_full_name() or dossier.avocat_referent.username) if dossier.avocat_referent_id else None,
+        "tribunal": {"id": str(dossier.tribunal.id), "code": dossier.tribunal.code, "nom": dossier.tribunal.nom} if dossier.tribunal_id else None,
+        "chambre": {"id": str(dossier.chambre.id), "libelle": dossier.chambre.libelle} if dossier.chambre_id else None,
+        "juge_en_charge": dossier.juge_en_charge,
+        "numero_bureau": dossier.numero_bureau,
         "date_ouverture": format_date_iso(dossier.date_ouverture),
         "date_prochaine_echeance": format_date_iso(dossier.date_prochaine_echeance),
-        
         "description": dossier.description,
         "created_at": dossier.created_at.strftime("%d/%m/%Y %H:%M") if dossier.created_at else None,
+        "echeance_depassee": bool(
+            dossier.date_prochaine_echeance
+            and dossier.date_prochaine_echeance < date.today()
+            and dossier.statut not in ('clos', 'archive')
+        ),
     }
 
 def lister_dossiers(
@@ -176,37 +159,44 @@ def generer_numero_sequentiel_dossier() -> str:
     # Retourne le numéro final formaté sur 4 chiffres (ex: DOS-2026-0043)
     return f"{prefixe}{nouveau_compteur:04d}"
 
+
 def creer_dossier(payload: dict, utilisateur) -> Dossier:
     _valider_payload(payload)
-    print("dans creer_dossier --> ", payload, utilisateur)
-
     vraie_reference = generer_numero_sequentiel_dossier()
 
     for tentative in range(3):
         dossier = Dossier(
             reference=vraie_reference,
+            numero_role=payload.get("numero_role") or None,
             intitule=payload["intitule"],
             type_affaire=payload.get("type_affaire", Dossier.TypeAffaire.AUTRE),
             statut=payload.get("statut", Dossier.StatutDossier.OUVERT),
+            degre_instance=payload.get("degre_instance", Dossier.DegreInstance.PREMIERE_INSTANCE),
+            dossier_origine_id=payload.get("dossier_origine_id") or None,
             client_id=payload["client_id"],
+            partie_adverse=payload.get("partie_adverse") or None,
+            avocat_adverse=payload.get("avocat_adverse") or None,
             avocat_referent_id=payload.get("avocat_referent_id") or None,
             tribunal_id=payload.get("tribunal_id") or None,
+            chambre_id=payload.get("chambre_id") or None,
+            juge_en_charge=payload.get("juge_en_charge") or None,
+            numero_bureau=payload.get("numero_bureau") or None,
             date_ouverture=payload.get("date_ouverture") or None,
             date_prochaine_echeance=payload.get("date_prochaine_echeance") or None,
             description=payload.get("description") or None,
             created_by=utilisateur,
         )
-        print("le dossier avant full_clean() --> ", dossier)
-        #dossier.full_clean(exclude=["reference"])  # référence générée automatiquement dans save()
-        print("le dossier finale est --> ", dossier)
+        dossier.full_clean(exclude=["reference"])  # <- réactivée, ne plus jamais commenter cette ligne
         try:
             with transaction.atomic():
                 dossier.save()
             return dossier
         except IntegrityError:
             if tentative == 2:
-                raise  # après 3 essais, on remonte l'erreur plutôt que de boucler indéfiniment
-            continue  # une autre requête a pris la même référence entre-temps : on réessaie
+                raise
+            vraie_reference = generer_numero_sequentiel_dossier()  # recalcul avant le prochain essai
+            continue
+
 
 def creer_facture_pour_dossier(dossier: Dossier, payload: dict, utilisateur) -> Facture:
     print("dans creer_facture_pour_dossier --> ",dossier, payload, utilisateur)
@@ -260,57 +250,54 @@ def creer_agenda_pour_dossier(dossier: Dossier, payload: dict, utilisateur) -> E
 
     return agenda
 
-""" def creer_dossier(payload: dict, utilisateur) -> Dossier:
-    _valider_payload(payload)
-
-    for tentative in range(3):
-        dossier = Dossier(
-            intitule=payload["intitule"],
-            type_affaire=payload.get("type_affaire", Dossier.TypeAffaire.AUTRE),
-            statut=payload.get("statut", Dossier.StatutDossier.OUVERT),
-            client_id=payload["client_id"],
-            avocat_referent_id=payload.get("avocat_referent_id") or None,
-            tribunal_id=payload.get("tribunal_id") or None,
-            date_ouverture=payload.get("date_ouverture") or None,
-            date_prochaine_echeance=payload.get("date_prochaine_echeance") or None,
-            description=payload.get("description") or None,
-            created_by=utilisateur,
-        )
-        dossier.full_clean(exclude=["reference"])  # référence générée automatiquement dans save()
-        try:
-            with transaction.atomic():
-                dossier.save()
-            return dossier
-        except IntegrityError:
-            if tentative == 2:
-                raise  # après 3 essais, on remonte l'erreur plutôt que de boucler indéfiniment
-            continue  # une autre requête a pris la même référence entre-temps : on réessaie
- """
-
-
 
 def modifier_dossier(dossier_id, payload: dict, utilisateur) -> Dossier:
-    _valider_payload(payload)
+    print("le payload dans le service --> ", payload)
+    # 1. Extraction des données du sous-dictionnaire "dossier" s'il existe
+    data = payload.get("dossier", payload)
+    print("le reference extrait --> ", data.get("reference"))
+    # Valider les données extraites
+    _valider_payload(data)
+    # Récupération de l'instance
     dossier = obtenir_dossier(dossier_id)
-    dossier.reference = payload.get("reference", dossier.reference)
-    dossier.intitule = payload.get("intitule", dossier.intitule)
-    dossier.type_affaire = payload.get("type_affaire", dossier.type_affaire)
-    dossier.statut = payload.get("statut", dossier.statut)
-    dossier.client_id = payload.get("client_id", dossier.client_id)
-    dossier.avocat_referent_id = payload.get("avocat_referent_id") or None
-    #dossier.juridiction = payload.get("juridiction") or None
-    dossier.tribunal_id=payload.get("tribunal_id", dossier.tribunal_id) or None
-    dossier.date_ouverture = payload.get("date_ouverture") or None
-    dossier.date_prochaine_echeance = payload.get("date_prochaine_echeance") or None
-    dossier.description = payload.get("description") or None
+    # 2. Mise à jour des champs depuis `data` (sans la virgule à la fin)
+    dossier.reference = data.get("reference", dossier.reference)  
+    dossier.numero_role = data.get("numero_role") or None
+    dossier.intitule = data.get("intitule", dossier.intitule)
+    dossier.type_affaire = data.get("type_affaire", dossier.type_affaire)
+    dossier.statut = data.get("statut", dossier.statut)
+    dossier.degre_instance = data.get("degre_instance", dossier.degre_instance)
+    dossier.dossier_origine_id = data.get("dossier_origine_id") or None
+    dossier.client_id = data.get("client_id", dossier.client_id)
+    dossier.partie_adverse = data.get("partie_adverse") or None
+    dossier.avocat_adverse = data.get("avocat_adverse") or None
+    dossier.avocat_referent_id = data.get("avocat_referent_id") or None
+    dossier.tribunal_id = data.get("tribunal_id") or None
+    dossier.chambre_id = data.get("chambre_id") or None
+    dossier.juge_en_charge = data.get("juge_en_charge") or None
+    dossier.numero_bureau = data.get("numero_bureau") or None
+    dossier.date_ouverture = data.get("date_ouverture") or None
+    dossier.date_prochaine_echeance = data.get("date_prochaine_echeance") or None
+    dossier.description = data.get("description") or None
+    
     dossier.edited_by = utilisateur
+    
+    # Validation des contraintes du modèle Django
     dossier.full_clean()
     dossier.save()
+    
     return dossier
 
 
+
 def supprimer_dossier(dossier_id):
-    dossier = obtenir_dossier(dossier_id)
+  
+    try:
+        # On cible directement l'objet via un .get() minimaliste, suffisant pour .delete()
+        dossier = Dossier.objects.get(pk=dossier_id)
+    except Dossier.DoesNotExist:
+        raise ObjectDoesNotExist("Dossier introuvable.")
+        
     dossier.delete()
 
 
@@ -340,6 +327,36 @@ def _valider_payload(payload: dict):
     if not payload.get("client_id"):
         raise ValidationError("Le client rattaché au dossier est obligatoire.")
 
+def options_chambres(tribunal_id=None):
+    """Alimente le <select> Chambre, filtré par tribunal si fourni."""
+    qs = Chambre.objects.select_related("tribunal").all()
+    if tribunal_id:
+        qs = qs.filter(tribunal_id=tribunal_id)
+    return [{"id": str(c.id), "libelle": c.libelle, "tribunal_id": str(c.tribunal_id)} for c in qs]
 
 def _parse_date(valeur: str):
     return datetime.strptime(valeur, "%Y-%m-%d").date()
+
+
+def creer_parties_prenantes_pour_dossier(dossier: Dossier, liste_parties: list, utilisateur) -> list[PartiePrenante]:
+    """
+    Crée en masse les parties prenantes rattachées à un dossier.
+    liste_parties : [{nom, role, telephone, email, notifiable}, ...]
+    """
+    parties_creees = []
+    for item in liste_parties:
+        if not item.get("nom"):
+            continue  # ligne vide envoyée par erreur depuis le wizard : on l'ignore silencieusement
+        partie = PartiePrenante(
+            dossier=dossier,
+            nom=item["nom"],
+            role=item.get("role", PartiePrenante.RolePartiePrenante.AUTRE if hasattr(PartiePrenante, 'RolePartiePrenante') else "autre"),
+            telephone=item.get("telephone") or None,
+            email=item.get("email") or None,
+            notifiable=bool(item.get("notifiable", True)),
+            created_by=utilisateur,
+        )
+        partie.full_clean()
+        partie.save()
+        parties_creees.append(partie)
+    return parties_creees

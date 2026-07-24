@@ -64,7 +64,7 @@ def api_detail_client(request, client_id):
 
 
 ##@login_required
-@require_POST
+""" @require_POST
 def api_creer_client(request):
     print("La request reçue --> ", request)
     
@@ -177,7 +177,138 @@ def api_creer_client(request):
         return JsonResponse({'erreur': f"Le paramètre obligatoire suivant est manquant : {str(ke)}"}, status=400)
     except Exception as e:
         print(f"⚠️ Erreur applicative générale : {str(e)}")
-        return JsonResponse({'erreur': str(e)}, status=400) 
+        return JsonResponse({'erreur': str(e)}, status=400)  """
+    
+
+@require_POST
+def api_creer_client(request):
+    print("La request reçue --> ", request)
+    
+    # 🛠️ DÉSACTIVATION DE LA SÉCURITÉ POUR LES TESTS
+    user_pour_test = request.user
+    if not user_pour_test.is_authenticated:
+        user_pour_test = User.objects.first()
+        if not user_pour_test:
+            user_pour_test = User.objects.create_user(
+                username="testuser", 
+                email="test@example.com", 
+                password="password123"
+            )
+
+    try:
+        with transaction.atomic():
+            data = json.loads(request.body)
+            print("La data reçue --> ", data)
+
+            if 'client' not in data:
+                return JsonResponse({'erreur': "Le bloc de données 'client' est obligatoire."}, status=400)
+            
+            c = data['client']
+            
+            # 1. Création du Client
+            client = Client.objects.create(
+                type=c['type'], nom=c.get('nom'), prenom=c.get('prenom'),
+                raison_sociale=c.get('raison_sociale'), ifu_rccm=c.get('ifu_rccm'),
+                email=c.get('email'), telephone1=c.get('telephone1'), telephone2=c.get('telephone2'),
+                adresse=c.get('adresse'), notes=c.get('notes'),
+                created_by=user_pour_test
+            )
+            
+            # Initialisation stricte des variables à None
+            dossier, facture, agenda = None, None, None
+            
+            # Extraction sécurisée des sous-blocs
+            d = data.get('dossier')
+            f = data.get('facture')
+            a = data.get('agenda')
+            
+            # 2. Création du Dossier (Uniquement si le dictionnaire 'dossier' est fourni et non vide)
+            if d:
+                dossier = Dossier.objects.create(
+                    client_id=client.id, 
+                    avocat_referent=user_pour_test,
+                    intitule=d['intitule'], type_affaire=d['type_affaire'], statut=d['statut'],
+                    #juridiction=d.get('juridiction'), 
+                    date_ouverture=d.get('date_ouverture') or None,
+                    date_prochaine_echeance=d.get('date_prochaine_echeance') or None, 
+                    description=d.get('description'),
+                    created_by=user_pour_test
+                )
+            
+            # 3. Création des composants dépendants si le dossier existe
+            if dossier:
+                if f:                    
+                    # --- DÉBUT DU GÉNÉRATEUR SÉQUENTIEL ---
+                    annee_actuelle = timezone.now().strftime("%Y")
+                    prefixe = f"FAC-{annee_actuelle}-"
+                    derniere_facture = Facture.objects.filter(
+                        numero__startswith=prefixe
+                    ).order_by('-numero').first()
+                    if i_derniere := derniere_facture:
+                        dernier_compteur = int(i_derniere.numero.split('-')[-1])
+                        nouveau_compteur = dernier_compteur + 1
+                    else:
+                        nouveau_compteur = 1
+                    numero_sequentiel = f"{prefixe}{nouveau_compteur:04d}"
+                    # --- FIN DU GÉNÉRATEUR SÉQUENTIEL ---
+                    
+                    # CORRECTION UX : Attribution de l'objet créé à la variable 'facture'
+                    facture = Facture.objects.create(
+                        client_id=client.id,
+                        dossier_id=dossier.id, 
+                        numero=numero_sequentiel,
+                        montant_ht=f.get('montant_ht') or 0,
+                        montant_ttc=f.get('montant_ttc') or 0, 
+                        taux_tva=f.get('taux_tva') or 18.00, # Ajusté au taux UEMOA standard (18%)
+                        statut=f.get('statut', 'brouillon'),
+                        date_emission=timezone.now().date(),
+                        date_echeance=f.get('date_echeance') or None, 
+                        description=f.get('description'),
+                        created_by=user_pour_test
+                    )
+                    
+                if a:
+                    # CORRECTION UX : Attribution de l'objet créé à la variable 'agenda'
+                    agenda = EvenementAgenda.objects.create(
+                        dossier_id=dossier.id, 
+                        titre=a['titre'], 
+                        type=a['type'],
+                        date_heure=a.get('date_heure') or timezone.now(), 
+                        critique=a.get('critique', False),
+                        created_by=user_pour_test
+                    )
+            else:
+                # Si pas de dossier mais que des blocs facture ou agenda ont été envoyés
+                if f or a:
+                    raise ValueError("Impossible de configurer une facture ou un agenda sans dossier associé.")
+            
+            # --- CONSTRUCTION DU RÉSUMÉ SÉCURISÉ (ZÉRO NONETYPE ERROR) ---
+            info_c = client.raison_sociale if client.type == 'personne_morale' else f"{client.nom or ''} {client.prenom or ''}".strip()
+            summary = f"<b>👤 Client :</b> {info_c or 'Inconnu'}"
+            
+            # Chaque section vérifie de façon isolée si son objet existe
+            if dossier:
+                ref_dossier = getattr(dossier, 'reference', None) or f"Nouveau (ID: {str(dossier.id)[:8].upper()})"
+                summary += f"<br><b>📂 Dossier :</b> Ref: {ref_dossier} / {dossier.intitule}"
+                
+            if facture:
+                summary += f"<br><b>💳 Facture :</b> Ref: {facture.numero} / Mnt TTC: {float(facture.montant_ttc):,.0f}".replace(",", " ") + " F CFA"
+                
+            if agenda:
+                # Gestion de l'affichage de la date selon son type (DateTime ou String)
+                date_str = agenda.date_heure.strftime('%d/%m/%Y à %H:%M') if hasattr(agenda.date_heure, 'strftime') else str(agenda.date_heure)
+                summary += f"<br><b>📅 Agenda :</b> {'🚨 ' if agenda.critique else ''}Titre: {agenda.titre} / Date: {date_str}"
+
+        # Alignement des clés avec eCabinetAlerts
+        return JsonResponse({'success': True, 'message': summary, 'redirect': '/clients/'})
+
+    except KeyError as ke:
+        print(f"⚠️ Erreur de champ manquant : {str(ke)}")
+        return JsonResponse({'success': False, 'erreur': f"Le paramètre obligatoire suivant est manquant : {str(ke)}"}, status=400)
+    except Exception as e:
+        print(f"⚠️ Erreur applicative générale : {str(e)}")
+        return JsonResponse({'success': False, 'erreur': str(e)}, status=400)
+
 
 ##@login_required
 @require_http_methods(["POST"])

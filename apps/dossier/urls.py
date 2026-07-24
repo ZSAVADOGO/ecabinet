@@ -10,6 +10,7 @@ urlpatterns = [
     #path('', lambda request: HttpResponse('Page Liste des Dossiers...'), name='liste'),
     path("", views.dossier_dashboard, name="liste"),
     path("creer/dossier/", views.dossier_creation_wizard, name="dossier_creation_wizard"),
+    path("<uuid:dossier_id>/modifier/", views.modifier_dossier_view, name="modifier_dossier"),
 
     path("api/liste/", views.api_lister_dossiers, name="api_lister_dossiers"),
     path("api/creer/", views.api_creer_dossier, name="api_creer_dossier"),

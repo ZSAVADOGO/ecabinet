@@ -8,297 +8,1114 @@
 
 <div class="space-y-5">
 
+    <!-- BARRE D'ACTIONS ET FILTRES -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-    <div class="grid grid-cols-1 md:grid-cols-8 gap-3 items-end">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3 border-b border-gray-100 pb-3">
+            <div class="flex items-center gap-2">
+                <button onclick="ouvrirModalCreation()"
+                    class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded-lg shadow-sm text-sm transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Ajouter un événement
+                </button>
+                <div class="h-5 w-px bg-gray-200 mx-1"></div>
+                <!-- Navigation Rapide Semaine -->
+                <div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs font-medium">
+                    <button type="button" onclick="naviguerSemaine(-1)" class="px-2 py-1 rounded-md text-gray-600 hover:bg-white hover:shadow-sm">← Préc.</button>
+                    <button type="button" onclick="allerAujourdhui()" class="px-2.5 py-1 rounded-md text-gray-800 bg-white shadow-sm font-semibold">Aujourd'hui</button>
+                    <button type="button" onclick="naviguerSemaine(1)" class="px-2 py-1 rounded-md text-gray-600 hover:bg-white hover:shadow-sm">Suiv. →</button>
+                </div>
+            </div>
 
-        <!-- 1. Ajouter -->
-        <div class="w-max mb-0.5">
-            <button onclick="ouvrirModal('modal-evenement-form')"
-                class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-2.5 py-1.5 rounded-md shadow-sm text-sm transition">
-                + Ajouter
-            </button>
+            <!-- Bascule de Vue -->
+            <div class="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-1">
+                <button id="btn-vue-table" onclick="changerVue('table')" class="px-3 py-1 rounded-md text-xs font-semibold bg-white text-indigo-900 shadow-sm">Tableau</button>
+                <button id="btn-vue-semaine" onclick="changerVue('semaine')" class="px-3 py-1 rounded-md text-xs font-medium text-gray-600 hover:text-indigo-900">Vue Semaine</button>
+            </div>
         </div>
 
-        <!-- 2. Recherche libre avec croix -->
-        <div class="md:col-span-2 relative" data-clearable>
-            <input type="text" id="filtre-recherche" placeholder="Rechercher (titre, dossier)" aria-label="Recherche"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none pr-9">
-            <button type="button" data-clear-btn tabindex="-1"
-                class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500 focus:outline-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <!-- Recherche libre -->
+            <div class="md:col-span-3 relative">
+                <input type="text" id="filtre-recherche" placeholder="Rechercher (titre, dossier, intervenant)..."
+                       class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
 
-        <!-- 3. Type -->
-        <div>
-            <select id="filtre-type" aria-label="Type"
-                class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Type : Tous</option>
-                {% for valeur, libelle in types_evenement %}
-                    <option value="{{ valeur }}">{{ libelle }}</option>
-                {% endfor %}
-            </select>
-        </div>
+            <!-- Filtre Type d'événement (Enum EvenementAgenda.TypeEvenement) -->
+            <div class="md:col-span-2">
+                <select id="filtre-type" class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500">
+                    <option value="">Type : Tous</option>
+                    {% for valeur, libelle in types_evenement %}
+                        <option value="{{ valeur }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
 
-        <!-- 4-5-6. Dates + icône reset groupée (3 colonnes pour respirer) -->
-        <div class="md:col-span-3 flex items-center gap-2">
-            <input type="date" id="filtre-date-debut" aria-label="Du" data-reset-group="dates-agenda"
-                   class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <input type="date" id="filtre-date-fin" aria-label="Au" data-reset-group="dates-agenda"
-                   class="w-full min-w-0 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button type="button" data-reset-btn="dates-agenda" title="Réinitialiser les filtres"
-                onclick="reinitialiserGroupe('dates-agenda')"
-                class="hidden shrink-0 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-gray-100 focus:outline-none">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-            </button>
-        </div>
+            <!-- Plage de Dates (Vue semaine par défaut) -->
+            <div class="md:col-span-4 flex items-center gap-2">
+                <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500">
+                <span class="text-gray-400 text-xs">à</span>
+                <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500">
+                <button type="button" onclick="allerAujourdhui()" class="p-1.5 text-gray-400 hover:text-indigo-600" title="Semaine courante">
+                    ↺
+                </button>
+            </div>
 
-        <!-- 7. Case "Critiques" -->
-        <div class="flex items-center gap-2 h-[34px] mb-0.5 whitespace-nowrap">
-            <input type="checkbox" id="filtre-critique" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-            <label for="filtre-critique" class="text-xs font-medium text-gray-500 cursor-pointer select-none">Critiques</label>
+            <!-- Statut & Critiques -->
+            <div class="md:col-span-3 flex items-center gap-2">
+                <select id="filtre-statut-traitement" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm">
+                    <option value="">Statut : Tous</option>
+                    {% for valeur, libelle in statuts_traitement %}
+                        <option value="{{ valeur }}">{{ libelle }}</option>
+                    {% endfor %}
+                </select>
+                <label class="inline-flex items-center gap-1.5 text-xs text-gray-600 font-medium whitespace-nowrap cursor-pointer">
+                    <input type="checkbox" id="filtre-critique" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                    Critiques
+                </label>
+            </div>
         </div>
-
     </div>
-</div>
 
-
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-    <div class="overflow-x-auto">
-        <div class="max-h-[60vh] overflow-y-auto">
-            <table class="w-full text-sm border-collapse">
-                <thead class="sticky top-0 z-10 bg-indigo-950 text-indigo-200 uppercase text-[11px] tracking-wide">
-                    <tr>
-                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Titre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Dossier lié <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Date / Heure <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                        
-                        <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" 
-                        onclick="sortTable(this)" data-type="text">
-                        Critique <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span>
-                        </th>
-                        
-                        <th class="px-4 py-3 text-right font-semibold">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="corps-tableau"
-                       class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-100/70 [&>tr]:hover:bg-indigo-50 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
-                </tbody>
-            </table>
-            <div id="etat-vide" class="hidden text-center text-gray-400 py-14">
-                <div class="text-3xl mb-2">📅</div>Aucun événement trouvé.
+    <!-- TABLEAU DES ÉVÉNEMENTS -->
+    <div id="vue-conteneur-table" class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <div class="max-h-[60vh] overflow-y-auto">
+                <table class="w-full text-sm border-collapse">
+                    <thead class="sticky top-0 z-10 bg-indigo-950 text-indigo-200 uppercase text-[11px] tracking-wide">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Date & Heure</th>
+                            <th class="px-4 py-3 text-left">Titre</th>
+                            <th class="px-4 py-3 text-left">Type</th>
+                            <th class="px-4 py-3 text-left">Dossier</th>
+                            <th class="px-4 py-3 text-left">Responsable(s)</th>
+                            <th class="px-4 py-3 text-left">Parties prenantes</th>
+                            <th class="px-4 py-3 text-left">Statut</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corps-tableau" class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-50/50 [&>tr]:hover:bg-indigo-50/60 transition-colors">
+                        <!-- Exemple de rendu JS de ligne -->
+                    </tbody>
+                </table>
+                <div id="etat-vide" class="hidden text-center text-gray-400 py-14">
+                    <div class="text-3xl mb-2">📅</div>Aucun événement prévu pour cette période.
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-    <div class="flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-gray-600">
-        <div class="flex items-center gap-2">
-            <span>Afficher</span>
-            <select id="taille-page" class="border border-gray-300 rounded-lg px-2 py-1">
-                <option value="10">10</option><option value="25">25</option><option value="50">50</option>
-            </select>
-            <span id="info-pagination" class="font-medium text-gray-500">— 0 résultat(s)</span>
-        </div>
-        <div class="flex items-center gap-2">
-            <button id="btn-precedent" onclick="pagePrecedente()" class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>← Précédent</button>
-            <span id="label-page" class="font-semibold text-gray-700 px-2">Page 1</span>
-            <button id="btn-suivant" onclick="pageSuivante()" class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Suivant →</button>
-        </div>
-    </div>
-</div>
+<!-- MODAL DE CRÉATION / ÉDITION -->
 
-<!-- MODAL Créer / Modifier -->
+<!-- Changement de max-w-xl à max-w-4xl pour élargir le formulaire -->
 <div id="modal-evenement-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-lg p-6">
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-bold text-gray-800" id="titre-modal-form">Nouvel événement</h2>
-            <button onclick="fermerModal('modal-evenement-form')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+            <h2 class="text-base font-bold text-gray-800" id="titre-modal-form">Nouvelle facture</h2>
+            <button type="button" onclick="fermerModal('modal-evenement-form')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
         </div>
-        <form id="form-evenement" onsubmit="soumettreFormulaire(event)">
-            <input type="hidden" name="id">
-            <div class="grid grid-cols-1 gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Titre *</label>
-                    <input type="text" name="titre" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        
+        <form id="form-evenement" onsubmit="soumettreFormulaire(event)" class="space-y-4 text-xs">
+            <input type="hidden" name="id" id="event-id">
+
+            <!-- Section Dossier & Titre -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="md:col-span-1">
+                    <label class="block font-semibold text-gray-700 mb-1">Dossier</label>
+                    <select name="dossier" id="field-dossier" onchange="chargerPartiesPrenantesDossier(this.value)" class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        <option value="">-- Hors dossier --</option>
+                        {% for d in dossiers %}
+                            <option value="{{ d.id }}">{{ d.label }} - {{ d.intitule }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="md:col-span-2">
+                    <label class="block font-semibold text-gray-700 mb-1">Titre de l'événement *</label>
+                    <input type="text" name="titre" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+
+            <!-- Type d'événement & Date/Heure (inchangé) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Type d'événement *</label>
+                    <select name="type" id="field-type" onchange="basculerChampsDelai(this.value)" required class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        {% for valeur, libelle in types_evenement %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Date et Heure *</label>
+                    <input type="datetime-local" name="date_heure" required class="w-full border border-gray-300 rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Statut</label>
+                    <select name="statut_traitement" class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        {% for valeur, libelle in statuts_traitement %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Bloc Procédure / Délai Légale (inchangé) -->
+            <div id="bloc-delai-procedure" class="hidden bg-amber-50/60 p-3 rounded-lg border border-amber-200 space-y-3">
+                <span class="block font-bold text-amber-900">⚖️ Paramètres du délai de procédure</span>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Type</label>
-                        <select name="type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                            {% for valeur, libelle in types_evenement %}
+                        <label class="block text-gray-700 mb-1">Type de délai</label>
+                        <select name="type_delai" class="w-full border border-gray-300 rounded-lg p-1.5 bg-white">
+                            <option value="">-- Sélectionner --</option>
+                            {% for valeur, libelle in types_delai %}
                                 <option value="{{ valeur }}">{{ libelle }}</option>
                             {% endfor %}
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-gray-500 mb-1">Date et heure *</label>
-                        <input type="datetime-local" name="date_heure" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <label class="block text-gray-700 mb-1">Date déclencheur</label>
+                        <input type="date" name="date_declencheur" class="w-full border border-gray-300 rounded-lg p-1.5 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">Durée légale (jours)</label>
+                        <input type="number" name="duree_legale_jours" min="1" class="w-full border border-gray-300 rounded-lg p-1.5 bg-white">
                     </div>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Dossier lié</label>
-                    <select name="dossier_id" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        <option value="">— Aucun —</option>
-                        {% for d in dossiers %}
-                            <option value="{{ d.id }}">{{ d.label }}</option>
-                        {% endfor %}
-                    </select>
+            </div>
+
+            <!-- Affectation Interne & Gestion Sécurisée des Intervenants de l'Audience -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <!-- ZONE COLLABORATEURS INTERNES OPTIMISÉE (Checkboxes fluides) -->
+    <div>
+        <label class="block font-semibold text-gray-700 mb-1">Avocats / Collaborateurs Internes</label>
+        <div class="w-full border border-gray-300 rounded-lg p-2 min-h-[140px] max-h-[180px] overflow-y-auto bg-slate-50/50 space-y-1">
+            {% for u in utilisateurs %}
+                <div class="flex items-center gap-2 p-1 bg-white rounded border border-gray-100 shadow-sm hover:bg-indigo-50/30 transition-colors">
+                    <label class="flex items-center gap-2 cursor-pointer select-none w-full py-0.5">
+                        <!-- name="responsables" transmettra nativement un tableau d'identifiants à la soumission -->
+                        <input type="checkbox" name="responsables" value="{{ u.id }}" class="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5">
+                        <div class="flex flex-col">
+                            <span class="font-semibold text-gray-900">Me. {{ u.get_full_name|default:u.username }}</span>
+                            <span class="text-[10px] text-gray-400 font-mono capitalize">{{ u.role|default:"Collaborateur" }}</span>
+                        </div>
+                    </label>
                 </div>
-                <div class="flex items-center gap-2">
-                    <input type="checkbox" name="critique" id="champ-critique" class="rounded border-gray-300">
-                    <label for="champ-critique" class="text-sm text-gray-600">Marquer comme critique (délai impératif)</label>
+            {% empty %}
+                <p class="text-gray-400 italic py-6 text-center">Aucun avocat configuré dans le système.</p>
+            {% endfor %}
+        </div>
+    </div>
+                
+                <!-- ZONE DE SÉLECTION NON-DESTRUCTRICE -->
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="font-semibold text-gray-700">Sélection des Intervenants (Dossier & Ponctuels)</label>
+                        <!-- Bouton d'ajout uniquement en mémoire d'interface -->
+                        <button type="button" onclick="ajouterIntervenantPonctuelALinterface()" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 transition-colors">
+                            <span>➕</span> Ajouter stagiaire/externe
+                        </button>
+                    </div>
+                    
+                    <!-- Conteneur d'options à cocher -->
+                    <div id="conteneur-parties-prenantes" class="w-full border border-gray-300 rounded-lg p-2 min-h-[140px] max-h-[180px] overflow-y-auto bg-slate-50/50 space-y-1">
+                        <p class="text-gray-400 italic py-6 text-center">Sélectionnez d'abord un dossier pour charger ses intervenants.</p>
+                    </div>
                 </div>
             </div>
-            <div class="flex justify-end gap-2 mt-6">
-                <button type="button" onclick="fermerModal('modal-evenement-form')" class="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-50">Annuler</button>
-                <button type="submit" class="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700">Enregistrer</button>
+
+            <!-- Case à cocher Critique & Description -->
+            <div class="grid grid-cols-1 gap-2">
+                <label class="inline-flex items-center gap-2 text-red-700 font-semibold cursor-pointer">
+                    <input type="checkbox" name="critique" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                    <span>Marquer cet événement comme CRITIQUE / URGENT (Alerte renforcée au cabinet)</span>
+                </label>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Description / Notes d'audience (Instructions pour le stagiaire, pièces à récupérer...)</label>
+                    <textarea name="description" rows="2" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500" placeholder="Détails complémentaires..."></textarea>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end gap-2 border-t border-gray-100 pt-3">
+                <button type="button" onclick="fermerModal('modal-evenement-form')" class="px-4 py-2 border rounded-lg font-medium text-gray-600 hover:bg-gray-50">Annuler</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm">Enregistrer l'événement</button>
             </div>
         </form>
     </div>
 </div>
 
+<!-- SOUS-MODAL PERSONNALISÉ : AJOUT RAPIDE INTERVENANT PONCTUEL -->
+<div id="modal-intervenant-rapide" class="modal-overlay hidden fixed inset-0 bg-black/50 items-center justify-center z-[60] p-4 transition-all duration-200">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 border border-gray-100 transform scale-95 transition-transform duration-200">
+        
+        <!-- En-tête -->
+        <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+            <h3 class="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                <span>👤</span> Nouvel intervenant ponctuel
+            </h3>
+            <button type="button" onclick="fermerSousModalIntervenant()" class="text-gray-400 hover:text-gray-600 text-lg leading-none">✕</button>
+        </div>
+        
+        <!-- Corps du formulaire -->
+        <div class="space-y-3 text-xs">
+            <div>
+                <label class="block font-semibold text-gray-600 mb-1">Nom complet <span class="text-rose-500">*</span></label>
+                <input type="text" id="rapide-pp-nom" placeholder="Ex: Stagiaire SAWADOGO, Me Huissier..." 
+                       class="w-full border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-xs">
+            </div>
+            <div>
+                <label class="block font-semibold text-gray-600 mb-1">Qualité / Rôle <span class="text-rose-500">*</span></label>
+                <input type="text" id="rapide-pp-role" placeholder="Ex: Stagiaire, Huissier, Confrère..." value="Stagiaire"
+                       class="w-full border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 text-xs">
+            </div>
+            <p class="text-[10px] text-gray-400 italic">
+                ℹ️ Cet intervenant sera associé uniquement à cette audience/démarche spécifique sans altérer le dossier permanent.
+            </p>
+        </div>
+        
+        <!-- Actions -->
+        <div class="flex justify-end gap-2 border-t border-gray-100 pt-3 mt-4">
+            <button type="button" onclick="fermerSousModalIntervenant()" 
+                    class="px-3 py-1.5 border rounded-lg font-medium text-gray-600 hover:bg-gray-50 text-xs transition-colors">
+                Annuler
+            </button>
+            <button type="button" onclick="validerAjoutIntervenantPonctuel()" 
+                    class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm text-xs transition-colors">
+                Ajouter à l'audience
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+
+<!-- MODAL NOTIFICATION RAPPEL MANUEL -->
+<div id="modal-rappel-manuel" class="hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-3 text-xs">
+        <h3 class="font-bold text-gray-800 text-sm">Notifier les parties prenantes</h3>
+        <p class="text-gray-500">Un rappel automatique sera transmis aux personnes marquées comme <i>Notifiables</i> dans le dossier.</p>
+
+        <div>
+            <label class="block font-semibold text-gray-700 mb-1">Message personnalisé</label>
+            <textarea id="rappel-message-custom" rows="3" class="w-full border border-gray-300 rounded-lg p-2" placeholder="Ex: Veuillez vous présenter 15 minutes avant le début de l'audience..."></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+            <button onclick="fermerModal('modal-rappel-manuel')" class="px-3 py-1.5 border rounded-lg font-medium">Annuler</button>
+            <button onclick="confirmerEnvoiNotification()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-medium shadow-sm">Envoyer le rappel</button>
+        </div>
+    </div>
+</div>
+
 <script>
-    const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const URLS = {
-        liste: "{% url 'agenda:api_lister_evenements' %}",
-        creer: "{% url 'agenda:api_creer_evenement' %}",
-        modifier: (id) => `/agenda/api/${id}/modifier/`,
-        supprimer: (id) => `/agenda/api/${id}/supprimer/`,
-    };
-    let etat = { page: 1, page_size: 10, cache: {} };
-    let minuteur = null;
+/**
+ * Engine JavaScript Dashboard Agenda - eCabinet
+ * Gestion dynamique du tableau, filtres réactifs, modal AJAX et bascule de vues.
+ */
 
-    const BADGE_TYPE = { audience: 'bg-purple-100 text-purple-700', rdv_client: 'bg-blue-100 text-blue-700',
-                         delai_procedure: 'bg-red-100 text-red-700', autre: 'bg-gray-100 text-gray-600' };
+// --- ÉTAT GLOBAL ---
+let vueActuelle = 'table';
+let dateReference = new Date(); // Référence pour la navigation semaine
+let evenementsCharges = [];
 
-    function queryString() {
-        return new URLSearchParams({
-            q: document.getElementById('filtre-recherche').value.trim(),
-            type: document.getElementById('filtre-type').value,
-            critique: document.getElementById('filtre-critique').checked ? 'true' : '',
-            date_debut: document.getElementById('filtre-date-debut').value,
-            date_fin: document.getElementById('filtre-date-fin').value,
-            page: etat.page, page_size: etat.page_size,
-        }).toString();
-    }
+// --- DÉMARRAGE ---
+document.addEventListener('DOMContentLoaded', () => {
+    initialiserDatesSemaine();
+    initialiserEcouteursFiltres();
+    chargerEvenements();
+});
 
-    async function chargerListe() {
-        const r = await fetch(`${URLS.liste}?${queryString()}`);
-        const d = await r.json();
-        etat.cache = {};
-        d.resultats.forEach(e => etat.cache[e.id] = e);
-        afficherTableau(d.resultats);
-        afficherPagination(d.pagination);
-    }
+// --- OBTENTION DU TOKEN CSRF ---
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+}
 
-    function afficherTableau(resultats) {
-        const corps = document.getElementById('corps-tableau');
-        const vide = document.getElementById('etat-vide');
-        corps.innerHTML = '';
-        if (resultats.length === 0) { vide.classList.remove('hidden'); return; }
-        vide.classList.add('hidden');
-        resultats.forEach(e => {
-            const tr = document.createElement('tr');
-            tr.className = 'hover:bg-indigo-50/40';
-            tr.innerHTML = `
-                <td class="px-4 py-3 font-medium text-gray-800">${echapper(e.titre)}</td>
-                <td class="px-4 py-3"><span class="px-2 py-1 rounded-full text-xs font-semibold ${BADGE_TYPE[e.type] || ''}">${e.type_libelle}</span></td>
-                <td class="px-4 py-3 text-gray-600">${e.dossier_reference ? echapper(e.dossier_reference + ' — ' + e.dossier_intitule) : '—'}</td>
-                <td class="px-4 py-3 text-gray-500" data-sort="${e.date_heure}">${formaterDateHeure(e.date_heure)}</td>
-                <td class="px-4 py-3 text-center">${e.critique ? '⚠️' : ''}</td>
-                <td class="px-4 py-3 text-right space-x-1">
-                    <button onclick="modifierEvenement('${e.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-indigo-100 hover:text-indigo-700" title="Modifier">✏️</button>
-                    <button onclick="supprimerEvenement('${e.id}')" class="p-1.5 rounded-md text-gray-500 hover:bg-red-100 hover:text-red-600" title="Supprimer">🗑️</button>
-                </td>`;
-            corps.appendChild(tr);
-        });
-    }
+// --- INITIALISATION DES DATES DE LA SEMAINE ---
+function initialiserDatesSemaine() {
+    const curr = new Date(dateReference);
+    const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1); // Lundi
+    const last = first + 6; // Dimanche
 
-    function afficherPagination(p) {
-        document.getElementById('info-pagination').textContent = `— ${p.nb_resultats} résultat(s)`;
-        document.getElementById('label-page').textContent = `Page ${p.page_courante} / ${p.nb_pages || 1}`;
-        document.getElementById('btn-precedent').disabled = !p.a_precedent;
-        document.getElementById('btn-suivant').disabled = !p.a_suivant;
-    }
+    const premierJour = new Date(curr.setDate(first));
+    const dernierJour = new Date(curr.setDate(last));
 
-    function pagePrecedente() { etat.page = Math.max(1, etat.page - 1); chargerListe(); }
-    function pageSuivante() { etat.page += 1; chargerListe(); }
+    document.getElementById('filtre-date-debut').value = premierJour.toISOString().split('T')[0];
+    document.getElementById('filtre-date-fin').value = dernierJour.toISOString().split('T')[0];
+}
 
-    function reinitialiserFiltres() {
-        ['filtre-recherche', 'filtre-type', 'filtre-date-debut', 'filtre-date-fin'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('filtre-critique').checked = false;
-        etat.page = 1; chargerListe();
-    }
+// --- GESTION DES ÉCOUTEURS D'ÉVÉNEMENTS DE FILTRAGE ---
+function initialiserEcouteursFiltres() {
+    const inputs = [
+        'filtre-type', 
+        'filtre-date-debut', 
+        'filtre-date-fin', 
+        'filtre-statut-traitement', 
+        'filtre-critique'
+    ];
 
-    function echapper(t) { const d = document.createElement('div'); d.textContent = t ?? ''; return d.innerHTML; }
-    function formaterDateHeure(iso) {
-        if (!iso) return '—';
-        const dt = new Date(iso);
-        return dt.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    }
+    inputs.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => chargerEvenements());
+    });
 
+    // Recherche textuelle avec anti-rebond (Debounce)
+    let timerRecherche;
     document.getElementById('filtre-recherche').addEventListener('input', () => {
-        clearTimeout(minuteur); minuteur = setTimeout(() => { etat.page = 1; chargerListe(); }, 350);
+        clearTimeout(timerRecherche);
+        timerRecherche = setTimeout(() => chargerEvenements(), 300);
     });
-    ['filtre-type', 'filtre-date-debut', 'filtre-date-fin', 'filtre-critique'].forEach(id => {
-        document.getElementById(id).addEventListener('change', () => { etat.page = 1; chargerListe(); });
-    });
-    document.getElementById('taille-page').addEventListener('change', (e) => {
-        etat.page_size = parseInt(e.target.value, 10); etat.page = 1; chargerListe();
+}
+
+// --- CHARGEMENT DES DONNÉES DEPUIS L'API ---
+// --- CHARGEMENT DES DONNÉES DEPUIS L'API ---
+async function chargerEvenements() {
+    const elCritique = document.getElementById('filtre-critique');
+    
+    const params = new URLSearchParams({
+        'recherche': document.getElementById('filtre-recherche').value.trim(),
+        'type': document.getElementById('filtre-type').value,
+        'statut': document.getElementById('filtre-statut-traitement').value,
+        'date_debut': document.getElementById('filtre-date-debut').value,
+        'date_fin': document.getElementById('filtre-date-fin').value,
     });
 
-    function modifierEvenement(id) {
-        const e = etat.cache[id];
-        if (!e) return;
-        document.getElementById('titre-modal-form').textContent = 'Modifier l\'événement';
-        ouvrirModal('modal-evenement-form', {
-            id: e.id, titre: e.titre, type: e.type,
-            date_heure: e.date_heure ? e.date_heure.slice(0, 16) : '',
-            dossier_id: e.dossier_id || '',
-        });
-        document.getElementById('champ-critique').checked = e.critique;
+    // Ajouter 'critique' uniquement s'il est coché pour éviter d'envoyer 'critique=' vide
+    if (elCritique && elCritique.checked) {
+        params.append('critique', 'true');
     }
 
-    function supprimerEvenement(id) {
-        const e = etat.cache[id];
-        eCabinetAlerts.confirmerSuppression(`L'événement "${e?.titre}" sera définitivement supprimé.`, async () => {
-            eCabinetAlerts.chargement("Suppression en cours...");
-            const r = await fetch(URLS.supprimer(id), { method: 'POST', headers: { 'X-CSRFToken': CSRF_TOKEN } });
-            const d = await r.json();
-            eCabinetAlerts.fermerChargement();
-            if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
-            eCabinetAlerts.toast(d.message);
-            chargerListe();
+    try {
+        const response = await fetch(`/agenda/api/liste/?${params.toString()}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        console.log('le response de l api ', response)
+
+        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+        
+        const result = await response.json();
+        evenementsCharges = result.resultats || [];
+
+        console.log('les evenements contenus dans l api ', evenementsCharges)
+
+
+        if (vueActuelle === 'table') {
+            afficherTableau(evenementsCharges);
+        } else {
+            afficherVueSemaine(evenementsCharges);
+        }
+    } catch (err) {
+        console.error("Erreur lors de la mise à jour de l'agenda :", err);
+    }
+}
+
+{% comment %} async function chargerEvenements() {
+    const params = new URLSearchParams({
+        'recherche': document.getElementById('filtre-recherche').value,
+        'type': document.getElementById('filtre-type').value,
+        'date_debut': document.getElementById('filtre-date-debut').value,
+        'date_fin': document.getElementById('filtre-date-fin').value,
+        'statut': document.getElementById('filtre-statut-traitement').value,
+        'critique': document.getElementById('filtre-critique').checked
+    });
+    console.log("Les params ", params);
+
+    try {
+        const response = await fetch(`/agenda/api/liste/?${params.toString()}`, {
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        });
+        console.log("Le response ", response);
+
+        if (!response.ok) throw new Error("Erreur lors du chargement des données.");
+        
+        const result = await response.json();
+        console.log("Le result brut reçu de Django :", result);
+
+        // 🌟 FIXATION CRITIQUE : Changement de result.data vers result.resultats
+        evenementsCharges = result.resultats || [];
+        console.log("Les evenementsCharges corrigés : ", evenementsCharges);
+
+        if (vueActuelle === 'table') {
+            afficherTableau(evenementsCharges);
+        } else {
+            afficherVueSemaine(evenementsCharges);
+        }
+    } catch (err) {
+        console.error("Erreur API Agenda:", err);
+    }
+} {% endcomment %}
+// 🌟 OUTIL DE SÉCURITÉ : Empêche les injections et nettoie le texte avant affichage
+function echapper(t) { 
+    if (t === null || t === undefined) return '';
+    const d = document.createElement('div'); 
+    d.textContent = t; 
+    return d.innerHTML; 
+}
+
+// 🌟 UTILITAIRE DE DATE : Convertit le format ISO AAAA-MM-JJ en format lisible JJ/MM/AAAA
+function formaterDate(iso) { 
+    if (!iso) return '—'; 
+    try {
+        // Sépare proprement la date et l'heure en ignorant le fuseau horaire
+        // Exemple d'entrée : "2024-09-18T17:30:00+00:00"
+        const partiesDateTime = iso.split(/[T ]/);
+        const dateBrute = partiesDateTime[0]; // "2024-09-18"
+        let heureFormatee = '';
+
+        if (partiesDateTime[1]) {
+            // Extrait uniquement "17:30" et ignore les secondes et le fuseau "+00:00"
+            heureFormatee = partiesDateTime[1].substring(0, 5); 
+        }
+
+        const morceauxDate = dateBrute.split('-'); 
+        if (morceauxDate.length !== 3) return iso;
+        
+        // Reconstruction au format francophone : JJ/MM/AAAA
+        const dateFormatee = `${morceauxDate[2]}/${morceauxDate[1]}/${morceauxDate[0]}`;
+        
+        return heureFormatee ? `${dateFormatee} à ${heureFormatee}` : dateFormatee;
+    } catch (e) {
+        console.error("Erreur de formatage de date :", e);
+        return iso; // Sécurité : réaffiche la valeur brute en cas de problème
+    }
+}
+
+
+
+// --- RENDU : VUE TABLEAU ---
+function afficherTableau(donnees) {
+    console.log('les donnees reçues --> ', donnees);
+    const corpsTableau = document.getElementById('corps-tableau');
+    const etatVide = document.getElementById('etat-vide');
+    corpsTableau.innerHTML = '';
+
+    if (!donnees || donnees.length === 0) {
+        if (etatVide) etatVide.classList.remove('hidden');
+        return;
+    }
+    if (etatVide) etatVide.classList.add('hidden');
+
+    donnees.forEach(evt => {
+        const tr = document.createElement('tr');
+        tr.className = evt.critique ? 'bg-rose-50/70 border-l-4 border-l-rose-600 font-medium' : 'transition-colors';
+
+        // 1. Correction pour les Responsables (extrait le 'label' ou 'first_name/last_name' du dictionnaire)
+        const responsables = evt.responsables || [];
+        const respHtml = responsables.map(r => {
+            const nomAffiche = typeof r === 'object' ? (r.label || `${r.first_name || ''} ${r.last_name || ''}`.strip() || r.username) : r;
+            return `
+                <span class="inline-flex items-center bg-slate-100 text-slate-700 text-[10px] font-medium px-2 py-0.5 rounded-md border border-slate-200 mr-1 mb-1">
+                    👤 ${echapper(nomAffiche)}
+                </span>
+            `;
+        }).join('') || '<span class="text-gray-400 italic text-xs">Non assigné</span>';
+
+        // 2. Correction pour les Parties Prenantes
+        /*const partiesPrenantes = evt.parties_prenantes || [];
+        const partHtml = partiesPrenantes.map(p => {
+            const nomPartie = typeof p === 'object' ? (p.nom || p.label) : p;
+            return `
+                <span class="inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-indigo-100 mr-1 mb-1">
+                    ${echapper(nomPartie)}
+                </span>
+            `;
+        }).join('') || '<span class="text-gray-400 italic text-xs">—</span>';*/
+        // Extraction et formatage des badges de parties prenantes
+const partiesPrenantes = evt.parties_prenantes || [];
+const partHtml = partiesPrenantes.map(p => {
+    // Si p est un objet JSON transmis par l'API
+    let texteAffiche = '';
+    if (typeof p === 'object' && p !== null) {
+        const nom = p.nom || '';
+        const role = p.role_display || p.role || '';
+        texteAffiche = role ? `${nom} (${role})` : nom;
+    } else {
+        texteAffiche = p;
+    }
+
+    return `
+        <span class="inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-indigo-100 mr-1 mb-1" title="${echapper(texteAffiche)}">
+            🤝 ${echapper(texteAffiche)}
+        </span>
+    `;
+}).join('') || '<span class="text-gray-400 italic text-xs">—</span>';
+
+        // Badges de statut
+        let badgeStatutClass = 'bg-slate-100 text-slate-700 border-slate-200';
+        const statut = evt.statut || evt.statut_traitement;
+        
+        if (statut === 'traite') {
+            badgeStatutClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        } else if (statut === 'en_attente') {
+            badgeStatutClass = 'bg-amber-50 text-amber-800 border-amber-200';
+        } else if (statut === 'renvoye') {
+            badgeStatutClass = 'bg-blue-50 text-blue-700 border-blue-200';
+        } else if (statut === 'forclos') {
+            badgeStatutClass = 'bg-rose-600 text-white border-transparent font-bold shadow-sm animate-pulse';
+        }
+
+        // Formatage de la date
+        const dateAffichage = evt.date_heure ? new Date(evt.date_heure).toLocaleString('fr-FR', {
+            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        }) : '—';
+
+        // 3. Correction pour la référence du dossier
+        const refDossier = evt.dossier_nom || evt.dossier_reference || (evt.dossier_detail ? evt.dossier_detail.nom : '—');
+
+        tr.innerHTML = `
+            <!-- 1. Date & Heure -->
+            <td class="px-4 py-3 whitespace-nowrap text-xs font-mono font-semibold text-gray-700">
+                <div class="flex items-center space-x-1">
+                    ${evt.critique ? '<span class="text-rose-600" title="Délai de Forclusion Légale">🚨</span>' : '📅'}
+                    <span>${dateAffichage}</span>
+                </div>
+            </td>
+            
+            <!-- 2. Titre -->
+            <td class="px-4 py-3 text-xs font-semibold text-gray-900 max-w-xs truncate" title="${echapper(evt.titre)}">
+                ${echapper(evt.titre)}
+            </td>
+            
+            <!-- 3. Type -->
+            <td class="px-4 py-3 whitespace-nowrap text-xs">
+                <span class="inline-flex items-center bg-indigo-50/50 text-indigo-700 px-2 py-0.5 rounded text-[11px] font-medium border border-indigo-100/70 capitalize">
+                    ${echapper(evt.type_display || evt.type || 'Autre')}
+                </span>
+            </td>
+            
+            <!-- 4. Référence Dossier -->
+            <td class="px-4 py-3 whitespace-nowrap text-xs font-mono text-gray-600 font-medium">
+                📂 ${echapper(refDossier)}
+            </td>
+            
+            <!-- 5. Responsables -->
+            <td class="px-4 py-3 text-xs">${respHtml}</td>
+            
+            <!-- 6. Parties Prenantes -->
+            <td class="px-4 py-3 text-xs">${partHtml}</td>
+            
+            <!-- 7. Statut -->
+            <td class="px-4 py-3 whitespace-nowrap text-xs">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${badgeStatutClass}">
+                    ${echapper(evt.statut_display || statut || 'En attente')}
+                </span>
+            </td>
+            
+            <!-- 8. Actions -->
+            <td class="px-4 py-3 text-right text-xs whitespace-nowrap space-x-1">
+                <button onclick="editerEvenement('${evt.id}')" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-colors">Ouvrir</button>  
+                <button onclick="editerEvenement('${evt.id}')" class="px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm transition-colors">Statuer</button>
+
+                <button onclick="supprimerEvenement('${evt.id}')" title="Supprimer" class="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-gray-100">
+                            🗑️
+                </button>
+            </td>
+        `;
+        corpsTableau.appendChild(tr);
+    });
+}
+
+{% comment %} function afficherTableau(evenements) {
+    const corpsTableau = document.getElementById('corps-tableau');
+    const etatVide = document.getElementById('etat-vide');
+
+    if (!evenements || evenements.length === 0) {
+        corpsTableau.innerHTML = '';
+        etatVide.classList.remove('hidden');
+        return;
+    }
+
+    etatVide.classList.add('hidden');
+
+    corpsTableau.innerHTML = evenements.map(evt => {
+        // 1. Formatage Date & Heure
+        const dateFormatted = evt.date_debut 
+            ? new Date(evt.date_debut).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : 'N/A';
+        const heureFormatted = evt.date_debut 
+            ? new Date(evt.date_debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+            : '';
+
+        // 2. Formatage Dossier (Numéro + Intitulé)
+        const dossierLabel = evt.dossier_detail 
+            ? `${evt.dossier_detail.numero || ''} — ${evt.dossier_detail.nom || ''}`
+            : (evt.dossier_nom || 'Hors dossier');
+
+        // 3. Formatage Responsable(s) / Utilisateurs assignés
+        const responsablesHtml = evt.responsables && evt.responsables.length > 0
+            ? evt.responsables.map(r => `
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
+                    👤 ${r.first_name || r.username} ${r.last_name || ''}
+                </span>
+            `).join(' ')
+            : `<span class="text-gray-400 italic">Non assigné</span>`;
+
+        // 4. Formatage Parties prenantes
+        const partiesPrenantesHtml = evt.parties_prenantes && evt.parties_prenantes.length > 0
+            ? evt.parties_prenantes.map(p => `
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
+                    🤝 ${p.nom} <small class="ml-1 opacity-75">(${p.role_display || p.role})</small>
+                </span>
+            `).join(' ')
+            : `<span class="text-gray-400 italic">Aucune</span>`;
+
+        // 5. Badge Statut
+        const badgeStatut = getBadgeStatut(evt.statut, evt.statut_display);
+
+        return `
+            <tr class="hover:bg-indigo-50/60 transition-colors">
+                <!-- 1. Date & Heure -->
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <div class="font-medium text-gray-900">${dateFormatted}</div>
+                    <div class="text-xs text-gray-500">${heureFormatted}</div>
+                </td>
+
+                <!-- 2. Titre -->
+                <td class="px-4 py-3">
+                    <div class="font-medium text-gray-900 max-w-xs truncate" title="${evt.titre}">
+                        ${evt.titre}
+                    </div>
+                    ${evt.lieu ? `<div class="text-xs text-gray-400">📍 ${evt.lieu}</div>` : ''}
+                </td>
+
+                <!-- 3. Type -->
+                <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="px-2 py-1 text-xs rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        ${evt.type_display || evt.type}
+                    </span>
+                </td>
+
+                <!-- 4. Dossier -->
+                <td class="px-4 py-3">
+                    <div class="text-xs font-semibold text-indigo-900 max-w-xs truncate" title="${dossierLabel}">
+                        📂 ${dossierLabel}
+                    </div>
+                </td>
+
+                <!-- 5. Responsable(s) -->
+                <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1 max-w-xs">
+                        ${responsablesHtml}
+                    </div>
+                </td>
+
+                <!-- 6. Parties prenantes -->
+                <td class="px-4 py-3">
+                    <div class="flex flex-wrap gap-1 max-w-xs">
+                        ${partiesPrenantesHtml}
+                    </div>
+                </td>
+
+                <!-- 7. Statut -->
+                <td class="px-4 py-3 whitespace-nowrap">
+                    ${badgeStatut}
+                </td>
+
+                <!-- 8. Actions -->
+                <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                    <div class="flex items-center justify-end space-x-2">
+                        <button onclick="ouvrirModalEdition('${evt.id}')" title="Modifier" class="p-1 text-gray-500 hover:text-indigo-600 rounded hover:bg-gray-100">
+                            ✏️
+                        </button>
+                        <button onclick="supprimerEvenement('${evt.id}')" title="Supprimer" class="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-gray-100">
+                            🗑️
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+} 
+
+// Fonction auxiliaire pour formater le statut de traitement
+function getBadgeStatut(statutKey, statutLabel) {
+    const label = statutLabel || statutKey;
+    switch (statutKey) {
+        case 'traite':
+            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ ${label}</span>`;
+        case 'en_attente':
+            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⏳ ${label}</span>`;
+        case 'renvoye':
+            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">🔄 ${label}</span>`;
+        case 'forclos':
+            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">⚠️ ${label}</span>`;
+        default:
+            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">${label}</span>`;
+    }
+}
+{% endcomment %}
+
+// --- BASCULEMENT DE LA VUE TABLEAU / SEMAINE ---
+function changerVue(typeVue) {
+    vueActuelle = typeVue;
+    const btnTable = document.getElementById('btn-vue-table');
+    const btnSemaine = document.getElementById('btn-vue-semaine');
+
+    if (typeVue === 'table') {
+        btnTable.className = "px-3 py-1 rounded-md text-xs font-semibold bg-white text-indigo-900 shadow-sm";
+        btnSemaine.className = "px-3 py-1 rounded-md text-xs font-medium text-gray-600 hover:text-indigo-900";
+        afficherTableau(evenementsCharges);
+    } else {
+        btnSemaine.className = "px-3 py-1 rounded-md text-xs font-semibold bg-white text-indigo-900 shadow-sm";
+        btnTable.className = "px-3 py-1 rounded-md text-xs font-medium text-gray-600 hover:text-indigo-900";
+        afficherVueSemaine(evenementsCharges);
+    }
+}
+
+// --- NAVIGATION RAPIDE PAR SEMAINE ---
+function naviguerSemaine(offset) {
+    dateReference.setDate(dateReference.getDate() + (offset * 7));
+    initialiserDatesSemaine();
+    chargerEvenements();
+}
+
+function allerAujourdhui() {
+    dateReference = new Date();
+    initialiserDatesSemaine();
+    chargerEvenements();
+}
+
+// --- RENDU VUE SEMAINE (SIMULATION DYNAMIQUE) ---
+function afficherVueSemaine(donnees) {
+    const conteneurTable = document.getElementById('vue-conteneur-table');
+    // Note: Si une grille de calendrier spécifique est nécessaire, injectez le HTML ici
+    console.log("Rendu de la vue semaine pour", donnees.length, "événements.");
+}
+
+// --- CHARGEMENT DYNAMIQUE DES PARTIES PRENANTES PAR DOSSIER (FORMULAIRE) ---
+let intervenantsPonctuelsFormulaire = [];
+
+async function chargerPartiesPrenantesDossier(dossierId) {
+    const conteneur = document.getElementById('conteneur-parties-prenantes');
+    if (!conteneur) return;
+
+    // Reset des éléments temporaires lors du changement de dossier
+    intervenantsPonctuelsFormulaire = [];
+
+    if (!dossierId || dossierId.trim() === "") {
+        conteneur.innerHTML = '<p class="text-gray-400 italic py-6 text-center">Sélectionnez d\'abord un dossier pour charger ses intervenants.</p>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/agenda/api/dossiers/${dossierId}/parties-prenantes/`);
+        if (!response.ok) throw new Error("Erreur de récupération.");
+        
+        const result = await response.json(); 
+        conteneur.innerHTML = ''; 
+
+        // Rendu des intervenants structurels du dossier
+        if (result && result.length > 0) {
+            result.forEach(pp => {
+                ajouterLigneIntervenantDOM(pp.id, pp.nom, pp.role_display || pp.role, false);
+            });
+        } else {
+            conteneur.innerHTML = '<p id="msg-aucun-pp" class="text-gray-400 italic py-2 text-center">Aucune partie prenante structurelle liée à ce dossier.</p>';
+        }
+    } catch (err) {
+        conteneur.innerHTML = `<p class="text-rose-600 font-medium py-4 text-center">⚠️ ${err.message}</p>`;
+    }
+}
+
+// Fonction isolée pour dessiner la ligne dans l'interface sans impacter Python
+function ajouterLigneIntervenantDOM(id, nom, roleLibelle, estPonctuel = false) {
+    const conteneur = document.getElementById('conteneur-parties-prenantes');
+    const msgAucun = document.getElementById('msg-aucun-pp');
+    if (msgAucun) msgAucun.remove();
+
+    const div = document.createElement('div');
+    // Si c'est un stagiaire ou huissier ponctuel, on lui donne une teinte verte de distinction UX
+    div.className = `flex items-center justify-between p-1.5 rounded border border-gray-100 shadow-sm transition-all ${estPonctuel ? 'bg-emerald-50/50 border-emerald-100' : 'bg-white'}`;
+    
+    div.innerHTML = `
+        <label class="flex items-center gap-2 cursor-pointer select-none flex-1">
+            <!-- S'il est ponctuel, il est coché d'office -->
+            <input type="checkbox" name="parties_prenantes" value="${id}" ${estPonctuel ? 'checked' : ''} class="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5">
+            <div class="flex flex-col">
+                <span class="font-semibold text-gray-900">${echapper(nom)}</span>
+                <span class="text-[10px] ${estPonctuel ? 'text-emerald-600 font-bold' : 'text-gray-500'} font-medium font-mono capitalize">
+                    ${echapper(roleLibelle)} ${estPonctuel ? '(Ponctuel)' : ''}
+                </span>
+            </div>
+        </label>
+        ${estPonctuel ? `
+            <button type="button" onclick="this.parentElement.remove()" class="text-gray-400 hover:text-rose-600 px-1 font-bold" title="Retirer de cette audience">
+                ✕
+            </button>
+        ` : ''}
+    `;
+    conteneur.appendChild(div);
+}
+
+// Ajout à la volée sur l'interface (Sans appel d'API de création dans le dossier)
+function ajouterIntervenantPonctuelALinterface() {
+    const dossierId = document.getElementById('field-dossier').value;
+    if (!dossierId) return alert("Veuillez sélectionner un dossier avant d'ajouter un intervenant.");
+
+    const nom = prompt("Nom complet de la personne (Ex: Stagiaire SAWADOGO, Me Huissier...) :");
+    if (!nom || nom.trim() === "") return;
+
+    const role = prompt("Rôle / Qualité (Ex: Stagiaire, Huissier, Témoin) :", "Stagiaire");
+    if (!role || role.trim() === "") return;
+
+    // Compteur temporaire virtuel pour l'id unique à l'écran
+    const idVirtuel = "tmp_" + Date.now();
+
+    // On l'ajoute au DOM et il est sélectionné par défaut pour cette audience uniquement
+    ajouterLigneIntervenantDOM(idVirtuel, nom, role, true);
+}
+
+// Ouvre le sous-modal personnalisé à la place du prompt du navigateur
+function ouvrirAjoutRapidePartiePrenante() {
+    const dossierId = document.getElementById('field-dossier').value;
+    if (!dossierId) {
+        return eCabinetAlerts.erreur("Veuillez sélectionner un dossier avant d'ajouter un intervenant.");
+    }
+
+    // Réinitialisation des champs du sous-modal
+    document.getElementById('rapide-pp-nom').value = '';
+    document.getElementById('rapide-pp-role').value = 'Stagiaire';
+
+    // Affichage fluide du sous-modal avec les classes flex/hidden
+    const modal = document.getElementById('modal-intervenant-rapide');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // Focus automatique sur le champ nom pour le confort de saisie
+        setTimeout(() => document.getElementById('rapide-pp-nom').focus(), 50);
+    }
+}
+
+// Ferme proprement le sous-modal
+function fermerSousModalIntervenant() {
+    const modal = document.getElementById('modal-intervenant-rapide');
+    if (modal) {
+        modal.classList.remove('flex');
+        modal.classList.add('hidden');
+    }
+}
+
+// Valide la saisie du sous-modal personnalisé et l'injecte dans l'interface
+function validerAjoutIntervenantPonctuel() {
+    const nom = document.getElementById('rapide-pp-nom').value.trim();
+    const role = document.getElementById('rapide-pp-role').value.trim();
+
+    if (!nom) {
+        alert("Le nom complet est obligatoire.");
+        document.getElementById('rapide-pp-nom').focus();
+        return;
+    }
+    if (!role) {
+        alert("La qualité ou le rôle est obligatoire.");
+        document.getElementById('rapide-pp-role').focus();
+        return;
+    }
+
+    // Génération de l'identifiant virtuel temporaire
+    const idVirtuel = "tmp_" + Date.now();
+
+    // 🌟 OPTIMISATION CRITIQUE : Stockage en mémoire de l'objet pur pour traitement à la soumission
+    intervenantsPonctuelsFormulaire.push({
+        id: idVirtuel,
+        nom: nom,
+        role: role
+    });
+
+    // Injection visuelle de la ligne (en vert discret, cochée par défaut)
+    ajouterLigneIntervenantDOM(idVirtuel, nom, role, true);
+
+    // Fermeture du sous-modal
+    fermerSousModalIntervenant();
+}
+// --- MODAL DE CRÉATION ET ÉDITION ---
+function ouvrirModalCreation() {
+    document.getElementById('form-evenement').reset();
+    document.getElementById('event-id').value = '';
+    document.getElementById('titre-modal-form').textContent = "Nouvel événement d'agenda";
+    document.getElementById('modal-evenement-form').classList.remove('hidden');
+    document.getElementById('modal-evenement-form').classList.add('flex');
+}
+
+function editerEvenement(id) {
+    const evt = evenementsCharges.find(e => e.id === id);
+    if (!evt) return;
+
+    document.getElementById('event-id').value = evt.id;
+    document.getElementById('titre-modal-form').textContent = "Modifier l'événement d'agenda";
+    
+    // Remplissage des champs si présents dans votre modal
+    if (document.getElementById('field-titre')) document.getElementById('field-titre').value = evt.titre;
+    if (document.getElementById('field-dossier')) document.getElementById('field-dossier').value = evt.dossier_id || '';
+
+    document.getElementById('modal-evenement-form').classList.remove('hidden');
+    document.getElementById('modal-evenement-form').classList.add('flex');
+}
+
+function fermerModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+// --- SOUMISSION DU FORMULAIRE (AJAX POST) ---
+async function soumettreFormulaire(evt) {
+    evt.preventDefault();
+    const form = document.getElementById('form-evenement');
+    const formData = new FormData(form);
+    
+    // 1. EXTRACTION DES COLLABORATEURS INTERNES (responsables)
+    const avocatsCoches = form.querySelectorAll('input[name="responsables"]:checked');
+    const responsablesIds = Array.from(avocatsCoches).map(cb => cb.value);
+
+    // 2. EXTRACTION ET TRI SÉCURISÉ DES PARTIES PRENANTES
+    let partiesPrenantesIds = [];
+    let nouvellesPartiesPrenantesObjets = [];
+
+    // On cible TOUTES les cases à cocher situées dans le conteneur des parties prenantes
+    const conteneurPP = document.getElementById('conteneur-parties-prenantes');
+    if (conteneurPP) {
+        const checkboxesPP = conteneurPP.querySelectorAll('input[type="checkbox"]:checked');
+        
+        checkboxesPP.forEach(cb => {
+            const valueId = cb.value;
+            
+            if (valueId.startsWith('tmp_')) {
+                // C'est un nouvel intervenant ponctuel ajouté depuis le sous-modal personnalisé
+                // On extrait textuellement son nom et son rôle directement depuis les balises du DOM
+                const conteneurTexte = cb.parentElement.querySelector('.flex.flex-col');
+                const nomText = conteneurTexte.querySelector('.font-semibold').textContent.trim();
+                // On nettoie le libellé du rôle pour enlever la mention "(Ponctuel)"
+                const roleText = conteneurTexte.querySelector('.font-mono').textContent.replace('(Ponctuel)', '').trim();
+                
+                nouvellesPartiesPrenantesObjets.push({
+                    nom: nomText,
+                    role: roleText
+                });
+            } else {
+                // C'est une partie prenante structurelle existante en BDD rattachée au dossier
+                partiesPrenantesIds.push(valueId);
+            }
         });
     }
 
-    async function soumettreFormulaire(evt) {
-        evt.preventDefault();
-        const form = document.getElementById('form-evenement');
-        const payload = eCabinetModals.serialiser(form);
-        payload.critique = document.getElementById('champ-critique').checked;
-        const id = payload.id; delete payload.id;
+    // 3. ENCAPSULATION DU PAYLOAD GLOBAL
+    const payload = {
+        id: document.getElementById('event-id').value || null,
+        dossier_id: document.getElementById('field-dossier').value || null,
+        titre: formData.get('titre') ? formData.get('titre').trim() : '',
+        type: formData.get('type'),
+        date_heure: formData.get('date_heure'),
+        statut_traitement: formData.get('statut_traitement'),
+        critique: form.querySelector('input[name="critique"]').checked,
+        description: formData.get('description') ? formData.get('description').trim() : null,
+        
+        // Validation des tableaux d'intervenants
+        responsables: responsablesIds,       
+        parties_prenantes: partiesPrenantesIds, // Ne sera plus vide !
+        nouvelles_parties_prenantes: nouvellesPartiesPrenantesObjets, // Ne sera plus vide !
+                     
+        // Paramètres liés aux délais de procédure (bloc jaune)
+        type_delai: formData.get('type_delai') || null,
+        date_declencheur: formData.get('date_declencheur') || null,
+        duree_legale_jours: formData.get('duree_legale_jours') || null,
+    };
 
-        eCabinetAlerts.chargement("Enregistrement en cours...");
-        const url = id ? URLS.modifier(id) : URLS.creer;
+    // Gestion de la règle d'historique de renvoi automatique
+    if (payload.statut_traitement === 'renvoye') {
+        const nouvelleDate = prompt("Date et Heure de la prochaine audience de renvoi (Format: AAAA-MM-JJ HH:MM) :");
+        if (nouvelleDate && nouvelleDate.trim() !== "") {
+            payload.generer_prochain_renvoi_date = nouvelleDate;
+        }
+    }
+
+    console.log("➡️ LE PAYLOAD ENVOYÉ CORRIGÉ & SÉCURISÉ :", payload);
+
+    eCabinetAlerts.chargement("Enregistrement de l'événement...");
+    const url = payload.id ? `/agenda/api/${payload.id}/modifier/` : `/agenda/api/creer/`;
+    
+    try {
         const r = await fetch(url, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-            body: JSON.stringify(payload),
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
+            body: JSON.stringify(payload)
         });
+
         const d = await r.json();
         eCabinetAlerts.fermerChargement();
-        if (!r.ok) return eCabinetAlerts.erreur(d.erreur);
+
+        if (!r.ok) return eCabinetAlerts.erreur(d.erreur || "Une erreur est survenue.");
+        
         fermerModal('modal-evenement-form');
         eCabinetAlerts.succes(d.message);
-        chargerListe();
+        chargerEvenements(); // Re-dessine l'agenda principal
+    } catch (err) {
+        eCabinetAlerts.fermerChargement();
+        eCabinetAlerts.erreur("Erreur de communication avec le serveur : " + err.message);
     }
+}
 
-    document.addEventListener('DOMContentLoaded', chargerListe);
+function basculerChampsDelai(typeEvenement) {
+    const blocDelai = document.getElementById('bloc-delai-procedure');
+    if (!blocDelai) return;
+
+    // On affiche le bloc jaune uniquement si le type est 'delai_procedure'
+    if (typeEvenement === 'delai_procedure') {
+        blocDelai.classList.remove('hidden');
+        
+        // Optionnel : UX Premium - On applique un effet de focus visuel
+        blocDelai.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+        // Pour un rendez-vous client ou autre, on cache le bloc et on vide ses champs
+        blocDelai.classList.add('hidden');
+        const inputs = blocDelai.querySelectorAll('input, select');
+        inputs.forEach(input => input.value = '');
+    }
+}
+
+// --- SUPPRESSION D'UN ÉVÉNEMENT ---
+function supprimerEvenement(id) {
+    // 1. Réutilisation de votre confirmation critique native
+    eCabinetAlerts.confirmerSuppression(
+        "L'audience ou la démarche sera définitivement retiré de l'agenda.", 
+        async () => {
+            
+            // 2. Déclenchement de votre spinner bloquant natif pendant l'appel AJAX
+            eCabinetAlerts.chargement("Suppression de l'événement en cours...");
+
+            try { 
+                const response = await fetch(`/agenda/api/${id}/supprimer/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                
+                // 3. Fermeture automatique du spinner via votre utilitaire
+                eCabinetAlerts.fermerChargement();
+
+                if (response.ok && result.status === 'success') {
+                    // 🎉 Utilisation de votre toast discret en haut à droite pour valider le succès
+                    eCabinetAlerts.toast(result.message || "AGenda retiré avec succès.");
+                    
+                    // Rafraîchissement immédiat du tableau/calendrier
+                    chargerEvenements();
+                } else {
+                    // ⚠️ Affichage de votre boîte d'erreur en cas de refus du serveur (ex: permissions)
+                    eCabinetAlerts.erreur(result.erreur || result.message || "La suppression a été refusée.");
+                }
+            } catch (err) {
+                // 💥 Gestion du crash réseau ou serveur (500) avec votre boîte d'erreur
+                eCabinetAlerts.fermerChargement();
+                console.error("Erreur technique de suppression :", err);
+                eCabinetAlerts.erreur("Impossible de joindre le serveur de l'agenda. Veuillez réessayer.");
+            }
+        }
+    );
+}
 </script>
 {% endblock %}

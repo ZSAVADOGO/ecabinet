@@ -7,6 +7,7 @@
 {% block content %}
 <!-- Jeton de sécurité CSRF injecté au bon endroit pour vos requêtes API AJAX -->
 {% csrf_token %}
+{{ chambres|json_script:"chambres-data-modal" }}
 <div class="space-y-6">
 
     <!-- En-tête -->
@@ -151,31 +152,119 @@
     <table class="w-full text-sm">
         <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs tracking-wider">
             <tr>
-                <!-- 1 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Référence <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                <!-- 2 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Affaire / Client <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                <!-- 6 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Statut <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                <!-- 3 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Type <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                <!-- 4 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Juridiction <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                <!-- 5 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text">Avocat <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
-                <!-- 7 --> <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="date">Échéance <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 1 --> <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text" data-champ="reference">Référence <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 2 --> <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text" data-champ="intitule">Affaire - Tr / Chmbre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 3 --> <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text" data-champ="client_nom">Client / Partie Adverse <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 4 --> <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text" data-champ="statut">Statut <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 5 --> {% comment %} <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text" data-champ="tribunal">Tr / Chmbre <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th> {% endcomment %}
+                <!-- 6 --> <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="text" data-champ="avocat_referent">Avocat / Avocat Adverse<span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
+                <!-- 7 --> <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white" onclick="sortTable(this)" data-type="date" data-champ="date_prochaine_echeance">Échéance <span class="sort-arrow ml-1 opacity-40 text-[10px]">↕</span></th>
                 <!-- Actions Toujours à droite -->
-                            <th class="px-4 py-3 text-left cursor-pointer select-none hover:text-white">Actions</th>
+                            <th class="px-3 py-2.5 text-left cursor-pointer select-none hover:text-white">Action</th>
             </tr>
         </thead>
         <tbody id="corps-tableau-dossiers"
-               class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-50/50 [&>tr]:hover:bg-indigo-50/60 [&>tr]:transition-colors [&>tr>td]:px-4 [&>tr>td]:py-3 [&>tr>td]:whitespace-nowrap">
-        </tbody>
+               class="divide-y divide-gray-200 [&>tr:nth-child(odd)]:bg-gray-50/50 [&>tr]:hover:bg-indigo-50/60 [&>tr]:transition-colors [&>tr>td]:px-3 [&>tr>td]:py-2 [&>tr>td]:whitespace-nowrap">
+        {% for d in resultats_initiaux %}
+        <tr class="transition-colors" data-id="{{ d.id }}">
+            <!-- 1. Référence -->
+            <td class="font-mono text-xs font-semibold text-gray-700 py-3 px-4">{{ d.reference }}</td>
+
+            <!-- 2. Affaire & Juridiction -->
+            <td class="max-w-[280px] py-3 px-4">
+                <div class="flex flex-col space-y-1 w-full">
+                    <span class="font-medium text-gray-900 text-sm truncate block" title="{{ d.intitule }}">{{ d.intitule }}</span>
+                    <div class="flex items-center min-w-0">
+                        {% if d.tribunal %}
+                            <span class="inline-block h-2 w-2 rounded-full bg-indigo-600 shrink-0 mr-1.5" title="Juridiction saisie"></span>
+                            <span class="text-xs font-semibold text-slate-500 truncate block" title="{{ d.tribunal.code }}{% if d.chambre %} / {{ d.chambre.libelle }}{% endif %}">
+                                {{ d.tribunal.code }}{% if d.chambre %} / {{ d.chambre.libelle }}{% endif %}
+                            </span>
+                        {% else %}
+                            <span class="text-xs text-gray-400 italic font-normal">— Non assigné</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
+
+            <!-- 3. Client & Partie adverse -->
+            <td class="max-w-[260px] py-3 px-4">
+                <div class="flex flex-col space-y-1 w-full">
+                    <span class="font-medium text-gray-900 text-sm truncate block" title="Client : {{ d.client_nom }}">{{ d.client_nom }}</span>
+                    <div class="flex items-center min-w-0 text-xs">
+                        {% if d.partie_adverse %}
+                            <span class="text-rose-600 font-bold shrink-0 mr-1.5">Vs</span>
+                            <span class="font-medium text-gray-500 truncate block" title="Adversaire : {{ d.partie_adverse }}">{{ d.partie_adverse }}</span>
+                        {% else %}
+                            <span class="text-gray-400 italic font-normal">Sans adversaire</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
+
+            <!-- 4. Statut -->
+            <td class="py-3 px-4 vertical-align-middle">
+                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold tracking-wide
+                    {% if d.statut == 'ouvert' %}bg-blue-600 text-white font-semibold shadow-sm
+                    {% elif d.statut == 'en_cours' %}bg-amber-500 text-white font-semibold shadow-sm
+                    {% elif d.statut == 'plaide' %}bg-red-600 text-white font-semibold shadow-sm
+                    {% elif d.statut == 'clos' %}bg-emerald-600 text-white font-semibold shadow-sm
+                    {% elif d.statut == 'archive' %}bg-gray-400 text-white font-medium
+                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                    {{ d.statut_libelle }}
+                </span>
+            </td>
+
+            <!-- 6. Avocats -->
+            <td class="max-w-[240px] py-3 px-4">
+                <div class="flex flex-col space-y-1 w-full">
+                    <span class="font-medium text-gray-700 text-sm truncate block" title="Référent : {{ d.avocat_referent_nom|default:'Non assigné' }}">
+                        👤 {{ d.avocat_referent_nom|default:"Non assigné" }}
+                    </span>
+                    <div class="flex items-center min-w-0 text-xs">
+                        {% if d.avocat_adverse %}
+                            <span class="text-amber-600 font-bold shrink-0 mr-1.5">Vs</span>
+                            <span class="font-medium text-slate-500 truncate block" title="Confrère adverse : {{ d.avocat_adverse }}">{{ d.avocat_adverse }}</span>
+                        {% else %}
+                            <span class="text-gray-400 italic font-normal">Pas d'avocat adverse</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </td>
+
+            <!-- 7. Échéance Critique -->
+            <td class="py-3 px-4 {% if d.echeance_depassee %}bg-rose-50 text-rose-700 font-bold border-l-2 border-rose-500{% else %}text-gray-600 font-medium{% endif %}" data-sort="{{ d.date_prochaine_echeance|default:'' }}">
+                <div class="flex items-center space-x-1">
+                    {% if d.echeance_depassee %}<span class="text-rose-500">⚠️</span>{% endif %}
+                    <span class="text-sm">{% if d.date_prochaine_echeance %}{{ d.date_prochaine_echeance }}{% else %}<span class="text-gray-400 font-normal italic text-xs">Aucune</span>{% endif %}</span>
+                </div>
+            </td>
+
+            <!-- Actions -->
+            <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+            <button onclick="voirDossier('${d.id}')" title="Consulter le dossier" class="px-2 py-1 rounded hover:bg-rose-100 rounded text-xs font-semibold tracking-wide  bg-blue-600 text-white font-semibold shadow-sm transition-colors">Ouvrir</button>  
+            <button onclick="voirDossier('${d.id}')" title="Lister tous les agendas"  class="px-2 py-1 rounded hover:bg-rose-100 rounded text-xs font-semibold tracking-wide  bg-green-600 text-white font-semibold shadow-sm transition-colors">Agenda</button>         
+        </td>
+        </tr>
+        {% endfor %}
+        </tbody> {% comment %}  <button onclick="voirDossier('{{ d.id }}')" class="p-1 text-gray-400 hover:text-indigo-600 transition-colors inline-flex items-center text-sm" title="Consulter le dossier">👁️</button>
+                <a href="/dossiers/{{ d.id }}/modifier/" class="p-1 text-gray-400 hover:text-amber-600 transition-colors inline-flex items-center text-sm" title="Modifier">✏️</a>
+                <button onclick="supprimerDossier('{{ d.id }}')" class="p-1 text-gray-400 hover:text-rose-600 transition-colors inline-flex items-center text-sm" title="Supprimer">🗑️</button>
+        {% endcomment %}
     </table>
     <div id="etat-vide" class="hidden text-center text-gray-400 py-10 font-medium">Aucun dossier trouvé.</div>
 </div>
 
 </div>
 
+{{ pagination_initiale|json_script:"pagination-initiale-data" }}
+{{ resultats_initiaux|json_script:"resultats-initiaux-data" }}
     <!-- Pagination -->
     <div class="flex items-center justify-between mt-4 text-sm text-gray-600">
         <div class="flex items-center gap-2">
             <span>Afficher</span>
             <select id="taille-page" class="border border-gray-300 rounded-lg px-2 py-1">
+                <option value="7" selected>7</option>
                 <option value="10">10</option>
                 <option value="25">25</option>
                 <option value="50">50</option>
@@ -207,8 +296,13 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Référence *</label>
-                    <input type="text" name="reference" required placeholder="DOS-2026-0001"
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Référence</label>
+                    <input type="text" name="reference" readonly placeholder="Générée automatiquement"
+                           class="w-full border border-gray-300 !bg-gray-50 text-gray-400 rounded-lg px-3 py-2 text-sm cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">N° de rôle / RG</label>
+                    <input type="text" name="numero_role" placeholder="Attribué par le greffe"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 </div>
                 <div>
@@ -250,8 +344,35 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1">Juridiction</label>
-                    <input type="text" name="juridiction" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Tribunal</label>
+                    <select name="tribunal_id" onchange="filtrerChambresModal(this.value)" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Non renseigné —</option>
+                        {% for t in tribunaux %}
+                            <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Chambre</label>
+                    <select name="chambre_id" id="select-chambre-modal" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="">— Sélectionner un tribunal d'abord —</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Juge en charge</label>
+                    <input type="text" name="juge_en_charge" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Numéro de bureau</label>
+                    <input type="text" name="numero_bureau" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Partie adverse</label>
+                    <input type="text" name="partie_adverse" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1">Avocat de la partie adverse</label>
+                    <input type="text" name="avocat_adverse" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Date d'ouverture</label>
@@ -289,12 +410,14 @@
         </div>
         <dl class="grid grid-cols-3 gap-y-2 text-sm">
             <dt class="text-gray-500">Référence</dt><dd class="col-span-2" id="detail-reference"></dd>
+            <dt class="text-gray-500">N° de rôle</dt><dd class="col-span-2" id="detail-numero-role"></dd>
             <dt class="text-gray-500">Intitulé</dt><dd class="col-span-2" id="detail-intitule"></dd>
             <dt class="text-gray-500">Client</dt><dd class="col-span-2" id="detail-client"></dd>
+            <dt class="text-gray-500">Partie adverse</dt><dd class="col-span-2" id="detail-partie-adverse"></dd>
             <dt class="text-gray-500">Type</dt><dd class="col-span-2" id="detail-type"></dd>
             <dt class="text-gray-500">Statut</dt><dd class="col-span-2" id="detail-statut"></dd>
             <dt class="text-gray-500">Avocat référent</dt><dd class="col-span-2" id="detail-avocat"></dd>
-            <dt class="text-gray-500">Juridiction</dt><dd class="col-span-2" id="detail-juridiction"></dd>
+            <dt class="text-gray-500">Tribunal</dt><dd class="col-span-2" id="detail-juridiction"></dd>
             <dt class="text-gray-500">Ouverture</dt><dd class="col-span-2" id="detail-ouverture"></dd>
             <dt class="text-gray-500">Échéance</dt><dd class="col-span-2" id="detail-echeance"></dd>
             <dt class="text-gray-500">Description</dt><dd class="col-span-2" id="detail-description"></dd>
@@ -316,8 +439,16 @@
         supprimer: (id) => `/dossiers/api/${id}/supprimer/`,
     };
 
-    let etat = { page: 1, page_size: 10, cacheResultats: {} };
+    let etat = { page: 1, page_size: 7, cacheResultats: {} };
     let minuteurRecherche = null;
+    const TOUTES_CHAMBRES = JSON.parse(document.getElementById('chambres-data-modal')?.textContent || '[]');
+
+    function filtrerChambresModal(tribunalId, chambreSelectionnee = '') {
+        const select = document.getElementById('select-chambre-modal');
+        const options = TOUTES_CHAMBRES.filter(c => c.tribunal_id === tribunalId);
+        select.innerHTML = '<option value="">— Sélectionner une chambre —</option>' +
+            options.map(c => `<option value="${c.id}" ${c.id === chambreSelectionnee ? 'selected' : ''}>${echapper(c.libelle)}</option>`).join('');
+    }
 
     function construireQueryString() {
         const params = new URLSearchParams({
@@ -378,51 +509,107 @@ function afficherTableau(resultats) {
         ligne.className = 'transition-colors'; 
         
         ligne.innerHTML = `
-            <!-- 1. Référence -->
-            <td class="font-mono text-xs font-semibold text-gray-700">${echapper(d.reference)}</td>
-            
-            <!-- 2. Affaire / Client (Fusion UX pour maximiser l'espace) -->
-            <td>
-                <div class="font-medium text-gray-900 truncate max-w-xs" title="${echapper(d.client_nom)} / ${echapper(d.intitule)}">${echapper(d.client_nom)} / ${echapper(d.intitule)}</div>
-            </td>
+    <!-- 1. Référence -->
+    <td class="font-mono text-xs font-semibold text-gray-700 py-3 px-4">${echapper(d.reference)}</td>
 
-             <!-- 3. Statut (Badges Premium Subtils) -->
-            <td>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold tracking-wide ${BADGE_STATUT[d.statut] || 'bg-gray-100 text-gray-600'}">
-                    ${echapper(d.statut_libelle)}
-                </span>
-            </td>
+    <!-- 2. Affaire & Juridiction (Structure 2 lignes sécurisée) -->
+    <td class="max-w-[280px] py-3 px-4">
+        <div class="flex flex-col space-y-1 w-full">
+            <!-- Ligne 1 : L'Intitulé de l'Affaire -->
+            <span class="font-medium text-gray-900 text-sm truncate block" title="${echapper(d.intitule)}">
+                ${echapper(d.intitule)}
+            </span>
             
-            <!-- 4. Type d'affaire -->
-            <td class="text-gray-600 text-xs font-medium capitalize">${echapper(d.type_affaire_libelle)}</td>
+            <!-- Ligne 2 : La Juridiction précédée du repère Indigo -->
+            <div class="flex items-center min-w-0">
+                ${d.tribunal ? `
+                    <span class="inline-block h-2 w-2 rounded-full bg-indigo-600 shrink-0 mr-1.5" title="Juridiction saisie"></span>
+                    <span class="text-xs font-semibold text-slate-500 truncate block" 
+                          title="${echapper(d.tribunal.code)}${d.chambre ? ' / ' + echapper(d.chambre.libelle) : ''}">
+                        ${echapper(d.tribunal.code)}${d.chambre ? ' / ' + echapper(d.chambre.libelle) : ''}
+                    </span>
+                ` : `
+                    <span class="text-xs text-gray-400 italic font-normal">— Non assigné</span>
+                `}
+            </div>
+        </div>
+    </td>
+
+    <!-- 3. Client & Partie adverse (Structure 2 lignes sécurisée) -->
+    <td class="max-w-[260px] py-3 px-4">
+        <div class="flex flex-col space-y-1 w-full">
+            <!-- Ligne 1 : Le Client (Votre partie) -->
+            <span class="font-medium text-gray-900 text-sm truncate block" title="Client : ${echapper(d.client_nom)}">
+                ${echapper(d.client_nom)}
+            </span>
             
-            <!-- 5. Juridiction -->
-            <td class="text-gray-600 truncate max-w-[160px]" title="${echapper(d.juridiction || 'N/A')}">
-                ${echapper(d.juridiction) || '<span class="text-gray-400 italic text-xs">Non saisie</span>'}
-            </td>
+            <!-- Ligne 2 : La Partie Adverse -->
+            <div class="flex items-center min-w-0 text-xs">
+                ${d.partie_adverse ? `
+                    <span class="text-rose-600 font-bold shrink-0 mr-1.5">Vs</span>
+                    <span class="font-medium text-gray-500 truncate block" title="Adversaire : ${echapper(d.partie_adverse)}">
+                        ${echapper(d.partie_adverse)}
+                    </span>
+                ` : `
+                    <span class="text-gray-400 italic font-normal">Sans adversaire</span>
+                `}
+            </div>
+        </div>
+    </td>
+
+    <!-- 4. Statut (Badges Premium Subtils) -->
+    <td class="py-3 px-4 vertical-align-middle">
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold tracking-wide ${BADGE_STATUT[d.statut] || 'bg-gray-100 text-gray-600'}">
+            ${echapper(d.statut_libelle)}
+        </span>
+    </td>
+
+    <!-- 6. Vos Avocats vs Avocats Adversaires (Structure 2 lignes sécurisée) -->
+    <td class="max-w-[240px] py-3 px-4">
+        <div class="flex flex-col space-y-1 w-full">
+            <!-- Ligne 1 : Avocat Référent du cabinet -->
+            <span class="font-medium text-gray-700 text-sm truncate block" title="Référent : ${echapper(d.avocat_referent_nom || 'Non assigné')}">
+                👤 ${echapper(d.avocat_referent_nom || 'Non assigné')}
+            </span>
             
-            <!-- 6. Avocat Référent -->
-            <td class="text-gray-700 font-medium">${echapper(d.avocat_referent_nom || 'Non assigné')}</td>
-            
-           
-            
-            <!-- 7. Échéance Critique -->
-            <td class="${echeanceDepassee ? 'bg-rose-50 text-rose-700 font-bold border-l-2 border-rose-500' : 'text-gray-600 font-medium'}" data-sort="${d.date_prochaine_echeance || ''}">
-                <div class="flex items-center space-x-1">
-                    ${echeanceDepassee ? '<span class="text-rose-500">⚠️</span>' : ''}
-                    <span>${formaterDate(d.date_prochaine_echeance) || '<span class="text-gray-400 font-normal italic text-xs">Aucune</span>'}</span>
-                </div>
-            </td>
-            
-            <!-- Actions -->
-            <td class="text-right space-x-1.5">
-                <button onclick="voirDossier('${d.id}')" class="p-1 text-gray-400 hover:text-indigo-600 transition-colors inline-flex items-center" title="Consulter le dossier">👁️</button>
-                <button onclick="modifierDossier('${d.id}')" class="p-1 text-gray-400 hover:text-amber-600 transition-colors inline-flex items-center" title="Modifier">✏️</button>
-                <button onclick="supprimerDossier('${d.id}')" class="p-1 text-gray-400 hover:text-rose-600 transition-colors inline-flex items-center" title="Supprimer">🗑️</button>
-            </td>
-        `;
-        corps.appendChild(ligne);
+            <!-- Ligne 2 : Avocat de la partie adverse -->
+            <div class="flex items-center min-w-0 text-xs">
+                ${d.avocat_adverse ? `
+                    <span class="text-amber-600 font-bold shrink-0 mr-1.5">Vs</span>
+                    <span class="font-medium text-slate-500 truncate block" title="Confrère adverse : ${echapper(d.avocat_adverse)}">
+                        ${echapper(d.avocat_adverse)}
+                    </span>
+                ` : `
+                    <span class="text-gray-400 italic font-normal">Pas d'avocat adverse</span>
+                `}
+            </div>
+        </div>
+    </td>
+
+    <!-- 7. Échéance Critique -->
+    <td class="py-3 px-4 ${echeanceDepassee ? 'bg-rose-50 text-rose-700 font-bold border-l-2 border-rose-500' : 'text-gray-600 font-medium'}" data-sort="${d.date_prochaine_echeance || ''}">
+        <div class="flex items-center space-x-1">
+            ${echeanceDepassee ? '<span class="text-rose-500">⚠️</span>' : ''}
+            <span class="text-sm">${formaterDate(d.date_prochaine_echeance) || '<span class="text-gray-400 font-normal italic text-xs">Aucune</span>'}</span>
+        </div>
+    </td>
+
+    <!-- Actions -->
+    <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+         <button onclick="voirDossier('${d.id}')" class="p-1 text-gray-400 hover:text-indigo-600 transition-colors inline-flex items-center text-sm" title="Consulter le dossier">👁️</button>
+        <a href="/dossiers/${d.id}/modifier/" class="p-1 text-gray-400 hover:text-amber-600 transition-colors inline-flex items-center text-sm" title="Modifier">✏️</a>
+        <button onclick="supprimerDossier('${d.id}')" class="p-1 text-gray-400 hover:text-rose-600 transition-colors inline-flex items-center text-sm" title="Supprimer">🗑️</button>
+   </td>
+`; 
+corps.appendChild(ligne);
+
     });
+}
+
+function tronquer(texte, longueur) {
+    if (!texte) return '<span class="text-gray-400 italic text-xs">—</span>';
+    const brut = echapper(texte);
+    return brut.length > longueur ? brut.slice(0, longueur) + '…' : brut;
 }
 
     function afficherPagination(pagination) {
@@ -471,34 +658,22 @@ function afficherTableau(resultats) {
     });
 
     function modifierDossier(id) {
-        const d = etat.cacheResultats[id];
-        if (!d) return;
-        document.getElementById('titre-modal-dossier-form').textContent = 'Modifier le dossier';
-        ouvrirModal('modal-dossier-form', {
-            id: d.id,
-            reference: d.reference,
-            intitule: d.intitule,
-            type_affaire: d.type_affaire,
-            statut: d.statut,
-            client_id: d.client_id,
-            avocat_referent_id: d.avocat_referent_id || '',
-            juridiction: d.juridiction,
-            date_ouverture: d.date_ouverture,
-            date_prochaine_echeance: d.date_prochaine_echeance,
-            description: d.description,
-        });
-    }
+    // Redirige vers la page de modification HTML
+    window.location.href = `/dossiers/${id}/modifier/`;
+}
 
     function voirDossier(id) {
         const d = etat.cacheResultats[id];
         if (!d) return;
         document.getElementById('detail-reference').textContent = d.reference;
+        document.getElementById('detail-numero-role').textContent = d.numero_role || '—';
         document.getElementById('detail-intitule').textContent = d.intitule;
         document.getElementById('detail-client').textContent = d.client_nom;
+        document.getElementById('detail-partie-adverse').textContent = d.partie_adverse ? `${d.partie_adverse}${d.avocat_adverse ? ' (' + d.avocat_adverse + ')' : ''}` : '—';
         document.getElementById('detail-type').textContent = d.type_affaire_libelle;
         document.getElementById('detail-statut').textContent = d.statut_libelle;
         document.getElementById('detail-avocat').textContent = d.avocat_referent_nom || '—';
-        document.getElementById('detail-juridiction').textContent = d.juridiction || '—';
+        document.getElementById('detail-juridiction').textContent = d.tribunal ? `${d.tribunal.code} — ${d.tribunal.nom}${d.chambre ? ' / ' + d.chambre.libelle : ''}` : '—';
         document.getElementById('detail-ouverture').textContent = formaterDate(d.date_ouverture);
         document.getElementById('detail-echeance').textContent = formaterDate(d.date_prochaine_echeance);
         document.getElementById('detail-description').textContent = d.description || '—';
@@ -509,29 +684,77 @@ function afficherTableau(resultats) {
         ouvrirModal('modal-dossier-detail');
     }
 
-    function supprimerDossier(id) {
-        const d = etat.cacheResultats[id];
-        eCabinetAlerts.confirmerSuppression(
-            `Le dossier "${d?.reference} — ${d?.intitule}" sera définitivement supprimé.`,
-            async () => {
-                eCabinetAlerts.chargement("Suppression en cours...");
-                try {
-                    const reponse = await fetch(URLS.supprimer(id), {
-                        method: 'POST',
-                        headers: { 'X-CSRFToken': CSRF_TOKEN },
+async function supprimerDossier(dossierId) {
+    // Utilisation de votre gestionnaire eCabinetAlerts déclaré précédemment
+    eCabinetAlerts.confirmerSuppression(
+        "Êtes-vous sûr de vouloir supprimer ce dossier ? Les données associées seront vérifiées.",
+        async () => {
+            try {
+                // Affiche le spinner de chargement eCabinet
+                eCabinetAlerts.chargement("Vérification et suppression...");
+
+                const reponse = await fetch(`/dossiers/api/${dossierId}/supprimer/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': obtenirCookie('csrftoken'),
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                // TRÈS IMPORTANT : On extrait le JSON, que la réponse soit un succès (200) ou un échec (400)
+                const donnees = await reponse.json();
+                
+                // Ferme le spinner de chargement
+                eCabinetAlerts.fermerChargement();
+
+                if (reponse.ok && donnees.success) {
+                    // Cas Succès standard (200 OK)
+                    await eCabinetAlerts.succes(donnees.message, "Opération réussie");
+                    window.location.reload(); 
+                } else {
+                    // Cas Échec de suppression / Tables liées (400 Bad Request)
+                    // On récupère le message détaillé rédigé par le serveur
+                    const messageAlerte = donnees.error || "Ce document est lié à d'autres données et ne peut être supprimé.";
+                    
+                    // Affichage de la modale d'erreur personnalisée SweetAlert2
+                    Swal.fire({
+                        title: "Action Verrouillée",
+                        text: messageAlerte,
+                        icon: "error",
+                        confirmButtonColor: "#4f46e5", // Indigo eCabinet
+                        customClass: {
+                            htmlContainer: 'text-left whitespace-pre-wrap font-sans text-sm text-gray-600'
+                        }
                     });
-                    const donnees = await reponse.json();
-                    eCabinetAlerts.fermerChargement();
-                    if (!reponse.ok) return eCabinetAlerts.erreur(donnees.erreur);
-                    eCabinetAlerts.toast(donnees.message);
-                    chargerListe();
-                } catch (e) {
-                    eCabinetAlerts.fermerChargement();
-                    eCabinetAlerts.erreur("Impossible de contacter le serveur.");
                 }
+
+            } catch (erreur) {
+                eCabinetAlerts.fermerChargement();
+                eCabinetAlerts.erreur("Impossible de joindre le serveur. Vérifiez votre connexion réseau.", "Erreur de communication");
+                console.error("Erreur réseau :", erreur);
             }
-        );
+        }
+    );
+}
+// Fonction utilitaire pour récupérer le jeton CSRF requis par Django
+function obtenirCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            // On cherche le cookie qui commence par le nom demandé (ex: csrftoken=)
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
     }
+    return cookieValue;
+}
+
+
+
 
     async function soumettreFormulaireDossier(evenement) {
         evenement.preventDefault();
@@ -562,7 +785,12 @@ function afficherTableau(resultats) {
         }
     }
 
-    document.addEventListener('DOMContentLoaded', chargerListe);
+    document.addEventListener('DOMContentLoaded', () => {
+        const resultatsInitiaux = JSON.parse(document.getElementById('resultats-initiaux-data')?.textContent || '[]');
+        resultatsInitiaux.forEach(d => etat.cacheResultats[d.id] = d);
+        const pagination = JSON.parse(document.getElementById('pagination-initiale-data')?.textContent || '{}');
+        afficherPagination(pagination);
+    });
 </script>
 
 {% endblock %}

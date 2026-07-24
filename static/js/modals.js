@@ -1,26 +1,3 @@
-/* function sortTable(th) {
-    const table = th.closest('table');
-    const tbody = table.querySelector('tbody');
-    const ths = [...th.parentElement.children];
-    const idx = ths.indexOf(th);
-    const asc = th.dataset.order !== 'asc';
-    ths.forEach(h => { h.dataset.order = ''; const a = h.querySelector('.sort-arrow'); if (a) a.textContent = '↕'; });
-    th.dataset.order = asc ? 'asc' : 'desc';
-    const arrow = th.querySelector('.sort-arrow'); if (arrow) arrow.textContent = asc ? '↑' : '↓';
-    const type = th.dataset.type || 'text';
-    const rows = [...tbody.querySelectorAll('tr')];
-    rows.sort((a, b) => {
-        let x = a.children[idx]?.dataset.sort ?? a.children[idx]?.textContent.trim() ?? '';
-        let y = b.children[idx]?.dataset.sort ?? b.children[idx]?.textContent.trim() ?? '';
-        if (type === 'number') { x = parseFloat(x.replace(/[^0-9.-]/g, '')) || 0; y = parseFloat(y.replace(/[^0-9.-]/g, '')) || 0; }
-        else if (type === 'date') {
-    x = new Date(x.replace(' ', 'T')).getTime() || 0;
-    y = new Date(y.replace(' ', 'T')).getTime() || 0;
-}
-        return (x > y ? 1 : x < y ? -1 : 0) * (asc ? 1 : -1);
-    });
-    rows.forEach(r => tbody.appendChild(r));
-} */
 function sortTable(th) {
     const table = th.closest('table');
     const ths = [...th.parentElement.children];
