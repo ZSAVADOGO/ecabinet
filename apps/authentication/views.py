@@ -4,12 +4,15 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
-
-#from authentication.models import User, Specialite
-#from apps.authentication.models import User, Specialite
 from apps.authentication.models import User, Specialite
+from django.utils import timezone
+
+#---- Securite
+from django.contrib.auth.decorators import login_required
+from .services import se_connecter, se_deconnecter
+#----Fin securite
 
 # On importe directement les fonctions autonomes du fichier services, comme pour client.
 from apps.authentication.services import (
@@ -24,6 +27,59 @@ from apps.authentication.services import (
 from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
 User = get_user_model()
 
+# ----- Securite
+
+@require_http_methods(["GET", "POST"])
+def connexion_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard:index')
+
+    erreur = None
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip()
+        mot_de_passe = request.POST.get("mot_de_passe", "")
+        succes, message = se_connecter(request, email, mot_de_passe)
+        if succes:
+            if request.user.doit_changer_mot_de_passe:
+                return redirect('authentication:changer_mot_de_passe_oblige')
+            return redirect(request.GET.get('next') or 'dashboard:index')
+        erreur = message
+
+    return render(request, "authentication/connexion.html", {"erreur": erreur})
+
+
+@login_required
+def deconnexion_view(request):
+    se_deconnecter(request)
+    return redirect('authentication:connexion')
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def changer_mot_de_passe_oblige_view(request):
+    """Bloque l'accès au reste de l'app tant que le mot de passe temporaire n'a pas été changé."""
+    if not request.user.doit_changer_mot_de_passe:
+        return redirect('dashboard:liste')
+
+    erreur = None
+    if request.method == "POST":
+        nouveau = request.POST.get("nouveau_mot_de_passe", "")
+        confirmation = request.POST.get("confirmation", "")
+        if nouveau != confirmation:
+            erreur = "Les deux mots de passe ne correspondent pas."
+        elif len(nouveau) < 10:
+            erreur = "Le mot de passe doit contenir au moins 10 caractères."
+        else:
+            request.user.set_password(nouveau)
+            request.user.doit_changer_mot_de_passe = False
+            request.user.date_dernier_changement_mdp = timezone.now()
+            request.user.save()
+            from django.contrib.auth import update_session_auth_hash
+            update_session_auth_hash(request, request.user)  # évite une déconnexion immédiate
+            return redirect('dashboard:index')
+
+    return render(request, "authentication/changer_mot_de_passe.html", {"erreur": erreur})
+# ----- Fin securite
 
 ##@login_required
 def utilisateur_dashboard(request):
@@ -34,6 +90,9 @@ def utilisateur_dashboard(request):
         "resultats_initiaux": resultat["resultats"],
         "pagination_initiale": resultat["pagination"],
     }
+    #print("Le contxte --> ",contexte)
+    print("Le resultat --> ",resultat)
+
     return render(request, "authentication/user_dashboard.html", contexte)
 
 

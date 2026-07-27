@@ -1,5 +1,4 @@
 from django.urls import path
-from dashboard import controllers
 
 from . import views
 
@@ -7,7 +6,11 @@ app_name = 'dashboard'
 
 urlpatterns = [
     path('', views.page_accueil, name='index'),
-    path('api/metrics/', views.api_metrics_graphiques, name='api_metrics'),
+    #path('', views.page_accueil, name='liste'),
+
+    # dashboard/urls.py — ajouts
+    path("api/stats/dossiers/", views.api_stats_dossiers, name="api_stats_dossiers"),
+    path("api/stats/agenda/", views.api_stats_agenda, name="api_stats_agenda"),
 
 
 ]

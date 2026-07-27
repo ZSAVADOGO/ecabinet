@@ -31,7 +31,7 @@ function sortTable(th) {
 }
 
 async function envoyerFormulaire(url, payload) {
-    console.log("Envoi du formulaire vers l'URL :", url, "avec le payload :", payload);
+    //console.log("Envoi du formulaire vers l'URL :", url, "avec le payload :", payload);
     try {
         const res = await fetch(url, {
             method: 'POST',

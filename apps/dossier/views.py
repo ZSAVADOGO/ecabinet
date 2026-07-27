@@ -114,7 +114,7 @@ def dossier_creation_wizard(request):
         # ON PASSE LA VALEUR ESTIMÉE AU TEMPLATE
         "prochaine_reference": prochaine_ref_estimative, 
     }
-    print("le Contexte est = ", contexte)
+    #print("le Contexte dossier est = ", contexte)
     return render(request, "dossier/ajout_dossier.html", contexte)
 
 

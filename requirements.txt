@@ -8,6 +8,7 @@ Django>=5.2
 #pandas
 #openpyxl
 #gunicorn
+pip freeze > requirements.txt
 
 #os # pour accéder aux variables d'environnement
 #openai # pour interagir avec l'API OpenAI

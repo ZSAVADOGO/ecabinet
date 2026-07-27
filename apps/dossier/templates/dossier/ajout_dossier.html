@@ -1,574 +1,853 @@
-{% extends 'base.html' %}
-{% block title %}Nouveau dossier | eCabinet{% endblock %}
-{% block content %}
-{{ chambres|json_script:"chambres-data" }}
-
-<div x-data="{
-    slide: 1,
-    ajouterFacture: false, 
-    ajouterAgenda: false, 
-    ajouterParties: false,
-    
-    dossier: {
-        client_id: '', intitule: '', reference: '', numero_role: '', 
-        type_affaire: 'civil', statut: 'ouvert', degre_instance: 'premiere_instance', 
-        partie_adverse: '', avocat_adverse: '', tribunal_id: '', chambre_id: '', 
-        juge_en_charge: '', numero_bureau: '', date_ouverture: '', 
-        date_prochaine_echeance: '', description: '', avocat_referent_id: ''
-    },
-    
-    toutesLesChambres: JSON.parse(document.getElementById('chambres-data').textContent),
-
-    get chambresDisponibles() {
-        if (!this.dossier.tribunal_id) return [];
-        return this.toutesLesChambres.filter(c => c.tribunal_id === this.dossier.tribunal_id);
-    }, // CORRECTION : La virgule manquante a été ajoutée ici
-
-    facture: {montant_ht: '', taux_tva: 18.00, montant_ttc: '', statut: 'brouillon', date_emission: '', date_echeance: '', description: '', numero_apercu: ''},
-    agenda: {titre: '', type: 'autre', date_heure: '', critique: false, description: ''},
-    partiesPrenantes: [],
-    
-    nouvellePartie(){ return {nom: '', role: 'client', telephone: '', email: '', notifiable: true}; },
-    ajouterLignePartie(){ this.partiesPrenantes.push(this.nouvellePartie()); },
-    retirerLignePartie(index){ this.partiesPrenantes.splice(index, 1); },
-
-    get etapes(){
-        const liste = ['Dossier'];
-        if(this.ajouterFacture) liste.push('Facture');
-        if(this.ajouterFacture && this.ajouterAgenda) liste.push('Agenda');
-        if(this.ajouterFacture && this.ajouterAgenda && this.ajouterParties) liste.push('Parties prenantes');
-        return liste;
-    },
-    get maxSlide(){ return this.etapes.length; },
-    get nomEtape(){ return this.etapes[this.slide - 1] || ''; },
-
-    get champsManquants(){
-        const manquants = [];
-        const etapeCourante = this.nomEtape;
-
-        if (etapeCourante === 'Dossier') {
-            if(!this.dossier.intitule) manquants.push('Intitulé du dossier');
-            if(!this.dossier.client_id) manquants.push('Client');
-            if(!this.dossier.type_affaire) manquants.push('Type d\'affaire');
-            if(!this.dossier.statut) manquants.push('Statut');
-        } else if (etapeCourante === 'Facture') {
-            if(!this.facture.montant_ht) manquants.push('Montant HT');
-            if(!this.facture.statut) manquants.push('Statut de la facture');
-            if(!this.facture.date_emission) manquants.push('Date d\'émission');
-        } else if (etapeCourante === 'Agenda') {
-            if(!this.agenda.titre) manquants.push('Titre de l\'événement');
-            if(!this.agenda.type) manquants.push('Type d\'événement');
-            if(!this.agenda.date_heure) manquants.push('Date et heure');
-        } else if (etapeCourante === 'Parties prenantes') {
-            if(this.partiesPrenantes.length === 0) manquants.push('Au moins une partie prenante');
-            this.partiesPrenantes.forEach((p, i) => { 
-                if(!p.nom) manquants.push(`Nom de la partie #${i+1}`); 
-            });
-        }
-        return manquants;
-    },
-    get champsSlideValides(){ return this.champsManquants.length === 0; },
-
-    suivant(){
-        if(!this.champsSlideValides) {
-            alert('Veuillez renseigner les champs requis pour cette étape : ' + this.champsManquants.join(', '));
-            return;
-        }
-        if(this.slide < this.maxSlide) this.slide++;
-    },
-    precedent(){ 
-        if(this.slide > 1) this.slide--; 
-    },
-    async enregistrer(){
-        if(!this.champsSlideValides) {
-            alert('Formulaire incomplet. Vérifiez l\'étape courante.');
-            return;
-        }
-        const payload = { dossier: this.dossier };
-        if(this.ajouterFacture) payload.facture = this.facture;
-        if(this.ajouterFacture && this.ajouterAgenda) payload.agenda = this.agenda;
-        if(this.ajouterFacture && this.ajouterAgenda && this.ajouterParties) payload.parties_prenantes = this.partiesPrenantes;
-        
-        await envoyerFormulaire('{% url 'dossier:api_creer_dossier' %}', payload);
-    }
-}" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
 
 
-    <!-- BLOC 1 : FORMULAIRE / WIZARD (8/12 : plus d'air pour la saisie) -->
-    <div class="lg:col-span-8 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
-        <div class="px-6 py-4 border-b border-gray-100">
-            <div class="flex items-center justify-between mb-2">
-                <h2 class="font-semibold text-indigo-950">Nouveau dossier</h2>
-                <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full" x-text="'Étape ' + slide + ' : ' + nomEtape"></span>
-            </div>
-            <!-- Stepper : toutes les étapes actives, avec la position courante -->
-            <div class="flex items-center gap-1.5 flex-wrap">
-                <template x-for="(nom, index) in etapes" :key="index">
-                    <div class="flex items-center gap-1.5">
-                        <span class="flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-full"
-                              :class="(index+1)===slide ? 'bg-indigo-700 text-white' : (index+1)<slide ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-400'">
-                            <span x-text="(index+1)<slide ? '✓' : (index+1)"></span>
-                            <span x-text="nom"></span>
-                        </span>
-                        <span x-show="index < etapes.length-1" class="text-gray-300">→</span>
-                    </div>
-                </template>
-            </div>
-        </div>
 
-        <div class="p-6 flex-grow space-y-4">
-            <!-- SLIDE 1 : DOSSIER -->
-<template x-if="slide===1">
-    <div class="space-y-4"
-         x-init="
-            if(!dossier.statut) { dossier.statut = 'ouvert'; }
-            if(!dossier.type_affaire) { dossier.type_affaire = 'autre'; }
-         ">
+{% extends 'base.html' %} 
 
-        <!-- Ligne 1 : Référence (1/3) & Intitulé (2/3) -->
-        <div class="grid grid-cols-3 gap-3">
-           
-            <div class="col-span-1" 
-                x-init="
-                    if(!dossier.reference) { dossier.reference = '{{ prochaine_reference }}'; }
-                ">
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Référence <span class="text-rose-500">*</span></label>
-                <!-- readonly et cursor-not-allowed empêchent la modification et guident l'utilisateur -->
-                <input x-model="dossier.reference" readonly tabindex="-1" required
-                    class="w-full border border-gray-200 !bg-slate-100 font-mono text-gray-500 rounded-md px-3 py-2 text-sm cursor-not-allowed select-none">
-            </div>
+{% block title %}Nouveau dossier | eCabinet{% endblock %} 
 
-            <div class="col-span-2">
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Intitulé du dossier <span class="text-rose-500">*</span></label>
-                <input x-model="dossier.intitule" required placeholder="Nom ou objet de l'affaire" 
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
+{% block content %} 
+{{ chambres|json_script:"chambres-data" }} 
+{{ libelles_choix|json_script:"libelles-choix-data" }} 
+{{ clients_options|json_script:"clients-options-data" }} 
+{{ avocats_options|json_script:"avocats-options-data" }} 
+{{ tribunaux_options|json_script:"tribunaux-options-data" }} 
 
-        <!-- Ligne 1bis : Numéro de rôle (greffe) & Degré d'instance -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro de rôle / RG <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.numero_role" placeholder="Attribué par le greffe"
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Degré d'instance</label>
-                <select x-model="dossier.degre_instance" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    {% for cle, libelle in degres_instance %}
-                        <option value="{{ cle }}">{{ libelle }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
+<div x-data="gestionDossierWizard()" class="max-w-5xl mx-auto">
 
-        <!-- Ligne 1ter : Partie adverse & son avocat -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Partie adverse <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.partie_adverse" placeholder="Ex: SONABEL, KOUTOU Daouda..."
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Avocat de la partie adverse <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.avocat_adverse" placeholder="Ex: Me LOURE"
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-        <!-- Ligne 2 : Alignement Client (Obligatoire) & Avocat Référent (Optionnel) -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Client <span class="text-rose-500">*</span></label>
-                <select x-model="dossier.client_id" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="">— Sélectionner un client —</option>
-                    {% for c in clients %}
-                        <option value="{{ c.id }}">{{ c.nom|default:c.raison_sociale }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Avocat Référent <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <select x-model="dossier.avocat_referent_id" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="">— Non assigné —</option>
-                    {% for a in avocats %}
-                        <option value="{{ a.id }}">Me. {{ a.first_name }} {{ a.last_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-       
-        <!-- Ligne 3 : Type d'affaire & Statut initial (Générés depuis le modèle Django) -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Type d'affaire <span class="text-rose-500">*</span></label>
-                <select x-model="dossier.type_affaire" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    {% for cle, libelle in type_affaire %}
-                        <option value="{{ cle }}">{{ libelle }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Statut initial <span class="text-rose-500">*</span></label>
-                <select x-model="dossier.statut" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    {% for cle, libelle in statut_dossier %}
-                        <option value="{{ cle }}">{{ libelle }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
+    <!-- BLOC UNIQUE : FORMULAIRE / WIZARD (pleine largeur) --> 
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col"> 
 
-        <!-- Ligne 4 : Tribunal (Optionnel) -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Tribunal <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <select x-model="dossier.tribunal_id" @change="dossier.chambre_id=''" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    <option value="">— Sélectionner un tribunal —</option>
-                    {% for t in tribunaux %}
-                        <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            {% comment %} <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Chambre 
-                <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <select x-model="dossier.chambre_id" :disabled="!dossier.tribunal_id" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-400">
-                    <option value="">— Sélectionner une chambre —</option>
-                    <template x-for="c in chambresDisponibles" :key="c.id">
-                        <option :value="c.id" x-text="c.libelle"></option>
+        <div class="px-6 py-3.5 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4">
+    <!-- CÔTÉ GAUCHE : Titre & Stepper de navigation -->
+            <div class="flex items-center gap-4 flex-wrap">
+                <div>
+                    <h2 class="font-semibold text-indigo-950 text-base leading-tight">Nouveau dossier</h2>
+                    <p class="text-[11px] text-gray-400">
+                        Modules annexes facultatifs
+                    </p>
+                </div>
+
+                <!-- Stepper à navigation libre -->
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <template x-for="etape in etapes" :key="etape.numero">
+                        <button type="button" 
+                                @click="allerA(etape.numero)" 
+                                class="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all duration-150" 
+                                :class="slide===etape.numero ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs' : (estRenseigne(etape.cle) ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100' : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100')">
+                            <span x-text="estRenseigne(etape.cle) && slide!==etape.numero ? '✓' : etape.icone"></span>
+                            <span x-text="etape.nom"></span>
+                            <span x-show="etape.essentiel" class="text-rose-500 font-bold" title="Module obligatoire">*</span>
+                        </button>
                     </template>
-                </select>
-            </div> {% endcomment %}
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">
-                    Chambre <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span>
-                </label>
-                <select x-model="dossier.chambre_id" 
-                        :disabled="!dossier.tribunal_id" 
-                        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-50 disabled:text-gray-400">
-                    <option value="">— Sélectionner une chambre —</option>
-                    <template x-for="c in chambresDisponibles" :key="c.id">
-                        <option :value="c.id" x-text="c.libelle" :selected="c.id === dossier.chambre_id"></option>
-                    </template>
-                </select>
-            </div>
-        </div>
-
-        <!-- Ligne 4bis : Juge en charge & Numéro de bureau -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Juge en charge <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.juge_en_charge" placeholder="Ex: Juge TOE"
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro de bureau <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.numero_bureau" placeholder="Ex: Bureau 11"
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-
-        <!-- Ligne 5 : Dates (Optionnelles) -->
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'ouverture <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.date_ouverture" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Prochaine Échéance <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="dossier.date_prochaine_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-
-        <!-- Ligne 6 : Description (Optionnelle) -->
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Description / Notes <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-            <textarea x-model="dossier.description" placeholder="Résumé des faits, contexte, pièces manquantes..." rows="2" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
-        </div>
-
-        <!-- Étape conditionnelle suivante (Facturation) -->
-        <div class="pt-2 border-t border-gray-100">
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-                <input type="checkbox" x-model="ajouterFacture" class="rounded text-indigo-700 focus:ring-indigo-500 h-4 w-4"> 
-                <span>Ajouter une facture ou une provision à l'ouverture ?</span>
-            </label>
-        </div>
-    </div>
-</template>
-
-<!-- SLIDE 2 : FACTURE -->
-<template x-if="slide===2">
-    <div class="space-y-4" 
-         x-init="
-            if(!facture.statut) { facture.statut = 'brouillon'; }
-            if(!facture.taux_tva) { facture.taux_tva = 18.00; }
-            if(!facture.date_emission) { facture.date_emission = new Date().toISOString().split('T')[0]; }
-            if(!facture.numero_apercu) { facture.numero_apercu = '{{ prochaine_reference_facture }}'; }
-         ">
-        
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro de facture / provision</label>
-            <input x-model="facture.numero_apercu" readonly tabindex="-1"
-                   class="w-full border border-gray-200 !bg-slate-100 font-mono text-gray-500 rounded-md px-3 py-2 text-sm cursor-not-allowed select-none">
-        </div>
-
-       
-        <div class="grid grid-cols-5 gap-3" 
-     x-effect="
-        if(facture.montant_ht) {
-            let taux = parseFloat(facture.taux_tva) || 0;
-            let tva = taux / 100;
-            facture.montant_ttc = (parseFloat(facture.montant_ht) * (1 + tva)).toFixed(2);
-        } else {
-            facture.montant_ttc = '';
-        }
-     ">
-    <!-- 1. Montant HT (Prend 2 colonnes sur 5) -->
-    <div class="col-span-2">
-        <label class="text-xs font-semibold text-gray-600 block mb-1">Montant HT <span class="text-rose-500">*</span></label>
-        <div class="relative">
-            <input x-model="facture.montant_ht" type="number" step="0.01" required placeholder="0.00" 
-                   class="w-full border border-gray-200 rounded-md pl-3 pr-12 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span>
-        </div>
-    </div>
-    <!-- 2. Taux TVA modifiable (Prend 1 colonne sur 5) -->
-    <div class="col-span-1">
-        <label class="text-xs font-semibold text-gray-600 block mb-1">TVA (%)</label>
-        <div class="relative">
-            <input x-model="facture.taux_tva" type="number" step="0.01" min="0" placeholder="18" 
-                   class="w-full border border-gray-200 rounded-md pl-2 pr-5 py-2 text-sm font-medium text-center focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            <span class="absolute right-2 top-2 text-gray-400 text-xs">%</span>
-        </div>
-    </div>
-    <div class="col-span-2">
-        <label class="text-xs font-medium text-gray-400 block mb-1">Montant TTC</label>
-        <div class="relative">
-            <input x-model="facture.montant_ttc" type="number" step="0.01" readonly tabindex="-1" placeholder="0.00" 
-                   class="w-full border border-gray-200 !bg-gray-50 text-gray-500 font-semibold rounded-md pl-3 pr-12 py-2 text-sm cursor-not-allowed">
-            <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span>
-        </div>
-    </div>
-
-</div>
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Statut de la facture <span class="text-rose-500">*</span></label>
-            <select x-model="facture.statut" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                {% for cle, libelle in statut_facture %}
-                    <option value="{{ cle }}">{{ libelle }}</option>
-                {% endfor %}
-            </select>
-        </div>
-
-        <div class="grid grid-cols-2 gap-3">
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'émission <span class="text-rose-500">*</span></label>
-                <input x-model="facture.date_emission" type="date" required 
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-            <div>
-                <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'échéance <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                <input x-model="facture.date_echeance" type="date" 
-                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-            </div>
-        </div>
-
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Libellé / Description <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-            <input x-model="facture.description" type="text" placeholder="Ex: Provision sur honoraires d'ouverture de dossier" maxlength="255"
-                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-
-        <div class="pt-2 border-t border-gray-100">
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-                <input type="checkbox" x-model="ajouterAgenda" class="rounded text-indigo-700 focus:ring-indigo-500 h-4 w-4"> 
-                <span>Ajouter un événement ou un rappel à l'agenda ?</span>
-            </label>
-        </div>
-    </div>
-</template>
-<template x-if="slide===3">
-    <div class="space-y-4"
-         x-init="
-            if(!agenda.type) { agenda.type = 'autre'; }
-            if(agenda.critique === undefined) { agenda.critique = false; }
-         ">
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Titre de l'événement <span class="text-rose-500">*</span></label>
-            <input x-model="agenda.titre" required placeholder="Ex: Audience de plaidoirie, Remise des conclusions..." 
-                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-<div>
-    <label class="text-xs font-semibold text-gray-600 block mb-1">Type d'événement <span class="text-rose-500">*</span></label>
-    <select x-model="agenda.type" required class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-        {% for cle, libelle in types_agenda %}
-            <option value="{{ cle }}">{{ libelle }}</option>
-        {% endfor %}
-    </select>
-</div>
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Date et heure <span class="text-rose-500">*</span></label>
-            <input x-model="agenda.date_heure" type="datetime-local" required 
-                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-        <div>
-            <label class="text-xs font-semibold text-gray-600 block mb-1">Notes / Précisions <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-            <input x-model="agenda.description" type="text" placeholder="Ex: Salle d'audience n°4, apporter le dossier de plaidoirie" maxlength="255"
-                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-        </div>
-        <div class="pt-2">
-            <label :class="agenda.critique ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-gray-50 border-gray-100 text-gray-700'"
-                   class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all duration-200">
-                <input type="checkbox" x-model="agenda.critique" class="rounded text-rose-600 focus:ring-rose-500 h-4 w-4">
-                <div class="flex flex-col">
-                    <span class="text-sm font-semibold">Marquer comme événement critique</span>
-                    <span class="text-xs text-gray-500" :class="agenda.critique ? 'text-rose-600 font-medium' : 'text-gray-400'">
-                        Active une alerte renforcée pour éviter tout dépassement de délai légal (Forclusion).
-                    </span>
                 </div>
-            </label>
-        </div>
-
-        <div class="pt-2 border-t border-gray-100">
-            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
-                <input type="checkbox" x-model="ajouterParties" class="rounded text-indigo-700 focus:ring-indigo-500 h-4 w-4">
-                <span>Ajouter les parties prenantes du dossier (avocat adverse, témoins, huissier...) ?</span>
-            </label>
-        </div>
-
-    </div>
-</template>
-
-<!-- SLIDE 4 : PARTIES PRENANTES -->
-<template x-if="slide===4">
-    <div class="space-y-4">
-        <p class="text-xs text-gray-500">Ajoutez chaque personne concernée par ce dossier et qui doit être notifiée (SMS/Email) des échéances importantes.</p>
-
-        <template x-for="(partie, index) in partiesPrenantes" :key="index">
-            <div class="border border-gray-200 rounded-md p-3 space-y-2 relative">
-                <button type="button" @click="retirerLignePartie(index)" class="absolute top-2 right-2 text-gray-400 hover:text-rose-600 text-xs">✕</button>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 block mb-1">Nom <span class="text-rose-500">*</span></label>
-                        <input x-model="partie.nom" placeholder="Ex: Me LOURE" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                  
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 block mb-1">Rôle *</label>
-                        <select x-model="partie.role" 
-                                class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                            
-                            <!-- Option neutre par défaut pour forcer le choix de l'utilisateur -->
-                            <option value="" selected disabled>— Sélectionner un rôle —</option>
-                            
-                            {% for cle, libelle in roles_partie_prenante %}
-                                <option value="{{ cle }}">{{ libelle }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 block mb-1">Téléphone <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                        <input x-model="partie.telephone" placeholder="+226 ..." class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                    <div>
-                        <label class="text-xs font-semibold text-gray-600 block mb-1">Email <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label>
-                        <input x-model="partie.email" type="email" placeholder="nom@exemple.com" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-                    </div>
-                </div>
-                <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-                    <input type="checkbox" x-model="partie.notifiable" class="rounded text-indigo-700 h-3.5 w-3.5">
-                    <span>Recevoir les rappels SMS/Email de ce dossier</span>
-                </label>
             </div>
-        </template>
 
-        <button type="button" @click="ajouterLignePartie()" class="w-full border border-dashed border-indigo-300 text-indigo-700 rounded-md py-2 text-sm font-medium hover:bg-indigo-50">
-            + Ajouter une partie prenante
-        </button>
-    </div>
-</template>
-
-        </div>
-        <div class="px-6 py-4 border-t border-gray-100">
-        <p x-show="champsManquants.length > 0" class="text-xs text-rose-600 mb-2 flex items-start gap-1">
-            <span>⚠️</span>
-            <span x-text="'Champ(s) requis manquant(s) : ' + champsManquants.join(', ')"></span>
-        </p>
-        <div class="flex justify-between">
-            <button type="button" @click="precedent()" :disabled="slide === 1" class="px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
-                Précédent
-            </button>
-            <div class="space-x-2">
-                <button type="button" x-show="slide < maxSlide" @click="suivant()" :disabled="!champsSlideValides" class="px-4 py-2 rounded-md text-sm font-medium bg-indigo-100 text-indigo-800 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
-                    Suivant
+            <!-- CÔTÉ DROIT : Boutons Précédent / Suivant / Enregistrer -->
+            <div class="flex items-center gap-2 ml-auto">
+                <!-- Bouton Précédent -->
+                <button type="button" 
+                        @click="precedent()" 
+                        :disabled="slide===1" 
+                        class="px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+                    ← Précédent
                 </button>
-                <button type="button" @click="enregistrer()" :disabled="!champsSlideValides" class="px-4 py-2 rounded-md text-sm font-medium bg-indigo-950 text-white disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed">
-                    Enregistrer
+
+                <!-- Bouton Suivant (Affiché tant qu'on n'est pas au slide 4) -->
+                <button type="button" 
+                        x-show="slide < 4" 
+                        @click="suivant()" 
+                        class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 transition-all">
+                    Suivant →
+                </button>
+
+                <!-- Bouton Enregistrer (Inactif tant qu'on n'est pas au slide 4) -->
+                <button type="button" 
+                        @click="ouvrirRecap()" 
+                        :disabled="slide !== 4"
+                        :class="slide === 4 ? 'bg-indigo-950 text-white hover:bg-indigo-900 shadow-xs' : 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'"
+                        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5">
+                    <span>💾</span>
+                    <span>Enregistrer</span>
                 </button>
             </div>
         </div>
+
+        <div class="p-6 flex-grow space-y-4"> 
+            <p x-show="afficherAlerteDossier" class="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-md p-3 flex items-start gap-1"> 
+                <span>⚠️</span> 
+                <span x-text="'Le module Dossier est obligatoire. Champ(s) manquant(s) : ' + champsManquantsDossier.join(', ')"></span> 
+            </p> 
+
+            <!-- SLIDE 1 : DOSSIER --> 
+ <!-- SLIDE 1 : DOSSIER (Optimisation Blocs Colorés Subtils) --> 
+<template x-if="slide===1"> 
+    <div class="space-y-3.5" x-init=" 
+        if(!dossier.statut) { dossier.statut = 'ouvert'; } 
+        if(!dossier.type_affaire) { dossier.type_affaire = 'autre'; } 
+        if(!dossier.reference) { dossier.reference = '{{ prochaine_reference }}'; } 
+    "> 
+
+        <!-- BLOC 1 : IDENTITÉ DU DOSSIER ET MANDAT (Thème Bleu / Indigo) -->
+        <fieldset class="border border-indigo-200/80 rounded-xl p-3.5 pt-2 bg-indigo-50/40 shadow-2xs">
+            <legend class="px-2.5 py-0.5 text-xs font-bold text-indigo-950 uppercase tracking-wide bg-indigo-100/80 border border-indigo-200 rounded-full shadow-2xs flex items-center gap-1.5">
+                <span>📋</span> Identité & Mandat
+            </legend>
+
+            <div class="space-y-2.5 mt-1">
+                <!-- Ligne 1 : Référence (1/3) + Intitulé (2/3) -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div class="col-span-1"> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Référence <span class="text-rose-500">*</span></label> 
+                        <input x-model="dossier.reference" readonly tabindex="-1" required class="w-full border border-indigo-200 bg-indigo-100/60 font-mono text-indigo-900 font-bold rounded-lg px-2.5 py-1.5 text-xs cursor-not-allowed select-none"> 
+                    </div> 
+                    <div class="col-span-1 md:col-span-2"> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Intitulé du dossier <span class="text-rose-500">*</span></label> 
+                        <input x-model="dossier.intitule" required placeholder="Ex: Divorce KABORE c/ KABORE" class="w-full border border-slate-300 bg-white rounded-lg px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"> 
+                    </div> 
+                </div>
+
+                <!-- Ligne 2 : Client + Avocat Référent + Type Affaire -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Client <span class="text-rose-500">*</span></label> 
+                       
+                        <select x-model="dossier.client_id" @change="capturerLabel('client_nom', $event)" required
+        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+    <option value="">— Sélectionner un client —</option>
+    {% for c in clients %}
+        <option value="{{ c.id }}">{{ c.nom|default:c.raison_sociale }}</option>
+    {% endfor %}
+</select>
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Avocat Référent</label> 
+                       
+                        <select x-model="dossier.avocat_referent_id" @change="capturerLabel('avocat_referent_nom', $event)"
+        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+    <option value="">— Non assigné —</option>
+    {% for a in avocats %}
+        <option value="{{ a.id }}">Me. {{ a.first_name }} {{ a.last_name }}</option>
+    {% endfor %}
+</select>
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Matière / Type <span class="text-rose-500">*</span></label> 
+                        <select x-model="dossier.type_affaire" required class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-600 transition-all"> 
+                            {% for cle, libelle in type_affaire %} 
+                                <option value="{{ cle }}">{{ libelle }}</option> 
+                            {% endfor %} 
+                        </select> 
+                    </div> 
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- BLOC 2 : JURIDICTION, GREFFE ET STATUT (Thème Vert Émeraude) -->
+        <fieldset class="border border-emerald-200/80 rounded-xl p-3.5 pt-2 bg-emerald-50/30 shadow-2xs">
+            <legend class="px-2.5 py-0.5 text-xs font-bold text-emerald-950 uppercase tracking-wide bg-emerald-100/80 border border-emerald-200 rounded-full shadow-2xs flex items-center gap-1.5">
+                <span>🏛️</span> Juridiction & Procédure
+            </legend>
+
+            <div class="space-y-2.5 mt-1">
+                <!-- Ligne 1 : Tribunal + Chambre + Statut Initial -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Tribunal</label> 
+                        {% comment %} <select x-model="dossier.tribunal_id" @change="dossier.chambre_id=''" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
+                            <option value="">— Aucun / Hors tribunal —</option> 
+                            {% for t in tribunaux %} 
+                                <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option> 
+                            {% endfor %} 
+                        </select>  {% endcomment %}
+                        <select x-model="dossier.tribunal_id" @change="dossier.chambre_id=''; capturerLabel('tribunal_nom', $event)"
+        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+    <option value="">— Sélectionner un tribunal —</option>
+    {% for t in tribunaux %}
+        <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>
+    {% endfor %}
+</select>
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Chambre</label> 
+                        <select x-model="dossier.chambre_id" :disabled="!dossier.tribunal_id" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all disabled:bg-slate-100 disabled:text-slate-400"> 
+                            <option value="">— Sélectionner —</option> 
+                            <template x-for="c in chambresDisponibles" :key="c.id"> 
+                                <option :value="c.id" x-text="c.libelle" :selected="c.id === dossier.chambre_id"></option> 
+                            </template> 
+                        </select> 
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Statut initial <span class="text-rose-500">*</span></label> 
+                        <select x-model="dossier.statut" required class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
+                            {% for cle, libelle in statut_dossier %} 
+                                <option value="{{ cle }}">{{ libelle }}</option> 
+                            {% endfor %} 
+                        </select> 
+                    </div> 
+                </div>
+
+                <!-- Ligne 2 : Degré Instance + N° Rôle + Juge / Bureau -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Degré d'instance</label> 
+                        <select x-model="dossier.degre_instance" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
+                            {% for cle, libelle in degres_instance %} 
+                                <option value="{{ cle }}">{{ libelle }}</option> 
+                            {% endfor %} 
+                        </select> 
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">N° de Rôle / RG</label> 
+                        <input x-model="dossier.numero_role" placeholder="Ex: N° 124/2026-RG" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
+                    </div> 
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs font-bold text-slate-800 block mb-1">Juge</label> 
+                            <input x-model="dossier.juge_en_charge" placeholder="Juge" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
+                        </div>
+                        <div>
+                            <label class="text-xs font-bold text-slate-800 block mb-1">Bureau</label> 
+                            <input x-model="dossier.numero_bureau" placeholder="N° bur." class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- BLOC 3 : ADVERSITÉ, TEMPORALITÉ & CONTEXTE (Thème Ambre / Warm) -->
+        <fieldset class="border border-amber-200/80 rounded-xl p-3.5 pt-2 bg-amber-50/30 shadow-2xs">
+            <legend class="px-2.5 py-0.5 text-xs font-bold text-amber-950 uppercase tracking-wide bg-amber-100/80 border border-amber-200 rounded-full shadow-2xs flex items-center gap-1.5">
+                <span>⚖️</span> Adversité & Temporalité
+            </legend>
+
+            <div class="space-y-2.5 mt-1">
+                <!-- Ligne 1 : Partie Adverse + Avocat Adverse + Dates -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-2.5">
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Partie adverse</label> 
+                        <input x-model="dossier.partie_adverse" placeholder="Ex: Sté SONABEL" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all"> 
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Avocat adverse</label> 
+                        <input x-model="dossier.avocat_adverse" placeholder="Ex: Me LOURE" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all"> 
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Date ouverture</label> 
+                        <input x-model="dossier.date_ouverture" type="date" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all"> 
+                    </div> 
+                    <div> 
+                        <label class="text-xs font-bold text-slate-800 block mb-1">Prochaine Échéance</label> 
+                        <input x-model="dossier.date_prochaine_echeance" type="date" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all"> 
+                    </div> 
+                </div>
+
+                <!-- Ligne 2 : Description / Notes -->
+                <div> 
+                    <label class="text-xs font-bold text-slate-800 block mb-1">Résumé des faits / Notes initiales</label> 
+                    <textarea x-model="dossier.description" placeholder="Synthèse des faits, pièces requises..." rows="2" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 transition-all"></textarea> 
+                </div> 
+            </div>
+        </fieldset>
+
+    </div> 
+</template>
+            
+            <!-- SLIDE 2 : AGENDA --> 
+            <template x-if="slide===2"> 
+                <div class="space-y-4" x-init=" 
+                    if(!agenda.type) { agenda.type = 'autre'; } 
+                    if(agenda.critique === undefined) { agenda.critique = false; } 
+                "> 
+                    <p class="text-xs text-gray-500">Facultatif — programmez un événement ou un rappel lié à ce dossier (audience, échéance, RDV).</p> 
+                    
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Titre de l'événement</label> 
+                        <input x-model="agenda.titre" placeholder="Ex: Audience de plaidoirie, Remise des conclusions..." class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                    </div> 
+
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Type d'événement</label> 
+                        <select x-model="agenda.type" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                            {% for cle, libelle in types_agenda %} 
+                                <option value="{{ cle }}">{{ libelle }}</option> 
+                            {% endfor %} 
+                        </select> 
+                    </div> 
+
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Date et heure</label> 
+                        <input x-model="agenda.date_heure" type="datetime-local" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                    </div> 
+
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Notes / Précisions <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label> 
+                        <input x-model="agenda.description" type="text" placeholder="Ex: Salle d'audience n°4, apporter le dossier de plaidoirie" maxlength="255" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                    </div> 
+
+                    <div class="pt-2"> 
+                        <label :class="agenda.critique ? 'bg-rose-50 border-rose-200 text-rose-900' : 'bg-gray-50 border-gray-100 text-gray-700'" class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer select-none transition-all duration-200"> 
+                            <input type="checkbox" x-model="agenda.critique" class="rounded text-rose-600 focus:ring-rose-500 h-4 w-4"> 
+                            <div class="flex flex-col"> 
+                                <span class="text-sm font-semibold">Marquer comme événement critique</span> 
+                                <span class="text-xs" :class="agenda.critique ? 'text-rose-600 font-medium' : 'text-gray-400'"> Active une alerte renforcée pour éviter tout dépassement de délai légal (Forclusion). </span> 
+                            </div> 
+                        </label> 
+                    </div> 
+                </div> 
+            </template> 
+
+            <!-- SLIDE 3 : PARTIES PRENANTES --> 
+            <template x-if="slide===3"> 
+                <div class="space-y-4"> 
+                    <p class="text-xs text-gray-500">Facultatif — ajoutez chaque personne concernée par ce dossier et qui doit être notifiée (SMS/Email) des échéances importantes.</p> 
+                    
+                    <template x-for="(partie, index) in partiesPrenantes" :key="index"> 
+                        <div class="border border-gray-200 rounded-md p-3 space-y-2 relative"> 
+                            <button type="button" @click="retirerLignePartie(index)" class="absolute top-2 right-2 text-gray-400 hover:text-rose-600 text-xs">✕</button> 
+                            
+                            <div class="grid grid-cols-2 gap-3"> 
+                                <div> 
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Nom <span class="text-rose-500">*</span></label> 
+                                    <input x-model="partie.nom" placeholder="Ex: Me LOURE" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                                </div> 
+                                <div> 
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Rôle</label> 
+                                    <select x-model="partie.role" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                                        {% for cle, libelle in roles_partie_prenante %} 
+                                            <option value="{{ cle }}">{{ libelle }}</option> 
+                                        {% endfor %} 
+                                    </select> 
+                                </div> 
+                            </div> 
+
+                            <div class="grid grid-cols-2 gap-3"> 
+                                <div> 
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Téléphone <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label> 
+                                    <input x-model="partie.telephone" placeholder="+226 ..." class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                                </div> 
+                                <div> 
+                                    <label class="text-xs font-semibold text-gray-600 block mb-1">Email <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label> 
+                                    <input x-model="partie.email" type="email" placeholder="nom@exemple.com" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                                </div> 
+                            </div> 
+
+                            <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none"> 
+                                <input type="checkbox" x-model="partie.notifiable" class="rounded text-indigo-700 h-3.5 w-3.5"> 
+                                <span>Recevoir les rappels SMS/Email de ce dossier</span> 
+                            </label> 
+                        </div> 
+                    </template> 
+
+                    <button type="button" @click="ajouterLignePartie()" class="w-full border border-dashed border-indigo-300 text-indigo-700 rounded-md py-2 text-sm font-medium hover:bg-indigo-50"> 
+                        + Ajouter une partie prenante 
+                    </button> 
+                </div> 
+            </template> 
+
+            <!-- SLIDE 4 : FACTURE --> 
+            <template x-if="slide===4"> 
+                <div class="space-y-4" x-init=" 
+                    if(!facture.statut) { facture.statut = 'brouillon'; } 
+                    if(!facture.taux_tva) { facture.taux_tva = 18.00; } 
+                    if(!facture.date_emission) { facture.date_emission = new Date().toISOString().split('T')[0]; } 
+                    if(!facture.numero_apercu) { facture.numero_apercu = '{{ prochaine_reference_facture }}'; } 
+                "> 
+                    <p class="text-xs text-gray-500">Facultatif — établissez une provision ou une facture d'honoraires dès l'ouverture du dossier.</p> 
+                    
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro de facture / provision</label> 
+                        <input x-model="facture.numero_apercu" readonly tabindex="-1" class="w-full border border-gray-200 !bg-slate-100 font-mono text-gray-500 rounded-md px-3 py-2 text-sm cursor-not-allowed select-none"> 
+                    </div> 
+
+                    <div class="grid grid-cols-5 gap-3" x-effect=" 
+                        if(facture.montant_ht) { 
+                            let taux = parseFloat(facture.taux_tva) || 0; 
+                            facture.montant_ttc = (parseFloat(facture.montant_ht) * (1 + taux/100)).toFixed(2); 
+                        } else { 
+                            facture.montant_ttc = ''; 
+                        } 
+                    "> 
+                        <div class="col-span-2"> 
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Montant HT</label> 
+                            <div class="relative"> 
+                                <input x-model="facture.montant_ht" type="number" step="0.01" placeholder="0.00" class="w-full border border-gray-200 rounded-md pl-3 pr-12 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                                <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span> 
+                            </div> 
+                        </div> 
+                        <div class="col-span-1"> 
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">TVA (%)</label> 
+                            <div class="relative"> 
+                                <input x-model="facture.taux_tva" type="number" step="0.01" min="0" placeholder="18" class="w-full border border-gray-200 rounded-md pl-2 pr-5 py-2 text-sm font-medium text-center focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                                <span class="absolute right-2 top-2 text-gray-400 text-xs">%</span> 
+                            </div> 
+                        </div> 
+                        <div class="col-span-2"> 
+                            <label class="text-xs font-medium text-gray-400 block mb-1">Montant TTC</label> 
+                            <div class="relative"> 
+                                <input x-model="facture.montant_ttc" type="number" step="0.01" readonly tabindex="-1" placeholder="0.00" class="w-full border border-gray-200 !bg-gray-50 text-gray-500 font-semibold rounded-md pl-3 pr-12 py-2 text-sm cursor-not-allowed"> 
+                                <span class="absolute right-2 top-2 text-gray-400 text-xs font-medium">FCFA</span> 
+                            </div> 
+                        </div> 
+                    </div> 
+
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Statut de la facture</label> 
+                        <select x-model="facture.statut" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                            {% for cle, libelle in statut_facture %} 
+                                <option value="{{ cle }}">{{ libelle }}</option> 
+                            {% endfor %} 
+                        </select> 
+                    </div> 
+
+                    <div class="grid grid-cols-2 gap-3"> 
+                        <div> 
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'émission</label> 
+                            <input x-model="facture.date_emission" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                        </div> 
+                        <div> 
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Date d'échéance <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label> 
+                            <input x-model="facture.date_echeance" type="date" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                        </div> 
+                    </div> 
+
+                    <div> 
+                        <label class="text-xs font-semibold text-gray-600 block mb-1">Libellé / Description <span class="text-gray-400 font-medium text-[11px]">(Optionnel)</span></label> 
+                        <input x-model="facture.description" type="text" placeholder="Ex: Provision sur honoraires d'ouverture de dossier" maxlength="255" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"> 
+                    </div> 
+                </div> 
+            </template> 
+        </div> 
+
+    </div> 
+
+    <!-- MODAL RÉCAPITULATIF : listé par module, en 4 blocs horizontaux --> 
+    {% comment %} <div x-show="modalRecapOuvert" x-cloak class="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="modalRecapOuvert=false"> 
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-5xl max-h-[90vh] flex flex-col"> 
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between"> 
+                <h3 class="font-semibold text-indigo-950">Récapitulatif avant enregistrement</h3> 
+                <button type="button" @click="modalRecapOuvert=false" class="text-gray-400 hover:text-gray-600">✕</button> 
+            </div> 
+
+            <div class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-4 gap-4"> 
+                <!-- BLOC DOSSIER --> 
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-4 space-y-1.5"> 
+                    <p class="text-xs uppercase tracking-wide font-bold text-indigo-700 mb-2">📂 Dossier</p> 
+                    <p class="text-xs text-gray-600"><span class="text-gray-400">Réf :</span> <span x-text="dossier.reference"></span></p> 
+                    <p class="text-xs text-gray-600"><span class="text-gray-400">Intitulé :</span> <span x-text="dossier.intitule || '—'"></span></p> 
+                    <p class="text-xs text-gray-600" x-show="dossier.numero_role"><span class="text-gray-400">N° rôle :</span> <span x-text="dossier.numero_role"></span></p> 
+                    
+                    <p class="text-xs text-gray-600">
+                        <span class="text-gray-400">Client :</span> 
+                        <span x-text="libelleOption(clientsOptions, dossier.client_id) || '—'"></span>
+                    </p> 
+                    
+                    <p class="text-xs text-gray-600">
+                        <span class="text-gray-400">Avocat référent :</span> 
+                        <span x-text="libelleOption(avocatsOptions, dossier.avocat_referent_id) || 'Non assigné'"></span>
+                    </p> 
+                    
+                    <p class="text-xs text-gray-600"><span class="text-gray-400">Type :</span> <span x-text="libelleChoix('type_affaire', dossier.type_affaire)"></span></p> 
+                    <p class="text-xs text-gray-600"><span class="text-gray-400">Statut :</span> <span x-text="libelleChoix('statut_dossier', dossier.statut)"></span></p> 
+                    <p class="text-xs text-gray-600"><span class="text-gray-400">Degré :</span> <span x-text="libelleChoix('degre_instance', dossier.degre_instance)"></span></p> 
+                    <p class="text-xs text-gray-600" x-show="dossier.partie_adverse"><span class="text-gray-400">Partie adverse :</span> <span x-text="dossier.partie_adverse"></span></p> 
+                    <p class="text-xs text-gray-600" x-show="dossier.avocat_adverse"><span class="text-gray-400">Avocat adverse :</span> <span x-text="dossier.avocat_adverse"></span></p> 
+                    
+                    <p class="text-xs text-gray-600" x-show="dossier.tribunal_id">
+                        <span class="text-gray-400">Tribunal :</span> 
+                        <span x-text="libelleOption(tribunauxOptions, dossier.tribunal_id)"></span>
+                    </p> 
+
+                    <p class="text-xs text-gray-600" x-show="dossier.chambre_id">
+                        <span class="text-gray-400">Chambre :</span> 
+                        <span x-text="libelleChambre(dossier.chambre_id)"></span>
+                    </p>
+
+                    <p class="text-xs text-gray-600" x-show="dossier.juge_en_charge"><span class="text-gray-400">Juge :</span> <span x-text="dossier.juge_en_charge"></span></p> 
+                    <p class="text-xs text-gray-600" x-show="dossier.numero_bureau"><span class="text-gray-400">Bureau :</span> <span x-text="dossier.numero_bureau"></span></p> 
+                    <p class="text-xs text-gray-600" x-show="dossier.date_ouverture"><span class="text-gray-400">Ouverture :</span> <span x-text="dossier.date_ouverture"></span></p> 
+                    <p class="text-xs text-gray-600" x-show="dossier.date_prochaine_echeance"><span class="text-gray-400">Échéance :</span> <span x-text="dossier.date_prochaine_echeance"></span></p> 
+                </div> 
+
+                <!-- BLOC AGENDA --> 
+                <div class="rounded-lg p-4 space-y-1.5 border" :class="agendaRenseigne ? 'bg-indigo-50/60 border-indigo-100' : 'bg-gray-50 border-gray-200'"> 
+                    <p class="text-xs uppercase tracking-wide font-bold mb-2" :class="agendaRenseigne ? 'text-indigo-700' : 'text-gray-400'">📅 Agenda</p> 
+                    <template x-if="agendaRenseigne"> 
+                        <div class="space-y-1.5"> 
+                            <p class="text-xs text-gray-600">
+                                <span class="text-gray-400">Titre :</span> 
+                                <span x-text="agenda.titre"></span></p> 
+                            <p class="text-xs text-gray-600"><span class="text-gray-400">Type :</span> <span x-text="libelleChoix('types_agenda', agenda.type)"></span></p> 
+                            <p class="text-xs text-gray-600" x-show="agenda.date_heure"><span class="text-gray-400">Date/heure :</span> <span x-text="agenda.date_heure"></span></p> 
+                            <p class="text-xs text-gray-600" x-show="agenda.description"><span class="text-gray-400">Notes :</span> <span x-text="agenda.description"></span></p> 
+                            <p class="text-xs font-semibold text-rose-600" x-show="agenda.critique">🚨 Marqué critique</p> 
+                        </div> 
+                    </template> 
+                    <p class="text-xs text-gray-400 italic" x-show="!agendaRenseigne">Non renseigné</p> 
+                </div> 
+
+                <!-- BLOC PARTIES PRENANTES --> 
+                <div class="rounded-lg p-4 space-y-1.5 border" :class="partiesRenseignees ? 'bg-indigo-50/60 border-indigo-100' : 'bg-gray-50 border-gray-200'"> 
+                    <p class="text-xs uppercase tracking-wide font-bold mb-2" :class="partiesRenseignees ? 'text-indigo-700' : 'text-gray-400'">🧑‍⚖️ Parties prenantes</p> 
+                    <template x-if="partiesRenseignees"> 
+                        <div class="space-y-1.5"> 
+                            <template x-for="(p, i) in partiesPrenantes.filter(p => p.nom)" :key="i"> 
+                                <p class="text-xs text-gray-600"> 
+                                    <span x-text="p.nom"></span> 
+                                    <span class="text-gray-400" x-text="' — ' + libelleChoix('roles_partie_prenante', p.role)"></span> 
+                                    <span x-show="p.notifiable">🔔</span> 
+                                </p> 
+                            </template> 
+                        </div> 
+                    </template> 
+                    <p class="text-xs text-gray-400 italic" x-show="!partiesRenseignees">Non renseigné</p> 
+                </div> 
+
+                <!-- BLOC FACTURE --> 
+                <div class="rounded-lg p-4 space-y-1.5 border" :class="factureRenseignee ? 'bg-indigo-50/60 border-indigo-100' : 'bg-gray-50 border-gray-200'"> 
+                    <p class="text-xs uppercase tracking-wide font-bold mb-2" :class="factureRenseignee ? 'text-indigo-700' : 'text-gray-400'">💳 Facture</p> 
+                    <template x-if="factureRenseignee"> 
+                        <div class="space-y-1.5"> 
+                            <p class="text-xs text-gray-600"><span class="text-gray-400">N° (aperçu) :</span> <span x-text="facture.numero_apercu"></span></p> 
+                            <p class="text-xs text-gray-600"><span class="text-gray-400">Montant HT :</span> <span x-text="facture.montant_ht + ' F CFA'"></span></p> 
+                            <p class="text-xs text-gray-600"><span class="text-gray-400">TVA :</span> <span x-text="facture.taux_tva + ' %'"></span></p> 
+                            <p class="text-xs text-gray-600"><span class="text-gray-400">Montant TTC :</span> <span x-text="(facture.montant_ttc || '0') + ' F CFA'"></span></p> 
+                            <p class="text-xs text-gray-600"><span class="text-gray-400">Statut :</span> <span x-text="libelleChoix('statut_facture', facture.statut)"></span></p> 
+                            <p class="text-xs text-gray-600" x-show="facture.date_echeance"><span class="text-gray-400">Échéance :</span> <span x-text="facture.date_echeance"></span></p> 
+                        </div> 
+                    </template> 
+                    <p class="text-xs text-gray-400 italic" x-show="!factureRenseignee">Non renseigné</p> 
+                </div> 
+            </div> 
+
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2"> 
+                <button type="button" @click="modalRecapOuvert=false" class="px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600">Modifier</button> 
+                <button type="button" @click="valider()" class="px-5 py-2 rounded-md text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">✓ Valider et enregistrer</button> 
+            </div> 
+        </div> 
+    </div>  {% endcomment %}
+        <!-- MODAL RÉCAPITULATIF : listé par module, en 4 blocs horizontaux -->
+    <div x-show="modalRecapOuvert" x-cloak
+         class="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+         @click.self="modalRecapOuvert=false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 class="font-semibold text-indigo-950">Récapitulatif avant enregistrement</h3>
+                <button type="button" @click="modalRecapOuvert=false" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+ 
+            <div class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-5">
+ 
+                <!-- COLONNE GAUCHE : DOSSIER + FACTURE -->
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-5 space-y-4">
+ 
+                    <!-- BLOC DOSSIER -->
+                    <div class="space-y-2">
+                        <p class="text-sm uppercase tracking-wide font-bold text-indigo-700 mb-2">📂 Dossier</p>
+                        <p class="text-sm text-gray-700"><span class="text-gray-400">Réf :</span> <span class="font-medium" x-text="dossier.reference"></span></p>
+                        <p class="text-sm text-gray-700"><span class="text-gray-400">Intitulé :</span> <span class="font-medium" x-text="dossier.intitule || '—'"></span></p>
+                        <p class="text-sm text-gray-700" x-show="dossier.numero_role"><span class="text-gray-400">N° rôle :</span> <span class="font-medium" x-text="dossier.numero_role"></span></p>
+                        
+                        {% comment %} <p class="text-sm text-gray-700">
+                            <span class="text-gray-400">Client :</span> 
+                            <span class="font-medium" x-text="libelleOption(clientsOptions, dossier.client_id) || '—'"></span>
+                        </p>
+
+                        <p class="text-sm text-gray-700">
+                            <span class="text-gray-400">Avocat référent :</span> 
+                            <span class="font-medium" x-text="libelleOption(avocatsOptions, dossier.avocat_referent_id) || 'Non assigné'"></span>
+                        </p> {% endcomment %}
+                        <p class="text-sm text-gray-700">
+    <span class="text-gray-400">Client :</span>
+    <span class="font-medium" x-text="dossier.client_nom || '—'"></span>
+</p>
+
+<p class="text-sm text-gray-700">
+    <span class="text-gray-400">Avocat référent :</span>
+    <span class="font-medium" x-text="dossier.avocat_referent_nom || 'Non assigné'"></span>
+</p>
+
+
+                        <p class="text-sm text-gray-700"><span class="text-gray-400">Type :</span> <span class="font-medium" x-text="libelleChoix('type_affaire', dossier.type_affaire)"></span></p>
+                        <p class="text-sm text-gray-700"><span class="text-gray-400">Statut :</span> <span class="font-medium" x-text="libelleChoix('statut_dossier', dossier.statut)"></span></p>
+                        <p class="text-sm text-gray-700"><span class="text-gray-400">Degré :</span> <span class="font-medium" x-text="libelleChoix('degre_instance', dossier.degre_instance)"></span></p>
+                        <p class="text-sm text-gray-700" x-show="dossier.partie_adverse"><span class="text-gray-400">Partie adverse :</span> <span class="font-medium" x-text="dossier.partie_adverse"></span></p>
+                        <p class="text-sm text-gray-700" x-show="dossier.avocat_adverse"><span class="text-gray-400">Avocat adverse :</span> <span class="font-medium" x-text="dossier.avocat_adverse"></span></p>
+                        
+                     {% comment %}    <p class="text-sm text-gray-700" x-show="dossier.tribunal_id">
+                            <span class="text-gray-400">Tribunal :</span> 
+                            <span class="font-medium" x-text="libelleOption(tribunauxOptions, dossier.tribunal_id)"></span>
+                        </p> {% endcomment %}
+        
+<p class="text-sm text-gray-700" x-show="dossier.tribunal_id">
+    <span class="text-gray-400">Tribunal :</span>
+    <span class="font-medium" x-text="dossier.tribunal_nom"></span>
+</p>
+
+
+                        <p class="text-sm text-gray-700" x-show="dossier.chambre_id">
+                            <span class="text-gray-400">Chambre :</span> 
+                            <span class="font-medium" x-text="libelleChambre(dossier.chambre_id)"></span>
+                        </p>
+
+                        <p class="text-sm text-gray-700" x-show="dossier.juge_en_charge"><span class="text-gray-400">Juge :</span> <span class="font-medium" x-text="dossier.juge_en_charge"></span></p>
+                        <p class="text-sm text-gray-700" x-show="dossier.numero_bureau"><span class="text-gray-400">Bureau :</span> <span class="font-medium" x-text="dossier.numero_bureau"></span></p>
+                        <p class="text-sm text-gray-700" x-show="dossier.date_ouverture"><span class="text-gray-400">Ouverture :</span> <span class="font-medium" x-text="dossier.date_ouverture"></span></p>
+                        <p class="text-sm text-gray-700" x-show="dossier.date_prochaine_echeance"><span class="text-gray-400">Échéance :</span> <span class="font-medium" x-text="dossier.date_prochaine_echeance"></span></p>
+                    </div>
+ 
+                    <!-- Séparateur horizontal entre Dossier et Facture -->
+                    <hr class="border-t-2 border-indigo-200">
+ 
+                    <!-- BLOC FACTURE -->
+                    <div class="space-y-2">
+                        <p class="text-sm uppercase tracking-wide font-bold mb-2" :class="factureRenseignee ? 'text-indigo-700' : 'text-gray-400'">💳 Facture</p>
+                        <template x-if="factureRenseignee">
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">N° (aperçu) :</span> <span class="font-medium" x-text="facture.numero_apercu"></span></p>
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">Montant HT :</span> <span class="font-medium" x-text="facture.montant_ht + ' F CFA'"></span></p>
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">TVA :</span> <span class="font-medium" x-text="facture.taux_tva + ' %'"></span></p>
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">Montant TTC :</span> <span class="font-medium" x-text="(facture.montant_ttc || '0') + ' F CFA'"></span></p>
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">Statut :</span> <span class="font-medium" x-text="libelleChoix('statut_facture', facture.statut)"></span></p>
+                                <p class="text-sm text-gray-700" x-show="facture.date_echeance"><span class="text-gray-400">Échéance :</span> <span class="font-medium" x-text="facture.date_echeance"></span></p>
+                            </div>
+                        </template>
+                        <p class="text-sm text-gray-400 italic" x-show="!factureRenseignee">Non renseigné</p>
+                    </div>
+                </div>
+ 
+                <!-- COLONNE DROITE : AGENDA + PARTIES PRENANTES -->
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-5 space-y-4">
+ 
+                    <!-- BLOC AGENDA -->
+                    <div class="space-y-2">
+                        <p class="text-sm uppercase tracking-wide font-bold mb-2" :class="agendaRenseigne ? 'text-indigo-700' : 'text-gray-400'">📅 Agenda</p>
+                        <template x-if="agendaRenseigne">
+                            <div class="space-y-2">
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">Titre :</span> <span class="font-medium" x-text="agenda.titre"></span></p>
+                                <p class="text-sm text-gray-700"><span class="text-gray-400">Type :</span> <span class="font-medium" x-text="libelleChoix('types_agenda', agenda.type)"></span></p>
+                                <p class="text-sm text-gray-700" x-show="agenda.date_heure"><span class="text-gray-400">Date/heure :</span> <span class="font-medium" x-text="agenda.date_heure"></span></p>
+                                <p class="text-sm text-gray-700" x-show="agenda.description"><span class="text-gray-400">Notes :</span> <span class="font-medium" x-text="agenda.description"></span></p>
+                                <p class="text-sm font-semibold text-rose-600" x-show="agenda.critique">🚨 Marqué critique</p>
+                            </div>
+                        </template>
+                        <p class="text-sm text-gray-400 italic" x-show="!agendaRenseigne">Non renseigné</p>
+                    </div>
+ 
+                    <!-- Séparateur horizontal entre Agenda et Parties prenantes -->
+                    <hr class="border-t-2 border-indigo-200">
+ 
+                    <!-- BLOC PARTIES PRENANTES -->
+                    <div class="space-y-2">
+                        <p class="text-sm uppercase tracking-wide font-bold mb-2" :class="partiesRenseignees ? 'text-indigo-700' : 'text-gray-400'">🧑‍⚖️ Parties prenantes</p>
+                        <template x-if="partiesRenseignees">
+                            <div class="space-y-2">
+                                <template x-for="(p, i) in partiesPrenantes.filter(p => p.nom)" :key="i">
+                                    <p class="text-sm text-gray-700">
+                                        <span class="font-medium" x-text="p.nom"></span>
+                                        <span class="text-gray-400" x-text="' — ' + libelleChoix('roles_partie_prenante', p.role)"></span>
+                                        <span x-show="p.notifiable">🔔</span>
+                                    </p>
+                                </template>
+                            </div>
+                        </template>
+                        <p class="text-sm text-gray-400 italic" x-show="!partiesRenseignees">Non renseigné</p>
+                    </div>
+                </div>
+            </div>
+ 
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+                <button type="button" @click="modalRecapOuvert=false" class="px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600">Modifier</button>
+                <button type="button" @click="valider()" class="px-5 py-2 rounded-md text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">✓ Valider et enregistrer</button>
+            </div>
+        </div>
     </div>
-    </div>
 
-    <!-- BLOC 2 : RECAPITULATIF (4/12), fond teinté indigo clair, hauteur bornée + scroll interne -->
-    <div class="lg:col-span-4 bg-indigo-50/60 rounded-xl shadow-sm border border-indigo-100 flex flex-col max-h-[calc(100vh-8rem)]">
-        <h2 class="font-semibold text-indigo-950 border-b-2 border-indigo-200 px-6 pt-6 pb-3">Récapitulatif</h2>
-        <div class="overflow-y-auto px-6 py-4 space-y-5">
+</div> 
 
-        <!-- MODULE DOSSIER -->
-        <div class="space-y-1.5">
-            <p class="text-xs uppercase tracking-wide font-semibold text-indigo-700 mb-1">📂 Dossier</p>
-            <p class="text-sm text-gray-800 font-medium" x-text="dossier.intitule || '—'"></p>
-            <p class="text-xs text-gray-500" x-text="'Réf : ' + (dossier.reference || '—')"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.numero_role" x-text="'Rôle n° ' + dossier.numero_role"></p>
-            <p class="text-xs text-gray-500" x-text="dossier.type_affaire + ' · ' + dossier.statut + ' · ' + dossier.degre_instance"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.client_id" x-text="'Client sélectionné'"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.avocat_referent_id" x-text="'Avocat référent assigné'"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.partie_adverse" x-text="'Partie adverse : ' + dossier.partie_adverse"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.avocat_adverse" x-text="'Avocat adverse : ' + dossier.avocat_adverse"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.tribunal_id" x-text="'Tribunal sélectionné'"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.chambre_id" x-text="'Chambre sélectionnée'"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.juge_en_charge" x-text="'Juge : ' + dossier.juge_en_charge"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.numero_bureau" x-text="'Bureau : ' + dossier.numero_bureau"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.date_ouverture" x-text="'Ouverture : ' + dossier.date_ouverture"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.date_prochaine_echeance" x-text="'Échéance : ' + dossier.date_prochaine_echeance"></p>
-            <p class="text-xs text-gray-500" x-show="dossier.description" x-text="'Notes renseignées'"></p>
-        </div>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('gestionDossierWizard', () => ({
+        slide: 1, 
+        modalRecapOuvert: false, 
+        afficherAlerteDossier: false, 
 
-        <!-- MODULE FACTURE -->
-        <div x-show="ajouterFacture" class="pt-3 border-t-2 border-indigo-200 space-y-1.5">
-            <p class="text-xs uppercase tracking-wide font-semibold text-indigo-700 mb-1">💳 Facture</p>
-            <p class="text-xs text-gray-500" x-text="'N° (aperçu) : ' + (facture.numero_apercu || '—')"></p>
-            <p class="text-sm text-gray-800 font-medium" x-text="(facture.montant_ttc || '0') + ' F CFA TTC'"></p>
-            <p class="text-xs text-gray-500" x-show="facture.montant_ht" x-text="'Montant HT : ' + facture.montant_ht + ' F CFA (TVA ' + facture.taux_tva + '%)'"></p>
-            <p class="text-xs text-gray-500" x-show="facture.statut" x-text="'Statut : ' + facture.statut"></p>
-            <p class="text-xs text-gray-500" x-show="facture.date_emission" x-text="'Émission : ' + facture.date_emission"></p>
-            <p class="text-xs text-gray-500" x-show="facture.date_echeance" x-text="'Échéance : ' + facture.date_echeance"></p>
-            <p class="text-xs text-gray-500" x-show="facture.description" x-text="'Libellé : ' + facture.description"></p>
-        </div>
+        dossier: { 
+            client_id: '', 
+            intitule: '', 
+            reference: '', 
+            numero_role: '', 
+            type_affaire: 'civil', 
+            statut: 'ouvert', 
+            degre_instance: 'premiere_instance', 
+            partie_adverse: '', 
+            avocat_adverse: '', 
+            tribunal_id: '', 
+            chambre_id: '', 
+            juge_en_charge: '', 
+            numero_bureau: '', 
+            date_ouverture: '', 
+            date_prochaine_echeance: '', 
+            description: '', 
+            avocat_referent_id: '', 
 
-        <!-- MODULE AGENDA -->
-        <div x-show="ajouterFacture && ajouterAgenda" class="pt-3 border-t-2 border-indigo-200 space-y-1.5">
-            <p class="text-xs uppercase tracking-wide font-semibold text-indigo-700 mb-1">📅 Agenda</p>
-            <p class="text-sm text-gray-800 font-medium" x-text="agenda.titre || '—'"></p>
-            <p class="text-xs text-gray-500" x-show="agenda.type" x-text="'Type : ' + agenda.type"></p>
-            <p class="text-xs text-gray-500" x-show="agenda.date_heure" x-text="'Date/heure : ' + agenda.date_heure"></p>
-            <p class="text-xs text-gray-500" x-show="agenda.description" x-text="'Notes : ' + agenda.description"></p>
-            <p class="text-xs font-semibold text-rose-600" x-show="agenda.critique">🚨 Marqué comme critique</p>
-        </div>
+            client_nom: '',
+            avocat_referent_nom: '',
+            tribunal_nom: ''
+        }, 
 
-        <!-- MODULE PARTIES PRENANTES -->
-        <div x-show="ajouterFacture && ajouterAgenda && ajouterParties" class="pt-3 border-t-2 border-indigo-200 space-y-1.5">
-            <p class="text-xs uppercase tracking-wide font-semibold text-indigo-700 mb-1">🧑‍⚖️ Parties prenantes</p>
-            <p class="text-xs text-gray-500" x-show="partiesPrenantes.length===0">Aucune ajoutée</p>
-            <template x-for="(p, i) in partiesPrenantes" :key="i">
-                <p class="text-xs text-gray-600" x-text="(p.nom || '—') + ' — ' + p.role + (p.notifiable ? ' 🔔' : '')"></p>
-            </template>
-        </div>
+        facture: {
+            montant_ht: '', 
+            taux_tva: 18.00, 
+            montant_ttc: '', 
+            statut: 'brouillon', 
+            date_emission: '', 
+            date_echeance: '', 
+            description: '', 
+            numero_apercu: ''
+        }, 
 
-        </div>
-    </div>
-</div>
+        agenda: {
+            titre: '', 
+            type: 'autre', 
+            date_heure: '', 
+            critique: false, 
+            description: ''
+        }, 
+
+        partiesPrenantes: [], 
+
+        // Initialisation sécurisée des données JSON injectées par Django
+        toutesLesChambres: [],
+        libelles: {},
+        clientsOptions: [],
+        avocatsOptions: [],
+        tribunauxOptions: [],
+
+        init() {
+            // Lecture sécurisée du DOM au démarrage d'Alpine
+            this.toutesLesChambres = this.getJsonData('chambres-data', []);
+            this.libelles = this.getJsonData('libelles-choix-data', {});
+            this.clientsOptions = this.getJsonData('clients-options-data', []);
+            this.avocatsOptions = this.getJsonData('avocats-options-data', []);
+            this.tribunauxOptions = this.getJsonData('tribunaux-options-data', []);
+        },
+
+        getJsonData(elementId, defaultValue) {
+            const el = document.getElementById(elementId);
+            if (!el || !el.textContent.trim()) return defaultValue;
+            try {
+                return JSON.parse(el.textContent);
+            } catch (e) {
+                console.error(`Erreur de parsing JSON pour l'élément #${elementId}:`, e);
+                return defaultValue;
+            }
+        },
+
+        get chambresDisponibles() { 
+            if (!this.dossier.tribunal_id) return []; 
+            return this.toutesLesChambres.filter(c => String(c.tribunal_id) === String(this.dossier.tribunal_id)); 
+        }, 
+
+        libelleChoix(groupe, code) { 
+            return (this.libelles[groupe] && this.libelles[groupe][code]) || code || '—'; 
+        }, 
+
+capturerLabel(champ, evenement) {
+    const options = evenement.target.options;
+    const index = evenement.target.selectedIndex;
+    this.dossier[champ] = (index >= 0 && options[index]) ? options[index].text.trim() : '';
+},
+
+        libelleChambre(id) { 
+            const c = this.toutesLesChambres.find(c => String(c.id) === String(id)); 
+            return c ? c.libelle : null; 
+        }, 
+
+        nouvellePartie() { 
+            return { nom: '', role: 'client', telephone: '', email: '', notifiable: true }; 
+        }, 
+
+        ajouterLignePartie() { 
+            this.partiesPrenantes.push(this.nouvellePartie()); 
+        }, 
+
+        retirerLignePartie(index) { 
+            this.partiesPrenantes.splice(index, 1); 
+        }, 
+
+        etapes: [ 
+            { numero: 1, cle: 'dossier', nom: 'Dossier', icone: '📂', essentiel: true }, 
+            { numero: 2, cle: 'agenda', nom: 'Agenda', icone: '📅', essentiel: false }, 
+            { numero: 3, cle: 'parties', nom: 'Parties prenantes', icone: '🧑‍⚖️', essentiel: false }, 
+            { numero: 4, cle: 'facture', nom: 'Facture', icone: '💳', essentiel: false }, 
+        ], 
+
+        allerA(numero) { 
+            this.slide = numero; 
+        }, 
+
+        suivant() { 
+            if (this.slide < 4) this.slide++; 
+        }, 
+
+        precedent() { 
+            if (this.slide > 1) this.slide--; 
+        }, 
+
+        get dossierValide() { 
+            return !!(this.dossier.intitule && this.dossier.client_id && this.dossier.type_affaire && this.dossier.statut); 
+        }, 
+
+        get agendaRenseigne() { 
+            return !!this.agenda.titre; 
+        }, 
+
+        get partiesRenseignees() { 
+            return this.partiesPrenantes.some(p => p.nom); 
+        }, 
+
+        get factureRenseignee() { 
+            return !!this.facture.montant_ht; 
+        }, 
+
+        estRenseigne(cle) { 
+            if (cle === 'dossier') return this.dossierValide; 
+            if (cle === 'agenda') return this.agendaRenseigne; 
+            if (cle === 'parties') return this.partiesRenseignees; 
+            if (cle === 'facture') return this.factureRenseignee; 
+            return false; 
+        }, 
+
+        get champsManquantsDossier() { 
+            const m = []; 
+            if (!this.dossier.intitule) m.push('Intitulé du dossier'); 
+            if (!this.dossier.client_id) m.push('Client'); 
+            if (!this.dossier.type_affaire) m.push("Type d'affaire"); 
+            if (!this.dossier.statut) m.push('Statut'); 
+            return m; 
+        }, 
+
+        ouvrirRecap() { 
+            if (!this.dossierValide) { 
+                this.slide = 1; 
+                this.afficherAlerteDossier = true; 
+                return; 
+            } 
+            this.afficherAlerteDossier = false; 
+            this.modalRecapOuvert = true; 
+        }, 
+
+        async valider() { 
+            const payload = { dossier: this.dossier }; 
+            if (this.agendaRenseigne) payload.agenda = this.agenda; 
+            if (this.partiesRenseignees) payload.parties_prenantes = this.partiesPrenantes.filter(p => p.nom); 
+            if (this.factureRenseignee) payload.facture = this.facture; 
+
+            await envoyerFormulaire("{% url 'dossier:api_creer_dossier' %}", payload); 
+        } 
+    }));
+});
+</script>
+
 {% endblock %}
+

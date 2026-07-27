@@ -14,6 +14,8 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+
 
 from django.db import transaction
 from agenda.models import EvenementAgenda, PartiePrenante, RolePartiePrenante
@@ -114,7 +116,6 @@ def _queryset_filtre(
     return qs.distinct()
 
 def lister_evenements(request):
-    # 1. Récupération des filtres
     recherche = request.GET.get('recherche', '').strip()
     type_evt = request.GET.get('type', '').strip()
     statut = request.GET.get('statut', '').strip()
@@ -122,24 +123,25 @@ def lister_evenements(request):
     date_fin = request.GET.get('date_fin', '').strip()
     critique = request.GET.get('critique', '').strip()
 
-    # 2. Requête optimisée (Exactement 3 requêtes SQL générées)
-    # 1 pour les événements + jointures, 1 pour responsables (M2M), 1 pour parties_prenantes (M2M)
-    queryset = EvenementAgenda.objects.select_related(
-        'dossier',
-        'tribunal',
-        'chambre'
-    ).prefetch_related(
-        'responsables',        # Nouveau champ M2M User
-        'parties_prenantes'   # Champ M2M PartiePrenante
-    )
+    dossier_id = request.GET.get('dossier_id', '').strip()   # <- ligne à ajouter
 
-    # 3. Filtrage dynamique
+    # select_related étendu à dossier__avocat_referent : nécessaire pour que le repli
+    # sur l'avocat référent du dossier (si aucun responsable direct) ne déclenche pas
+    # une requête SQL supplémentaire par ligne (N+1).
+    queryset = EvenementAgenda.objects.select_related(
+        'dossier', 'dossier__avocat_referent', 'tribunal', 'chambre'
+    ).prefetch_related(
+        'responsables', 'parties_prenantes', 'dossier__parties_prenantes'
+    )
+    if dossier_id:                                            # <- bloc à ajouter
+            queryset = queryset.filter(dossier_id=dossier_id)
+    
     if recherche:
         queryset = queryset.filter(
             Q(titre__icontains=recherche) |
             Q(description__icontains=recherche) |
-            Q(dossier__nom__icontains=recherche) |
-            Q(dossier__numero__icontains=recherche)
+            Q(dossier__intitule__icontains=recherche) |
+            Q(dossier__reference__icontains=recherche)
         )
     if type_evt:
         queryset = queryset.filter(type=type_evt)
@@ -152,26 +154,22 @@ def lister_evenements(request):
     if critique.lower() in ['true', '1']:
         queryset = queryset.filter(critique=True)
 
-    # Tri par date
     queryset = queryset.order_by('-date_heure')
 
-    # 4. Formatage ultra-rapide des données
     data = []
     for evt in queryset:
-        # Extraire les responsables (utilisateurs assignés) pré-chargés
-        responsables = [
-            {
-                'id': str(u.id),
-                'username': u.username,
-                'first_name': u.first_name,
-                'last_name': u.last_name,
-                'label': f"{u.first_name} {u.last_name}".strip() or u.username
-            }
+        # Repli sur l'avocat référent du dossier si aucun responsable direct n'est assigné
+        responsables_directs = [
+            f"{u.first_name} {u.last_name}".strip() or u.username
             for u in evt.responsables.all()
         ]
+        responsables = responsables_directs or (
+            [f"{evt.dossier.avocat_referent.first_name} {evt.dossier.avocat_referent.last_name}".strip()
+             or evt.dossier.avocat_referent.username]
+            if evt.dossier_id and evt.dossier.avocat_referent_id else []
+        )
 
-        # 🌟 Correction de la récupération des parties prenantes de l'événement
-        parties_prenantes = [
+        """ parties_prenantes = [
             {
                 "id": str(p.id),
                 "nom": p.nom,
@@ -180,9 +178,13 @@ def lister_evenements(request):
                 "telephone": getattr(p, 'telephone', '') or ''
             }
             for p in evt.parties_prenantes.all()
-        ]
+        ] """
+        parties_directes = [_partie_prenante_vers_dict(p) for p in evt.parties_prenantes.all()]
+        parties_prenantes = parties_directes or (
+            [_partie_prenante_vers_dict(p) for p in evt.dossier.parties_prenantes.all()]
+                if evt.dossier_id else []
+            )
 
-        # Détails du dossier lié
         dossier_detail = None
         if evt.dossier:
             dossier_detail = {
@@ -191,7 +193,6 @@ def lister_evenements(request):
                 'intitule': getattr(evt.dossier, 'intitule', str(evt.dossier)),
             }
 
-        # Construction du dictionnaire
         data.append({
             'id': str(evt.id),
             'titre': evt.titre,
@@ -199,48 +200,38 @@ def lister_evenements(request):
             'type_display': evt.get_type_display(),
             'type_delai': evt.type_delai,
             'type_delai_display': evt.get_type_delai_display() if evt.type_delai else None,
-            
-            # Dates
+
             'date_heure': evt.date_heure.isoformat() if evt.date_heure else None,
-            'date_debut': evt.date_heure.isoformat() if evt.date_heure else None,  # Rétrocompatibilité JS
+            'date_debut': evt.date_heure.isoformat() if evt.date_heure else None,
             'date_echeance_calculee': evt.date_echeance_calculee.isoformat() if evt.date_echeance_calculee else None,
-            
-            # Statuts
+
             'statut': evt.statut_traitement,
             'statut_display': evt.get_statut_traitement_display(),
             'motif_renvoi': evt.motif_renvoi,
             'motif_renvoi_display': evt.get_motif_renvoi_display() if evt.motif_renvoi else None,
             'critique': evt.critique,
-            
-            # Détails complémentaires
+
             'description': evt.description or '',
-            #'dossier_nom': dossier_detail['nom'] if dossier_detail else 'Hors dossier',
-
-            # 🌟 Clé attendue par le JS pour le dossier
-            'dossier_reference': evt.dossier.reference if (evt.dossier and getattr(evt.dossier, 'reference', None)) else (evt.dossier.nom if evt.dossier else 'Hors dossier'),
-
+            'dossier_reference': evt.dossier.reference if (evt.dossier and getattr(evt.dossier, 'reference', None)) else (evt.dossier.intitule if evt.dossier else 'Hors dossier'),
             'dossier_detail': dossier_detail,
-            
-            # 🌟 Transmettre directement une liste de chaînes (noms) au lieu d'objets
-            'responsables': [
-                f"{u.first_name} {u.last_name}".strip() or u.username
-                for u in evt.responsables.all()
-            ],
-           
-           # 🌟 Envoi de la liste structurée des parties prenantes
+
+            'responsables': responsables,
             'parties_prenantes': parties_prenantes,
-            
+
             'tribunal_nom': evt.tribunal.nom if evt.tribunal else None,
-            'chambre_nom': evt.chambre.nom if evt.chambre else None,
-            
-            # Relations M2M
-            #'responsables': responsables,
-            #'parties_prenantes': parties_prenantes,
+            'chambre_nom': evt.chambre.libelle if evt.chambre else None,
         })
     return {'resultats': data}
 
 
-    
+def _partie_prenante_vers_dict(p):
+    return {
+        "id": str(p.id),
+        "nom": p.nom,
+        "role": p.role,
+        "role_display": ROLES_DICT.get(p.role, p.role),
+        "telephone": getattr(p, 'telephone', '') or ''
+    }
 
 
 def obtenir_evenement(evenement_id) -> EvenementAgenda:
@@ -385,7 +376,47 @@ def modifier_evenement(evenement_id, payload: dict, utilisateur) -> EvenementAge
     return evt """
 
 @transaction.atomic
-def modifier_evenement(evenement_id, payload: dict, utilisateur) -> EvenementAgenda:
+def modifier_evenement_agenda(event_id, payload: dict, utilisateur) -> EvenementAgenda:
+    evt = get_object_or_404(EvenementAgenda, pk=event_id)
+
+    # Mise à jour des attributs principaux
+    evt.titre = payload.get('titre', evt.titre)
+    evt.type = payload.get('type', evt.type)
+    evt.statut_traitement = payload.get('statut_traitement', evt.statut_traitement)
+    evt.description = payload.get('description', evt.description)
+    evt.critique = bool(payload.get('critique', evt.critique))
+    evt.edited_by = utilisateur
+    # Gestion de la clé étrangère Dossier
+    dossier_id = payload.get('dossier')
+    evt.dossier_id = dossier_id if dossier_id else None
+
+    if payload.get('date_heure'):
+        evt.date_heure = payload['date_heure']
+
+    # Délais de procédure
+    evt.type_delai = payload.get('type_delai') or None
+    evt.date_declencheur = payload.get('date_declencheur') or None
+    evt.duree_legale_jours = payload.get('duree_legale_jours') or None
+
+    evt.save()
+
+    # 1. Mise à jour de la M2M Responsables (Avocats / Collaborateurs)
+    if 'responsables' in payload:
+        evt.responsables.set(payload['responsables'])
+
+    # 2. Mise à jour de la M2M Parties Prenantes (Sécurisée selon le dossier)
+    if 'parties_prenantes' in payload:
+        pps = payload['parties_prenantes']
+        if evt.dossier_id:
+            # Sécurité procédurale : filtrer les parties prenantes qui appartiennent au dossier
+            pps_valides = PartiePrenante.objects.filter(id__in=pps, dossier_id=evt.dossier_id)
+            evt.parties_prenantes.set(pps_valides)
+        else:
+            evt.parties_prenantes.clear()
+
+    return evt
+
+""" def modifier_evenement(evenement_id, payload: dict, utilisateur) -> EvenementAgenda:
     _valider_payload(payload)
     evt = get_object_or_404(EvenementAgenda, id=evenement_id)
     
@@ -415,7 +446,7 @@ def modifier_evenement(evenement_id, payload: dict, utilisateur) -> EvenementAge
         # On applique le nouveau jeu d'intervenants à l'audience
         evt.parties_prenantes.set(list(liste_ids_modification))
 
-    return evt
+    return evt """
 
 
 def supprimer_evenement(evenement_id):

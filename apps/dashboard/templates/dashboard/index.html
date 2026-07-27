@@ -1,115 +1,307 @@
-{% extends "base.html" %}
-{% load app_filters %}
-
+{% extends 'base.html' %}
+{% block title %}Tableau de bord | eCabinet{% endblock %}
 {% block content %}
-<!-- Conteneur principal calé sur l'axe central avec netteté forcée -->
-<div class="space-y-6 subpixel-antialiased">
-    
-    <!-- BANDEAU DE BIENVENUE -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h1 class="text-2xl font-black text-gray-900 tracking-tight">Bonjour, Maître {{ request.user.nom|default:"Avocat" }}</h1>
-        <p class="text-base text-gray-500 mt-1">Bienvenue sur votre progiciel de pilotage eCabinet. Voici l'état de performance de votre infrastructure juridique ce matin.</p>
-    </div>
 
-    <!-- ZONE DES DEUX GRAPHISQUES EN COMPACT SIDE-BY-SIDE -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        <!-- CARTE 1 : RÉPARTITION DES DOSSIERS -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between items-center min-h-[460px]">
-            <div class="w-full text-left mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Instance & Procédures</h3>
-                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Répartition de vos dossiers par statut</p>
-            </div>
-            <!-- Zone fixe de rendu du Camembert -->
-            <div class="w-64 h-64 flex items-center justify-center relative">
-                <canvas id="pieDossiersCanvas"></canvas>
-            </div>
-            <!-- Extension IA Directe connectée à votre script global alerts.js -->
-            <div class="w-full mt-6 pt-4 border-t border-gray-100 text-center">
-                <button onclick="lancerInterpretationIaDirecte('SELECT statut, COUNT(id) FROM dossiers GROUP BY statut', null, this)" 
-                        class="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow-sm transition-all">
-                    🧠 Interprétation IA des Contentieux
-                </button>
-            </div>
-        </div>
+{{ stats_dossiers_initial|json_script:"stats-dossiers-initial-data" }}
+{{ stats_agenda_initial|json_script:"stats-agenda-initial-data" }}
 
-        <!-- CARTE 2 : PERFORMANCE FINANCIÈRE -->
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-between items-center min-h-[460px]">
-            <div class="w-full text-left mb-4">
-                <h3 class="text-lg font-bold text-gray-900">Trésorerie & Facturation</h3>
-                <p class="text-xs text-gray-400 font-semibold uppercase tracking-wider mt-0.5">Volume des factures par état comptable</p>
-            </div>
-            <div class="w-64 h-64 flex items-center justify-center relative">
-                <canvas id="pieFacturesCanvas"></canvas>
-            </div>
-            <div class="w-full mt-6 pt-4 border-t border-gray-100 text-center">
-                <button onclick="lancerInterpretationIaDirecte('SELECT statut, COUNT(id) FROM factures GROUP BY statut', null, this)" 
-                        class="inline-flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm px-4 py-2 rounded-lg shadow-sm transition-all">
-                    🧠 Interprétation IA de la Trésorerie
-                </button>
-            </div>
-        </div>
-
-    </div>
+<div class="mb-4">
+    <h1 class="text-lg font-bold text-indigo-950">📊 Tableau de bord</h1>
+    <p class="text-xs text-gray-500">Vue d'ensemble de l'activité du cabinet</p>
 </div>
 
-<!-- SCRIPT ASYNCHRONE DE CONSTRUTION DES CAMEMBERTS -->
-<script>
-    document.addEventListener("DOMContentLoaded", () => {
-        // Fetch asynchrone vers notre API de métriques épurées
-        fetch("{% url 'dashboard:api_metrics' %}")
-            .then(response => response.json())
-            .then(data => {
-                
-                // --- 1. CONFIGURATION DU GRAPH_PIE DOSSIERS ---
-                const labelsDossiers = data.graphique_dossiers.map(item => item.statut.replace('_', ' ').toUpperCase());
-                const valeursDossiers = data.graphique_dossiers.map(item => item.total);
-                
-                new Chart(document.getElementById('pieDossiersCanvas'), {
-                    type: 'pie',
-                    data: {
-                        labels: labelsDossiers.length ? labelsDossiers : ["AUCUNE DONNÉE"],
-                        datasets: [{
-                            data: valeursDossiers.length ? valeursDossiers :,
-                            backgroundColor: ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#6b7280'], // Palette eCabinet (Indigo, Émeraude, Ambre, Rose, Gris)
-                            borderWidth: 2,
-                            borderColor: '#ffffff'
-                        }]
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- GRAPHIQUE 1 : DOSSIERS -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-semibold text-indigo-950">
+                📂 Répartition des dossiers
+                <span class="text-indigo-400 font-normal text-sm">— total <span id="total-dossiers" class="font-bold text-indigo-700">0</span></span>
+            </h2>
+            <select id="select-groupe-dossiers" class="border border-gray-200 rounded-md px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                <option value="statut">Par statut</option>
+                <option value="avocat">Par avocat</option>
+            </select>
+        </div>
+        <div class="relative" style="height: 280px;">
+            <canvas id="graphique-dossiers"></canvas>
+        </div>
+        <p id="graphique-dossiers-vide" class="hidden text-center text-gray-400 text-xs py-8">Aucune donnée disponible.</p>
+        <div id="pagination-dossiers" class="hidden items-center justify-center gap-3 mt-3 text-xs text-gray-500">
+            <button id="dossiers-page-prec" class="px-2 py-1 border border-gray-200 rounded disabled:opacity-40 hover:bg-gray-50">‹ Précédent</button>
+            <span id="dossiers-page-label">Page 1/1</span>
+            <button id="dossiers-page-suiv" class="px-2 py-1 border border-gray-200 rounded disabled:opacity-40 hover:bg-gray-50">Suivant ›</button>
+        </div>
+    </div>
+
+    <!-- GRAPHIQUE 2 : AGENDA -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <h2 class="text-base font-semibold text-indigo-950">
+                📅 Charge d'agenda
+                <span class="text-indigo-400 font-normal text-sm">— total <span id="total-agenda" class="font-bold text-indigo-700">0</span></span>
+            </h2>
+            <div class="flex items-center gap-2">
+                <select id="select-annee-agenda" class="border border-gray-200 rounded-md px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    {% for a in annees_disponibles %}
+                        <option value="{{ a }}">{{ a }}</option>
+                    {% endfor %}
+                </select>
+                <select id="select-vue-agenda" class="border border-gray-200 rounded-md px-2 py-1.5 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="semaine">Par semaine</option>
+                    <option value="mois" selected>Par mois</option>
+                    <option value="annee">Toutes les années</option>
+                </select>
+            </div>
+        </div>
+        <div class="relative" style="height: 280px;">
+            <canvas id="graphique-agenda"></canvas>
+        </div>
+        <p id="graphique-agenda-vide" class="hidden text-center text-gray-400 text-xs py-8">Aucun événement enregistré.</p>
+        <div class="flex items-center justify-center gap-3 mt-2 text-[11px] text-gray-400">
+            <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-indigo-600"></span> Normal</span>
+            <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-rose-600"></span> Critique</span>
+            <span class="inline-flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-amber-500"></span> Période actuelle</span>
+        </div>
+        <div id="pagination-agenda" class="hidden items-center justify-center gap-3 mt-2 text-xs text-gray-500">
+            <button id="agenda-page-prec" class="px-2 py-1 border border-gray-200 rounded disabled:opacity-40 hover:bg-gray-50">‹ Précédent</button>
+            <span id="agenda-page-label">Page 1/1</span>
+            <button id="agenda-page-suiv" class="px-2 py-1 border border-gray-200 rounded disabled:opacity-40 hover:bg-gray-50">Suivant ›</button>
+        </div>
+    </div>
+
+</div>
+
+<script defer>
+document.addEventListener('DOMContentLoaded', () => {
+
+    let graphiqueDossiers = null;
+    let graphiqueAgenda = null;
+    let pageDossiers = 1;
+    let pageAgenda = 1;
+
+    // ---------- Plugin générique : affiche la valeur numérique sur chaque barre/segment ----------
+    const pluginValeurs = {
+        id: 'afficherValeurs',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            const estCirculaire = ['doughnut', 'pie'].includes(chart.config.type);
+            chart.data.datasets.forEach((dataset, i) => {
+                const meta = chart.getDatasetMeta(i);
+                if (meta.hidden) return;
+                meta.data.forEach((element, index) => {
+                    const valeur = dataset.data[index];
+                    if (!valeur) return;
+                    const pos = element.tooltipPosition();
+                    ctx.save();
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.textAlign = 'center';
+                    if (estCirculaire) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.textBaseline = 'middle';
+                        ctx.shadowColor = 'rgba(0,0,0,0.45)';
+                        ctx.shadowBlur = 3;
+                    } else {
+                        ctx.fillStyle = '#111827';
+                        ctx.textBaseline = 'bottom';
+                        pos.y -= 3;
+                    }
+                    ctx.fillText(valeur, pos.x, pos.y);
+                    ctx.restore();
+                });
+            });
+        }
+    };
+    Chart.register(pluginValeurs);
+
+    function majPagination(prefixe, pagination) {
+        const zone = document.getElementById(`pagination-${prefixe}`);
+        if (!pagination || pagination.nb_pages <= 1) {
+            zone.classList.add('hidden');
+            zone.classList.remove('flex');
+            return;
+        }
+        zone.classList.remove('hidden');
+        zone.classList.add('flex');
+        document.getElementById(`${prefixe}-page-label`).textContent = `Page ${pagination.page}/${pagination.nb_pages}`;
+        document.getElementById(`${prefixe}-page-prec`).disabled = pagination.page <= 1;
+        document.getElementById(`${prefixe}-page-suiv`).disabled = pagination.page >= pagination.nb_pages;
+    }
+
+    // ================= GRAPHIQUE 1 : DOSSIERS =================
+    function rendreGraphiqueDossiers(donnees, groupe) {
+        const ctx = document.getElementById('graphique-dossiers');
+        const zoneVide = document.getElementById('graphique-dossiers-vide');
+        // Le total affiché est TOUJOURS le total global renvoyé par le serveur,
+        // jamais la somme des seules valeurs visibles sur la page/fenêtre courante.
+        document.getElementById('total-dossiers').textContent = donnees.total_general ?? 0;
+        majPagination('dossiers', donnees.pagination);
+
+        if (!donnees.labels || donnees.labels.length === 0 || (donnees.total_general ?? 0) === 0) {
+            ctx.classList.add('hidden');
+            zoneVide.classList.remove('hidden');
+            return;
+        }
+        ctx.classList.remove('hidden');
+        zoneVide.classList.add('hidden');
+
+        if (graphiqueDossiers) graphiqueDossiers.destroy();
+
+        if (groupe === 'avocat') {
+            const nomsComplets = donnees.labels;
+            const usernames = donnees.usernames || [];
+
+            graphiqueDossiers = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: usernames.map(u => '@' + u),   // toujours le username en abscisse
+                    datasets: [{ label: 'Dossiers', data: donnees.valeurs, backgroundColor: '#4f46e5', borderRadius: 4 }]
+                },
+                options: {
+                    indexAxis: 'x',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                // Le survol affiche toujours le nom complet, jamais le username seul
+                                title: (items) => nomsComplets[items[0].dataIndex]
+                            }
+                        }
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 12 } } }
+                    scales: {
+                        x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: false } },
+                        y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+                    }
+                }
+            });
+        } else {
+            graphiqueDossiers = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: donnees.labels,
+                    datasets: [{ data: donnees.valeurs, backgroundColor: donnees.couleurs, borderWidth: 2, borderColor: '#ffffff' }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10 } } } }
+                }
+            });
+        }
+    }
+
+    async function chargerStatsDossiers(groupe, page = 1) {
+        try {
+            pageDossiers = page;
+            const reponse = await fetch(`{% url 'dashboard:api_stats_dossiers' %}?groupe=${groupe}&page=${page}`);
+            const donnees = await reponse.json();
+            rendreGraphiqueDossiers(donnees, groupe);
+        } catch (e) { console.error("Stats dossiers :", e); }
+    }
+
+    document.getElementById('select-groupe-dossiers').addEventListener('change', (e) => chargerStatsDossiers(e.target.value, 1));
+    document.getElementById('dossiers-page-prec').addEventListener('click', () =>
+        chargerStatsDossiers(document.getElementById('select-groupe-dossiers').value, pageDossiers - 1));
+    document.getElementById('dossiers-page-suiv').addEventListener('click', () =>
+        chargerStatsDossiers(document.getElementById('select-groupe-dossiers').value, pageDossiers + 1));
+
+    // ================= GRAPHIQUE 2 : AGENDA =================
+    function rendreGraphiqueAgenda(donnees) {
+        const ctx = document.getElementById('graphique-agenda');
+        const zoneVide = document.getElementById('graphique-agenda-vide');
+        // Total = total_general renvoyé par le serveur (année sélectionnée, ou global en vue "Toutes les années")
+        document.getElementById('total-agenda').textContent = donnees.total_general ?? 0;
+        majPagination('agenda', donnees.pagination);
+
+        if (!donnees.labels || donnees.labels.length === 0) {
+            ctx.classList.add('hidden');
+            zoneVide.classList.remove('hidden');
+            return;
+        }
+        ctx.classList.remove('hidden');
+        zoneVide.classList.add('hidden');
+
+        if (graphiqueAgenda) graphiqueAgenda.destroy();
+
+        const indexActuel = donnees.index_actuel;
+        const couleurNormaux = donnees.normaux.map((_, i) => i === indexActuel ? '#f59e0b' : '#4f46e5');
+        const couleurCritiques = donnees.critiques.map((_, i) => i === indexActuel ? '#f59e0b' : '#e11d48');
+
+        graphiqueAgenda = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: donnees.labels,
+                datasets: [
+                    { label: 'Normaux', data: donnees.normaux, backgroundColor: couleurNormaux, borderRadius: 3 },
+                    { label: 'Critiques', data: donnees.critiques, backgroundColor: couleurCritiques, borderRadius: 3 },
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true, ticks: { font: { size: 10 } } },
+                    y: { stacked: true, beginAtZero: true, ticks: { precision: 0, font: { size: 10 } } }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterTitle: (items) => items[0].dataIndex === indexActuel ? '📍 Période actuelle' : ''
                         }
                     }
-                });
+                }
+            }
+        });
+    }
 
-                // --- 2. CONFIGURATION DU GRAPH_PIE FACTURES ---
-                const labelsFactures = data.graphique_factures.map(item => item.statut.toUpperCase());
-                const valeursFactures = data.graphique_factures.map(item => item.total);
-                
-                new Chart(document.getElementById('pieFacturesCanvas'), {
-                    type: 'pie',
-                    data: {
-                        labels: labelsFactures.length ? labelsFactures : ["AUCUNE DONNÉE"],
-                        datasets: [{
-                            data: valeursFactures.length ? valeursFactures :,
-                            backgroundColor: ['#9ca3af', '#6366f1', '#10b981', '#dc2626'], // (Gris, Indigo, Émeraude, Rouge)
-                            borderWidth: 2,
-                            borderColor: '#ffffff'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { position: 'bottom', labels: { boxWidth: 12, font: { weight: 'bold', size: 12 } } }
-                        }
-                    }
-                });
+    function majVisibiliteSelectAnnee(vue) {
+        document.getElementById('select-annee-agenda').closest('select').style.display = (vue === 'annee') ? 'none' : '';
+    }
 
-            }).catch(err => console.error("Erreur au chargement des métriques graphiques:", err));
+    async function chargerStatsAgenda(vue, annee, page = 1) {
+        try {
+            pageAgenda = page;
+            const params = new URLSearchParams({ vue, page });
+            if (vue !== 'annee') params.set('annee', annee);
+            const reponse = await fetch(`{% url 'dashboard:api_stats_agenda' %}?${params.toString()}`);
+            const donnees = await reponse.json();
+            rendreGraphiqueAgenda(donnees);
+        } catch (e) { console.error("Stats agenda :", e); }
+    }
+
+    document.getElementById('select-vue-agenda').addEventListener('change', (e) => {
+        majVisibiliteSelectAnnee(e.target.value);
+        chargerStatsAgenda(e.target.value, document.getElementById('select-annee-agenda').value, 1);
     });
+    document.getElementById('select-annee-agenda').addEventListener('change', (e) => {
+        chargerStatsAgenda(document.getElementById('select-vue-agenda').value, e.target.value, 1);
+    });
+    document.getElementById('agenda-page-prec').addEventListener('click', () =>
+        chargerStatsAgenda(document.getElementById('select-vue-agenda').value, document.getElementById('select-annee-agenda').value, pageAgenda - 1));
+    document.getElementById('agenda-page-suiv').addEventListener('click', () =>
+        chargerStatsAgenda(document.getElementById('select-vue-agenda').value, document.getElementById('select-annee-agenda').value, pageAgenda + 1));
+
+    majVisibiliteSelectAnnee('mois');
+
+    // ================= RENDU INITIAL (SSR en priorité, auto-réparation si absent) =================
+    const donneesDossiersInitiales = JSON.parse(document.getElementById('stats-dossiers-initial-data')?.textContent || 'null');
+    if (donneesDossiersInitiales && donneesDossiersInitiales.labels && donneesDossiersInitiales.labels.length > 0) {
+        rendreGraphiqueDossiers(donneesDossiersInitiales, 'statut');
+    } else {
+        chargerStatsDossiers('statut', 1);
+    }
+
+    const donneesAgendaInitiales = JSON.parse(document.getElementById('stats-agenda-initial-data')?.textContent || 'null');
+    if (donneesAgendaInitiales && donneesAgendaInitiales.labels && donneesAgendaInitiales.labels.length > 0) {
+        rendreGraphiqueAgenda(donneesAgendaInitiales);
+    } else {
+        chargerStatsAgenda('mois', document.getElementById('select-annee-agenda').value, 1);
+    }
+});
 </script>
 {% endblock %}

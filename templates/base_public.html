@@ -1,0 +1,15 @@
+{% load static %}
+{% load tailwind_tags %}
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}eCabinet{% endblock %}</title>
+    {% tailwind_css %}
+</head>
+<!-- Ajout de flex et flex-col pour activer le centrage flexbox enfant -->
+<body class="h-full text-gray-900 antialiased flex flex-col">
+    {% block content %}{% endblock %}
+</body>
+</html>

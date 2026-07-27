@@ -1,0 +1,839 @@
+{% extends 'base.html' %}
+{% block title %}Notifications SMS | eCabinet{% endblock %}
+{% block content %}
+
+{{ agendas_disponibles|json_script:"agendas-disponibles-data" }}
+{{ resultats_initiaux|json_script:"resultats-initiaux-data" }}
+{{ pagination_initiale|json_script:"pagination-initiale-data" }}
+{% csrf_token %}
+
+<div x-data="gestionNotifications()" class="space-y-5">
+
+    <div class="space-y-2.5 bg-white p-3.5 rounded-xl border border-gray-200 shadow-sm">
+    
+    <!-- ==================== LIGNE 1 : EN-TÊTE & COMPTEURS ==================== -->
+    <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 border-b border-gray-100 pb-2.5">
+        
+        <!-- 1. Titre & Sous-titre -->
+        <div class="shrink-0">
+            <h1 class="text-base font-bold text-indigo-950 flex items-center gap-1.5 leading-tight">
+                <span>📨</span> Notifications SMS
+            </h1>
+            <p class="text-[11px] text-gray-500">Convocations, rappels et relances d'audiences</p>
+        </div>
+
+        <!-- 2. Compteurs de Statuts Compacts (Centrés) -->
+        <!-- COMPTEURS DE STATUT ULTRA-COMPACTS (À placer au milieu de la Ligne 1) -->
+<div class="flex items-center justify-center flex-wrap gap-2 mx-auto lg:mx-0">
+    
+    <!-- 1. En attente -->
+    <div class="inline-flex items-center gap-2 bg-amber-50/80 border border-amber-200/80 rounded-lg px-2.5 py-1 transition hover:bg-amber-100/60">
+        <span class="h-5 w-5 rounded-md bg-amber-100 flex items-center justify-center text-xs shrink-0">⏳</span>
+        <div class="flex items-baseline gap-1.5">
+            <span class="text-xs font-bold text-amber-900 leading-none">{{ compteurs.pending|default:0 }}</span>
+            <span class="text-[11px] font-medium text-amber-700/80 leading-none">En attente</span>
+        </div>
+    </div>
+
+    <!-- 2. Livrés -->
+    <div class="inline-flex items-center gap-2 bg-emerald-50/80 border border-emerald-200/80 rounded-lg px-2.5 py-1 transition hover:bg-emerald-100/60">
+        <span class="h-5 w-5 rounded-md bg-emerald-100 flex items-center justify-center text-xs shrink-0">✅</span>
+        <div class="flex items-baseline gap-1.5">
+            <span class="text-xs font-bold text-emerald-900 leading-none">{{ compteurs.delivery_success|default:0 }}</span>
+            <span class="text-[11px] font-medium text-emerald-700/80 leading-none">Livrés</span>
+        </div>
+    </div>
+
+    <!-- 3. Échecs -->
+    <div class="inline-flex items-center gap-2 bg-rose-50/80 border border-rose-200/80 rounded-lg px-2.5 py-1 transition hover:bg-rose-100/60">
+        <span class="h-5 w-5 rounded-md bg-rose-100 flex items-center justify-center text-xs shrink-0">✖️</span>
+        <div class="flex items-baseline gap-1.5">
+            <span class="text-xs font-bold text-rose-900 leading-none">{{ compteurs.delivery_failed|default:0 }}</span>
+            <span class="text-[11px] font-medium text-rose-700/80 leading-none">Échecs</span>
+        </div>
+    </div>
+
+    <!-- 4. Expirés -->
+    <div class="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1 transition hover:bg-gray-100/80">
+        <span class="h-5 w-5 rounded-md bg-gray-200/70 flex items-center justify-center text-xs shrink-0">⌛</span>
+        <div class="flex items-baseline gap-1.5">
+            <span class="text-xs font-bold text-gray-800 leading-none">{{ compteurs.expired|default:0 }}</span>
+            <span class="text-[11px] font-medium text-gray-600 leading-none">Expirés</span>
+        </div>
+    </div>
+
+</div>
+
+        <!-- 3. Boutons d'actions -->
+        <div class="flex items-center gap-1.5 shrink-0 self-end lg:self-auto">
+            <button @click="ouvrirGestionFournisseurs()" 
+                    title="Configuration des passerelles SMS"
+                    class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 focus:outline-none transition shadow-xs">
+                <span>⚙️</span>
+                <span class="hidden sm:inline">Fournisseurs</span>
+            </button>
+            <button @click="ouvrirWizard()" 
+                    class="inline-flex items-center gap-1 bg-indigo-950 hover:bg-indigo-900 text-white font-medium px-3 py-1.5 rounded-lg text-xs transition shadow-xs focus:ring-2 focus:ring-indigo-500 focus:ring-offset-1">
+                <span class="text-sm font-bold">+</span>
+                <span>Nouveau SMS</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== LIGNE 2 : BARRE DE FILTRES COMPACTE ==================== -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2 items-center">
+        
+        <!-- Recherche Globale (4 cols) -->
+        <div class="lg:col-span-4 relative" x-data="{ query: '' }">
+            <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <input type="text" 
+                   id="filtre-recherche" 
+                   x-model="query"
+                   placeholder="Rechercher (numéro, message, dossier)..."
+                   class="w-full border border-gray-300 rounded-lg pl-8 pr-7 py-1.5 text-xs text-gray-800 placeholder-gray-400 focus:ring-1 focus:ring-indigo-950 focus:border-indigo-950 focus:outline-none bg-gray-50/30">
+            <!-- Bouton vider (Croix rouge) -->
+            <button type="button" 
+                    x-show="query.length > 0" 
+                    @click="query = ''; $dispatch('clear-search')" 
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-600 focus:outline-none p-0.5 rounded-full hover:bg-rose-50 transition"
+                    style="display: none;">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        <!-- Filtre Période / Date Rapide (2 cols) -->
+        {% comment %} <div class="lg:col-span-2">
+            <select id="filtre-date" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-50/30 focus:ring-1 focus:ring-indigo-950 focus:outline-none">
+                <option value="">📅 Date : Toutes</option>
+                <option value="today">Aujourd'hui</option>
+                <option value="week">Cette semaine</option>
+                <option value="month">Ce mois-ci</option>
+            </select>
+        </div> {% endcomment %}
+        <!-- Filtre Période / Date Rapide -->
+<select id="filtre-date" 
+        onchange="window.dashboardSms.appliquerFiltreDate()"
+        class="border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-50/50 focus:ring-1 focus:ring-indigo-950 focus:outline-none">
+    <option value="">📅 Date : Toutes</option>
+    <option value="today">Aujourd'hui</option>
+    <option value="this_week">Cette semaine</option>
+    <option value="this_month">Ce mois-ci</option>
+</select>
+
+        <!-- Filtre Statut (2 cols) -->
+        <div class="lg:col-span-2">
+            <select id="filtre-statut" class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-medium text-gray-700 bg-gray-50/30 focus:ring-1 focus:ring-indigo-950 focus:outline-none">
+                <option value="">Statut : Tous</option>
+                {% for valeur, libelle in statuts_sms %}
+                    <option value="{{ valeur }}">{{ libelle }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Filtre Dossier (4 cols) -->
+        <div class="lg:col-span-4">
+            <select id="filtre-dossier" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-medium text-gray-700 bg-gray-50/30 focus:ring-1 focus:ring-indigo-950 focus:outline-none truncate">
+                <option value="">📁 Dossier : Tous les dossiers</option>
+                {% for d in dossiers %}
+                    <option value="{{ d.id }}">{{ d.reference }} — {{ d.intitule }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+    </div>
+</div>
+
+
+    <!-- TABLEAU -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Téléphone</th>
+                        <th class="px-4 py-3 text-left">Message</th>
+                        <th class="px-4 py-3 text-left">Dossier / Agenda</th>
+                        <th class="px-4 py-3 text-left">Statut</th>
+                        <th class="px-4 py-3 text-left">Programmé pour</th>
+                        <th class="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="corps-tableau-sms"
+                       class="divide-y divide-gray-100 [&>tr:nth-child(odd)]:bg-gray-50/60 [&>tr]:hover:bg-indigo-50/60 [&>tr>td]:px-4 [&>tr>td]:py-2.5"></tbody>
+            </table>
+        </div>
+        <div id="etat-vide" class="hidden text-center text-gray-400 py-10 text-sm">Aucun SMS trouvé.</div>
+        <div id="zone-pagination" class="px-4 py-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500"></div>
+
+        <div class="flex items-center gap-2">
+            <button id="btn-precedent" onclick="pagePrecedente()"
+                    class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Précédent</button>
+            <span id="label-page">Page 1</span>
+            <button id="btn-suivant" onclick="pageSuivante()"
+                    class="px-3 py-1.5 border rounded-lg disabled:opacity-40" disabled>Suivant</button>
+        </div>
+
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL : WIZARD DE CRÉATION / MODIFICATION D'UN SMS                -->
+    <!-- ================================================================= -->
+    <div x-show="wizardOuvert" x-cloak class="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="fermerWizard()">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="font-semibold text-indigo-950" x-text="modeEdition ? 'Modifier le SMS' : 'Nouveau SMS'"></h2>
+                <button @click="fermerWizard()" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <!-- Étapes -->
+            <div class="px-6 pt-4 flex items-center gap-2">
+                <span class="text-xs font-semibold px-3 py-1 rounded-full" :class="slide===1 ? 'bg-indigo-600 text-white' : 'bg-emerald-50 text-emerald-700'">1. Destinataires</span>
+                <span class="text-gray-300">→</span>
+                <span class="text-xs font-semibold px-3 py-1 rounded-full" :class="slide===2 ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-400'">2. Envoi</span>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4">
+
+                <!-- SLIDE 1 : DESTINATAIRES + MESSAGE -->
+                <template x-if="slide===1">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Événement Agenda <span class="text-gray-400 font-normal">(Optionnel)</span></label>
+                            <select x-model="form.evenement_id" @change="onChangerAgenda()" class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">-- Notification / Hors agenda</option>
+                                <template x-for="a in agendas" :key="a.id">
+                                    <option :value="a.id" x-text="a.titre + ' — ' + a.date_affichee"></option>
+                                </template>
+                            </select>
+                        </div>
+
+                        <!-- Hors agenda : saisie libre de numéros -->
+                        <div x-show="!form.evenement_id">
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Numéro(s) de téléphone</label>
+                            <input x-model="form.numeros" type="text" placeholder="Ex: 70123456;76987654;78456123"
+                                   class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            <p class="text-[11px] text-gray-400 mt-1">Séparez plusieurs numéros par un point-virgule ( ; )</p>
+                        </div>
+
+                        <!-- Agenda choisi : liste des personnes concernées -->
+                        <div x-show="form.evenement_id" class="border border-gray-200 rounded-lg p-3 bg-indigo-50/40 max-h-48 overflow-y-auto">
+                            <p class="text-xs font-semibold text-indigo-700 mb-2">Personnes notifiables liées à cet événement</p>
+                            <template x-for="(p, i) in personnesDisponibles" :key="i">
+                                <label class="flex items-center gap-2 py-1 text-xs text-gray-700 cursor-pointer">
+                                    <input type="checkbox" :value="p.telephone" x-model="form.destinataires_selectionnes" class="rounded text-indigo-700 h-3.5 w-3.5" :disabled="!p.telephone">
+                                    <span class="flex-1" x-text="p.nom"></span>
+                                    <span class="text-gray-400" x-text="p.role"></span>
+                                    <span class="font-mono text-gray-500" x-text="p.telephone || 'Aucun numéro'"></span>
+                                </label>
+                            </template>
+                            <p class="text-[11px] text-gray-400 italic" x-show="personnesDisponibles.length===0">Aucun responsable/partie prenante notifiable pour cet événement.</p>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-600 block mb-1">Message</label>
+                            <textarea x-model="form.message" rows="4" maxlength="459"
+                                      class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"></textarea>
+                            <p class="text-[11px] text-gray-400 mt-1" x-text="form.message.length + ' / 459 caractères'"></p>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- SLIDE 2 : PLANIFICATION -->
+                <template x-if="slide===2">
+                    <div class="space-y-4">
+                        <p class="text-xs text-gray-500">Choisissez un envoi immédiat, une ou plusieurs dates ultérieures, ou les deux.</p>
+
+                        <label class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer" :class="form.immediat ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'">
+                            <input type="checkbox" x-model="form.immediat" class="rounded text-indigo-700 h-4 w-4">
+                            <span class="text-sm font-semibold text-gray-700">📤 Envoyer immédiatement</span>
+                        </label>
+
+                        <label class="flex items-center gap-3 p-3 rounded-lg border cursor-pointer" :class="form.ulterieur ? 'bg-indigo-50 border-indigo-200' : 'bg-gray-50 border-gray-100'">
+                            <input type="checkbox" x-model="form.ulterieur" class="rounded text-indigo-700 h-4 w-4">
+                            <span class="text-sm font-semibold text-gray-700">🕒 Programmer pour plus tard</span>
+                        </label>
+
+                        <div x-show="form.ulterieur" class="space-y-2 pl-2 border-l-2 border-indigo-100">
+                            <template x-for="(date, index) in form.dates_programmees" :key="index">
+                                <div class="flex items-center gap-2">
+                                    <input x-model="form.dates_programmees[index]" type="datetime-local" class="flex-1 border border-gray-200 rounded-md px-3 py-2 text-sm">
+                                    <button type="button" @click="form.dates_programmees.splice(index, 1)" class="text-gray-400 hover:text-rose-600 text-sm" x-show="form.dates_programmees.length > 1">✕</button>
+                                </div>
+                            </template>
+                            <button type="button" @click="form.dates_programmees.push('')" class="text-xs text-indigo-700 hover:underline">+ Ajouter une autre date</button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-100 flex justify-between">
+                <button type="button" @click="slide=1" x-show="slide===2" class="px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600">Précédent</button>
+                <span x-show="slide===1"></span>
+                <div class="space-x-2">
+                    <button type="button" @click="slide=2" x-show="slide===1" :disabled="!champsSlide1Valides" class="px-4 py-2 rounded-md text-sm font-medium bg-indigo-100 text-indigo-800 disabled:opacity-40">Suivant</button>
+                    <button type="button" @click="confirmerEtExecuter()" x-show="slide===2" :disabled="!form.immediat && !form.ulterieur" class="px-4 py-2 rounded-md text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40">✓ Confirmer et exécuter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MODAL : GESTION DES FOURNISSEURS SMS                              -->
+    <!-- ================================================================= -->
+    <div x-show="fournisseursOuvert" x-cloak class="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="fournisseursOuvert=false">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="font-semibold text-indigo-950">Fournisseurs SMS</h2>
+                <button @click="fournisseursOuvert=false" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-3">
+                <template x-for="(p, i) in fournisseurs" :key="p.id || i">
+                    <div class="border border-gray-200 rounded-lg p-3 flex items-center justify-between" :class="p.is_default ? 'bg-indigo-50/50 border-indigo-200' : ''">
+                        <div>
+                            <p class="text-sm font-medium text-gray-800" x-text="p.nom"></p>
+                            <p class="text-xs text-gray-400" x-text="'Expéditeur : ' + p.sender_id + (p.is_default ? ' · Par défaut' : '')"></p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full" :class="p.is_active ? 'bg-emerald-500' : 'bg-gray-300'" :title="p.is_active ? 'Actif' : 'Inactif'"></span>
+                            <button @click="editerFournisseur(p)" class="text-xs text-indigo-700 hover:underline">Modifier</button>
+                            <button @click="supprimerFournisseur(p)" class="text-xs text-rose-600 hover:underline">Supprimer</button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Petit formulaire d'ajout/édition -->
+                <div class="border-t border-gray-100 pt-4 mt-2">
+                    <p class="text-xs font-semibold text-gray-600 mb-2" x-text="fournisseurForm.id ? 'Modifier le fournisseur' : 'Ajouter un fournisseur'"></p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input x-model="fournisseurForm.nom" placeholder="Nom (ex: AQILAS SMS)" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <input x-model="fournisseurForm.sender_id" placeholder="Expéditeur (11 car. max)" maxlength="11" class="border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <input x-model="fournisseurForm.base_url" placeholder="URL de l'API" class="col-span-2 border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <input x-model="fournisseurForm.api_key" type="password" placeholder="Clé API" class="col-span-2 border border-gray-200 rounded-md px-3 py-2 text-sm">
+                        <label class="flex items-center gap-2 text-xs text-gray-600 col-span-2">
+                            <input type="checkbox" x-model="fournisseurForm.is_default" class="rounded text-indigo-700"> Définir comme fournisseur par défaut
+                        </label>
+                    </div>
+                    <div class="flex justify-end gap-2 mt-3">
+                        <button type="button" @click="reinitialiserFormulaireFournisseur()" x-show="fournisseurForm.id" class="px-3 py-1.5 text-xs border border-gray-200 rounded-md text-gray-600">Annuler</button>
+                        <button type="button" @click="enregistrerFournisseur()" class="px-3 py-1.5 text-xs bg-indigo-950 text-white rounded-md">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    const URLS_SMS = {
+        liste: "{% url 'notifications:api_lister_sms' %}",
+        creer: "{% url 'notifications:api_creer_sms' %}",
+        modifier: (id) => `/notifications/api/${id}/modifier/`,
+        fournisseurs: "{% url 'notifications:api_lister_fournisseurs' %}",
+        creerFournisseur: "{% url 'notifications:api_creer_fournisseur' %}",
+        modifierFournisseur: (id) => `/notifications/api/fournisseurs/${id}/modifier/`,
+        supprimerFournisseur: (id) => `/notifications/api/fournisseurs/${id}/supprimer/`,
+    };
+
+    const BADGE_STATUT_SMS = {
+        PENDING: 'bg-amber-100 text-amber-700',
+        DELIVERY_SUCCESS: 'bg-emerald-100 text-emerald-700',
+        DELIVERY_FAILED: 'bg-rose-100 text-rose-700',
+        EXPIRED: 'bg-gray-100 text-gray-500',
+    };
+
+    function formVide() {
+        return {
+            evenement_id: '', numeros: '', message: '',
+            destinataires_selectionnes: [], immediat: true, ulterieur: false,
+            dates_programmees: [''],
+        };
+    }
+
+    function echapper(texte) {
+        const div = document.createElement('div');
+        div.textContent = texte ?? '';
+        return div.innerHTML;
+    }
+
+    function formaterDateHeure(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        return d.toLocaleDateString('fr-FR') + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Variante d'envoyerFormulaire (modals.js) qui ne redirige pas la page après succès :
+    // on reste sur le dashboard, contrairement aux wizards de création classiques.
+    async function envoyerFormulaireSansRedirection(url, payload) {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (res.ok) {
+            eCabinetAlerts.toast(data.message || 'Enregistré avec succès.');
+        } else {
+            eCabinetAlerts.erreur(data.erreur || 'Une erreur est survenue.');
+        }
+        return res.ok;
+    }
+
+    function gestionNotifications() {
+        return {
+            // ---------- État général de la liste ----------
+            etat: { page: 1, page_size: 10, cacheResultats: {} },
+            minuteurRecherche: null,
+
+            // ---------- Wizard SMS ----------
+            wizardOuvert: false,
+            modeEdition: false,
+            slide: 1,
+            agendas: JSON.parse(document.getElementById('agendas-disponibles-data')?.textContent || '[]'),
+            personnesDisponibles: [],
+            form: formVide(),
+
+            get champsSlide1Valides() {
+                const aUnDestinataire = this.form.evenement_id
+                    ? this.form.destinataires_selectionnes.length > 0
+                    : this.form.numeros.trim().length > 0;
+                return aUnDestinataire && this.form.message.trim().length > 0;
+            },
+
+            ouvrirWizard(smsExistant = null) {
+                this.form = formVide();
+                this.modeEdition = !!smsExistant;
+                this.slide = 1;
+                if (smsExistant) Object.assign(this.form, smsExistant);
+                this.wizardOuvert = true;
+            },
+            fermerWizard() { this.wizardOuvert = false; },
+
+            onChangerAgenda() {
+                const agenda = this.agendas.find(a => a.id === this.form.evenement_id);
+                this.personnesDisponibles = agenda ? [...(agenda.responsables || []), ...(agenda.parties_prenantes || [])] : [];
+                this.form.destinataires_selectionnes = [];
+                this.form.message = agenda ? this.genererMessageParDefaut(agenda) : '';
+            },
+
+            genererMessageParDefaut(agenda) {
+                let msg = `Agenda : ${agenda.titre} le ${agenda.date_affichee} (${agenda.type_libelle})`;
+                if (agenda.tribunal) msg += ` — ${agenda.tribunal}`;
+                if (agenda.chambre) msg += ` / ${agenda.chambre}`;
+                if (agenda.dossier_reference) msg += `. Dossier : ${agenda.dossier_reference} - ${agenda.dossier_intitule}`;
+                return msg;
+            },
+
+            async confirmerEtExecuter() {
+                const numeros = this.form.evenement_id
+                    ? this.form.destinataires_selectionnes
+                    : this.form.numeros.split(';').map(n => n.trim()).filter(Boolean);
+
+                     // Initialisation des listes ordonnées
+    const listeNoms = [];
+    const listeRoles = [];
+
+    numeros.forEach(num => {
+        if (this.form.evenement_id) {
+            // Recherche de la personne correspondante pour ce numéro précis
+            const cible = this.personnesDisponibles.find(p => p.telephone === num);
+            listeNoms.push(cible ? cible.nom : "Destinataire Inconnu");
+            listeRoles.push(cible ? cible.role : "Aucun");
+        } else {
+            listeNoms.push("Saisie manuelle");
+            listeRoles.push("Externe");
+        }
+    });
+                        
+                const payload = {
+                    evenement_id: this.form.evenement_id || null,
+                    numeros: numeros,
+                    
+                    nomDestinataire: listeNoms,   // Transmet un Array de strings
+                    roleDestinataire: listeRoles, // Transmet un Array de strings
+                    
+                    message: this.form.message,
+                    immediat: this.form.immediat,
+                    dates_programmees: this.form.ulterieur ? this.form.dates_programmees.filter(Boolean) : [],
+                };
+                /*const succes = await envoyerFormulaireSansRedirection(URLS_SMS.creer, payload);
+                if (succes) {
+                    this.fermerWizard();
+                    this.chargerListe();
+                }*/
+                const res = await fetch(URLS_SMS.creer, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+        await eCabinetAlerts.succes(data.message || 'SMS envoyé(s) avec succès.', 'Campagne créée');
+        this.fermerWizard();
+        this.chargerListe();
+    } else {
+        eCabinetAlerts.erreur(data.erreur || 'Une erreur est survenue.');
+    }
+            },
+
+            // ---------- Fournisseurs SMS ----------
+            fournisseursOuvert: false,
+            fournisseurs: [],
+            fournisseurForm: { id: null, nom: '', sender_id: '', base_url: '', api_key: '', is_default: false },
+
+            async ouvrirGestionFournisseurs() {
+                const reponse = await fetch(URLS_SMS.fournisseurs);
+                this.fournisseurs = (await reponse.json()).resultats || [];
+                this.fournisseursOuvert = true;
+            },
+            editerFournisseur(p) { this.fournisseurForm = { ...p, api_key: '' }; },
+            reinitialiserFormulaireFournisseur() {
+                this.fournisseurForm = { id: null, nom: '', sender_id: '', base_url: '', api_key: '', is_default: false };
+            },
+            async enregistrerFournisseur() {
+                const url = this.fournisseurForm.id
+                    ? URLS_SMS.modifierFournisseur(this.fournisseurForm.id)
+                    : URLS_SMS.creerFournisseur;
+                const succes = await envoyerFormulaireSansRedirection(url, this.fournisseurForm);
+                if (succes) {
+                    this.reinitialiserFormulaireFournisseur();
+                    this.ouvrirGestionFournisseurs();
+                }
+            },
+            async supprimerFournisseur(p) {
+                eCabinetAlerts.confirmerSuppression(`Supprimer le fournisseur "${p.nom}" ?`, async () => {
+                    await fetch(URLS_SMS.supprimerFournisseur(p.id), { method: 'POST', headers: { 'X-CSRFToken': getCookie('csrftoken') } });
+                    this.ouvrirGestionFournisseurs();
+                });
+            },
+
+            // ---------- Liste principale ----------
+            construireQueryStringSms() {
+                return new URLSearchParams({
+                    q: document.getElementById('filtre-recherche').value.trim(),
+                    statut: document.getElementById('filtre-statut').value,
+                    dossier_id: document.getElementById('filtre-dossier').value,
+                    date_filtre: document.getElementById('filtre-date')?.value || '', // <-- AJOUT DU FILTRE DATE
+                    page: this.etat.page,
+                    page_size: this.etat.page_size,
+                }).toString();
+            },
+
+            // Nouvelle méthode dédiée appelée au changement de date
+appliquerFiltreDate() {
+    this.etat.page = 1; // Réinitialise la pagination à la page 1
+    this.chargerListe(); // Recharge la liste avec le nouveau filtre date
+},
+
+            /*async chargerListe() {
+                const reponse = await fetch(`${URLS_SMS.liste}?${this.construireQueryStringSms()}`);
+                const donnees = await reponse.json();
+                this.etat.cacheResultats = {};
+                donnees.resultats.forEach(s => this.etat.cacheResultats[s.id] = s);
+                this.afficherTableau(donnees.resultats);
+                this.afficherPagination(donnees.pagination);
+            },*/
+
+            async chargerListe() {
+    try {
+        const reponse = await fetch(`${URLS_SMS.liste}?${this.construireQueryStringSms()}`);
+        const donnees = await reponse.json();
+        
+        this.etat.cacheResultats = {};
+        donnees.resultats.forEach(s => this.etat.cacheResultats[s.id] = s);
+        
+        this.afficherTableau(donnees.resultats);
+        this.afficherPagination(donnees.pagination);
+
+        // MISE À JOUR DES COMPTEURS DANS LE DOM
+        if (donnees.compteurs) {
+            this.mettreAJourCompteurs(donnees.compteurs);
+        }
+    } catch (e) {
+        console.error("Erreur lors du chargement des SMS :", e);
+    }
+},
+
+mettreAJourCompteurs(compteurs) {
+    const mapCompteurs = {
+        'compteur-pending': compteurs.pending ?? 0,
+        'compteur-delivery-success': compteurs.delivery_success ?? 0,
+        'compteur-delivery-failed': compteurs.delivery_failed ?? 0,
+        'compteur-expired': compteurs.expired ?? 0
+    };
+
+    for (const [id, valeur] of Object.entries(mapCompteurs)) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = valeur;
+        }
+    }
+},
+
+            afficherTableau(resultats) {
+                const corps = document.getElementById('corps-tableau-sms');
+                const etatVide = document.getElementById('etat-vide');
+                corps.innerHTML = '';
+
+                if (resultats.length === 0) {
+                    etatVide.classList.remove('hidden');
+                    return;
+                }
+                etatVide.classList.add('hidden');
+
+                resultats.forEach(s => {
+                    const ligne = document.createElement('tr');
+                    //const messageTronque = s.message.length > 50 ? s.message.slice(0, 50) + '…' : s.message;
+                    // NOUVEAU : Message affiché sur 2 lignes max avec line-clamp-2
+    const messageAffiche = `
+        <div class="text-xs text-gray-700 font-normal leading-relaxed line-clamp-2 max-w-xs sm:max-w-sm" title="${echapper(s.message)}">
+            ${echapper(s.message)}
+        </div>
+    `;
+
+const dossierAffiche = s.dossier_reference 
+    ? `<div class="flex flex-col space-y-0.5">
+         <span class="font-semibold text-indigo-700 text-xs">📁 ${echapper(s.dossier_reference)}${s.agenda_titre ? ` / 📅 ${echapper(s.agenda_titre)}` : ''}</span>
+         <span class="text-[11px] text-slate-500 font-medium truncate" title="${echapper(s.dossier_intitule)}">${echapper(s.dossier_intitule)}</span>
+       </div>`
+    : (s.agenda_titre 
+        ? `<div class="text-xs font-medium text-gray-700">📅 ${echapper(s.agenda_titre)}</div>` 
+        : '<span class="text-gray-400 italic text-xs">Hors agenda</span>');
+
+
+                    ligne.innerHTML = `
+                        <td class="max-w-[200px]">
+    <div class="flex flex-col space-y-0.5">
+        <!-- Ligne supérieure : Téléphone -->
+        <span class="font-mono text-xs font-semibold text-gray-700">
+            👤 ${echapper(s.telephone)}
+        </span>
+        
+        <!-- Ligne inférieure : Nom et Rôle subsidiaire -->
+        <div class="flex items-center gap-1.5 truncate text-[11px] text-slate-500">
+            <span class="font-medium">${echapper(s.destinataire_nom || 'Inconnu')}</span>
+            ${s.destinataire_role ? `
+                <span class="px-1 py-0.2 bg-slate-100 border border-slate-200 text-slate-600 rounded text-[10px]">
+                    ${echapper(s.destinataire_role)}
+                </span>
+            ` : ''}
+        </div>
+    </div>
+</td>
+
+
+                        <td class="px-3 py-2 align-middle">${messageAffiche}</td>
+                        <td class="max-w-[240px] vertical-align-middle">${dossierAffiche}</td>
+                        <td>
+                            <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${BADGE_STATUT_SMS[s.statut] || 'bg-gray-100 text-gray-500'}">
+                                ${echapper(s.statut_libelle)}
+                            </span>
+                        </td>
+                        <td class="text-gray-500 text-xs">${s.programme_pour ? formaterDateHeure(s.programme_pour) : '—'}</td>
+                        <td class="text-right space-x-1 whitespace-nowrap">
+                            <button onclick="window.dashboardSms.voirSms('${s.id}')" class="p-1 text-gray-400 hover:text-indigo-600" title="Voir le détail">👁️</button>
+                            ${s.modifiable ? `<button onclick="window.dashboardSms.modifierSms('${s.id}')" class="p-1 text-gray-400 hover:text-amber-600" title="Modifier">✏️</button>` : ''}
+                        </td>`;
+                    corps.appendChild(ligne);
+                });
+            },
+
+            /*afficherPagination(pagination) {
+                document.getElementById('zone-pagination').innerHTML = `
+                    <span>${pagination.nb_resultats} résultat(s) — page ${pagination.page_courante}/${pagination.nb_pages}</span>
+                    <div class="space-x-2">
+                        <button onclick="window.dashboardSms.pagePrecedente()" ${!pagination.a_precedent ? 'disabled' : ''} class="px-3 py-1 border border-gray-200 rounded-md disabled:opacity-40">Précédent</button>
+                        <button onclick="window.dashboardSms.pageSuivante()" ${!pagination.a_suivant ? 'disabled' : ''} class="px-3 py-1 border border-gray-200 rounded-md disabled:opacity-40">Suivant</button>
+                    </div>`;
+            },
+
+            pagePrecedente() {
+                this.etat.page = Math.max(1, this.etat.page - 1);
+                this.chargerListe();
+            },
+
+            pageSuivante() {
+                this.etat.page += 1;
+                this.chargerListe();
+            },*/
+
+            // Dans votre objet dashboardSms :
+
+afficherPagination(pagination) {
+    const elContainer = document.getElementById('pagination-container'); // Ajustez l'ID selon votre HTML
+    if (!elContainer) return;
+
+    if (!pagination || pagination.nb_pages <= 1) {
+        elContainer.innerHTML = '';
+        return;
+    }
+
+    const { page_courante, nb_pages, a_precedent, a_suivant, nb_resultats } = pagination;
+
+    // Construction du HTML de la pagination
+    let html = `
+        <div class="flex items-center justify-between border-t border-gray-200 px-4 py-3 sm:px-6">
+            <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                    <p class="text-xs text-gray-700">
+                        Total : <span class="font-semibold">${nb_resultats}</span> résultat(s)
+                    </p>
+                </div>
+                <div>
+                    <nav class="isolate inline-flex -space-x-px rounded-md shadow-xs gap-1" aria-label="Pagination">
+                        
+                        <!-- Bouton Précédent -->
+                        <button type="button" 
+                                ${!a_precedent ? 'disabled' : ''} 
+                                onclick="window.dashboardSms.allerAPage(${page_courante - 1})"
+                                class="relative inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            ⬅️ Précédent
+                        </button>
+
+                        <span class="inline-flex items-center px-3 py-1 text-xs font-semibold text-gray-900">
+                            Page ${page_courante} sur ${nb_pages}
+                        </span>
+
+                        <!-- Bouton Suivant -->
+                        <button type="button" 
+                                ${!a_suivant ? 'disabled' : ''} 
+                                onclick="window.dashboardSms.allerAPage(${page_courante + 1})"
+                                class="relative inline-flex items-center rounded-md px-2 py-1 text-xs font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed">
+                            Suivant ➡️
+                        </button>
+
+                    </nav>
+                </div>
+            </div>
+        </div>
+    `;
+
+    elContainer.innerHTML = html;
+},
+
+// Méthode pour changer de page
+allerAPage(nouvellePage) {
+    if (nouvellePage < 1) return;
+    
+    // 1. Mettre à jour l'état interne
+    this.etat.page = nouvellePage;
+    
+    // 2. Recharger la liste (qui va conserver tous les filtres actifs)
+    this.chargerListe();
+},
+
+            voirSms(id) {
+                const s = this.etat.cacheResultats[id];
+                if (!s) return;
+                Swal.fire({
+                    title: `SMS — ${s.telephone}`,
+                    html: `<p class="text-left text-sm">${echapper(s.message)}</p><p class="text-left text-xs text-gray-400 mt-2">Statut : ${s.statut_libelle}${s.programme_pour ? ' · Programmé pour ' + formaterDateHeure(s.programme_pour) : ''}</p>`,
+                    confirmButtonColor: '#4f46e5',
+                });
+            },
+
+            modifierSms(id) {
+                const s = this.etat.cacheResultats[id];
+                if (!s) return;
+                Swal.fire({
+                    title: 'Modifier le SMS',
+                    html: `
+                        <input id="swal-telephone" class="swal2-input" value="${echapper(s.telephone)}" placeholder="Téléphone">
+                        <textarea id="swal-message" class="swal2-textarea">${echapper(s.message)}</textarea>
+                        <input id="swal-date" type="datetime-local" class="swal2-input" value="${s.programme_pour ? s.programme_pour.slice(0, 16) : ''}">
+                    `,
+                    confirmButtonText: 'Enregistrer',
+                    confirmButtonColor: '#4f46e5',
+                    showCancelButton: true,
+                    cancelButtonText: 'Annuler',
+                    preConfirm: () => ({
+                        telephone: document.getElementById('swal-telephone').value,
+                        message: document.getElementById('swal-message').value,
+                        send_at: document.getElementById('swal-date').value,
+                    }),
+                }).then(async (resultat) => {
+                    if (!resultat.isConfirmed) return;
+                    const succes = await envoyerFormulaireSansRedirection(URLS_SMS.modifier(id), resultat.value);
+                    if (succes) this.chargerListe();
+                });
+            },
+init() {
+    // 1. Charger et afficher les données initiales du DOM
+    const initiaux = JSON.parse(document.getElementById('resultats-initiaux-data')?.textContent || '[]');
+    initiaux.forEach(s => this.etat.cacheResultats[s.id] = s);
+    this.afficherTableau(initiaux);
+
+    const paginationInitiale = JSON.parse(document.getElementById('pagination-initiale-data')?.textContent || '{}');
+    this.afficherPagination(paginationInitiale);
+
+    // 2. Écouteurs sur les sélecteurs (statut, dossier ET date)
+    ['filtre-statut', 'filtre-dossier', 'filtre-date'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => { 
+                this.etat.page = 1; 
+                if (id === 'filtre-statut' && typeof this.mettreAJourCarteActive === 'function') {
+                    this.mettreAJourCarteActive(el.value);
+                }
+                this.chargerListe(); 
+            });
+        }
+    });
+
+    // 3. Écouteur sur le champ de recherche textuelle
+    const inputRecherche = document.getElementById('filtre-recherche');
+    if (inputRecherche) {
+        inputRecherche.addEventListener('input', () => {
+            clearTimeout(this.minuteurRecherche);
+            this.minuteurRecherche = setTimeout(() => { 
+                this.etat.page = 1; 
+                this.chargerListe(); 
+            }, 350);
+        });
+    }
+
+    // 4. Exposer l'instance globalement
+    window.dashboardSms = this;
+
+    // 5. CORRECTION : Si un filtre a une valeur sélectionnée par défaut, on synchronise le visuel et on applique le filtre
+    const valStatut = document.getElementById('filtre-statut')?.value || '';
+    const valDate = document.getElementById('filtre-date')?.value || '';
+    const valDossier = document.getElementById('filtre-dossier')?.value || '';
+    const valRecherche = inputRecherche?.value.trim() || '';
+
+    // Mettre à jour la surbrillance de la carte statut si nécessaire
+    if (typeof this.mettreAJourCarteActive === 'function') {
+        this.mettreAJourCarteActive(valStatut);
+    }
+
+    // Si au moins un filtre est actif à l'ouverture, on lance la requête AJAX pour rafraîchir la liste
+    if (valStatut || valDate || valDossier || valRecherche) {
+        this.chargerListe();
+    }
+}
+            /*init() {
+
+                
+    const initiaux = JSON.parse(document.getElementById('resultats-initiaux-data')?.textContent || '[]');
+    initiaux.forEach(s => this.etat.cacheResultats[s.id] = s);
+    this.afficherTableau(initiaux);   // <-- ligne manquante, ajoutée ici
+
+    const paginationInitiale = JSON.parse(document.getElementById('pagination-initiale-data')?.textContent || '{}');
+    this.afficherPagination(paginationInitiale);
+
+    ['filtre-statut', 'filtre-dossier'].forEach(id => {
+        document.getElementById(id).addEventListener('change', () => { this.etat.page = 1; this.chargerListe(); });
+    });
+    document.getElementById('filtre-recherche').addEventListener('input', () => {
+        clearTimeout(this.minuteurRecherche);
+        this.minuteurRecherche = setTimeout(() => { this.etat.page = 1; this.chargerListe(); }, 350);
+    });
+
+    window.dashboardSms = this;
+}*/
+        };
+    }
+</script>
+{% endblock %}

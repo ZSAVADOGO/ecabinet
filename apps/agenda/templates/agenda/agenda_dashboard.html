@@ -14,15 +14,39 @@
             <div class="flex items-center gap-2">
                 <button onclick="ouvrirModalCreation()"
                     class="inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3 py-1.5 rounded-lg shadow-sm text-sm transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                    Ajouter un événement
+                    + Ajouter
                 </button>
                 <div class="h-5 w-px bg-gray-200 mx-1"></div>
                 <!-- Navigation Rapide Semaine -->
-                <div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs font-medium">
-                    <button type="button" onclick="naviguerSemaine(-1)" class="px-2 py-1 rounded-md text-gray-600 hover:bg-white hover:shadow-sm">← Préc.</button>
-                    <button type="button" onclick="allerAujourdhui()" class="px-2.5 py-1 rounded-md text-gray-800 bg-white shadow-sm font-semibold">Aujourd'hui</button>
-                    <button type="button" onclick="naviguerSemaine(1)" class="px-2 py-1 rounded-md text-gray-600 hover:bg-white hover:shadow-sm">Suiv. →</button>
+                {% comment %} <div class="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 text-xs font-medium">
+                    <button type="button" onclick="naviguerSemaine(-1)" class="px-2 py-1 rounded-md text-gray-600 hover:bg-white hover:shadow-sm">← Semaine Préc.</button>
+                    <button type="button" onclick="allerSemaineActuelle()" class="px-2.5 py-1 rounded-md text-gray-800 bg-white shadow-sm font-semibold">Semaine Actuelle</button>
+                    <button type="button" onclick="naviguerSemaine(1)" class="px-2 py-1 rounded-md text-gray-600 hover:bg-white hover:shadow-sm">Semaine Suiv. →</button>
+                </div> {% endcomment %}
+                <div class="inline-flex items-center rounded-lg border border-gray-200/80 bg-slate-50 p-1 text-xs font-medium shadow-2xs">
+                
+                    <!-- Semaine Précédente (Gris neutre au survol) -->
+                    <button type="button" onclick="naviguerSemaine(-1)" 
+                        class="px-2.5 py-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs transition-all flex items-center gap-1">
+                        <span>←</span> <span class="hidden sm:inline">Sem.</span> Préc.
+                    </button>
+                    
+                    <button type="button" onclick="allerSemaineActuelle()" 
+                        class="px-3 py-1.5 rounded-md text-indigo-950 bg-indigo-50/80 border border-indigo-200/70 shadow-2xs font-semibold flex items-center gap-1.5 hover:bg-indigo-100/80 transition-all">
+                        <!-- Pastille Rouge Clignotante "En direct / Aujourd'hui" -->
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                        </span>
+                        <span>Semaine Actuelle</span>
+                    </button>
+                    
+                    <!-- Semaine Suivante (Gris neutre au survol) -->
+                    <button type="button" onclick="naviguerSemaine(1)" 
+                        class="px-2.5 py-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-white hover:shadow-2xs transition-all flex items-center gap-1">
+                        <span class="hidden sm:inline">Sem.</span> Suiv. <span>→</span>
+                    </button>
+                    
                 </div>
             </div>
 
@@ -35,10 +59,28 @@
 
         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
             <!-- Recherche libre -->
-            <div class="md:col-span-3 relative">
+            {% comment %} <div class="md:col-span-3 relative">
                 <input type="text" id="filtre-recherche" placeholder="Rechercher (titre, dossier, intervenant)..."
                        class="w-full border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-            </div>
+            </div> {% endcomment %}
+            <div class="md:col-span-3 relative" data-clearable>
+    <input type="text" id="filtre-recherche" placeholder="Rechercher (titre, dossier, intervenant)..."
+           oninput="document.getElementById('btn-clear-recherche').classList.toggle('hidden', !this.value)"
+           class="w-full border border-gray-300 rounded-lg pl-3 pr-8 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+    
+    <button type="button" data-clear-btn tabindex="-1"
+            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-rose-500 hover:text-rose-700 font-bold text-xs p-1 rounded-md hover:bg-rose-50 transition-colors" 
+            title="Effacer la recherche">
+        ✕
+    </button>
+    {% comment %}  <button type="button" data-clear-btn tabindex="-1"
+            class="hidden absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-rose-600 focus:outline-none text-xs p-0.5 rounded hover:bg-gray-50 font-bold">
+        ✕
+    </button> {% endcomment %}
+    
+</div>
+
+
 
             <!-- Filtre Type d'événement (Enum EvenementAgenda.TypeEvenement) -->
             <div class="md:col-span-2">
@@ -51,11 +93,29 @@
             </div>
 
             <!-- Plage de Dates (Vue semaine par défaut) -->
-            <div class="md:col-span-4 flex items-center gap-2">
+            {% comment %} <div class="md:col-span-4 flex items-center gap-2">
                 <input type="date" id="filtre-date-debut" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500">
                 <span class="text-gray-400 text-xs">à</span>
                 <input type="date" id="filtre-date-fin" class="w-full border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500">
-                <button type="button" onclick="allerAujourdhui()" class="p-1.5 text-gray-400 hover:text-indigo-600" title="Semaine courante">
+                <button type="button" onclick="allerSemaineActuelle()" class="p-1.5 text-gray-400 hover:text-indigo-600" title="Semaine courante">
+                    ↺
+                </button>
+            </div> {% endcomment %}
+            <div class="md:col-span-4 flex items-center gap-2">
+                <!-- Date Début avec fond Slate texturé & focus élégant -->
+                <input type="date" id="filtre-date-debut" 
+                    class="w-full bg-slate-200/80 border border-slate-300 text-slate-800 font-medium rounded-lg px-2.5 py-1.5 text-xs sm:text-sm focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer">
+                
+                <span class="text-slate-400 font-semibold text-xs px-0.5">à</span>
+                
+                <!-- Date Fin avec fond Slate texturé & focus élégant -->
+                <input type="date" id="filtre-date-fin" 
+                    class="w-full bg-slate-200/80 border border-slate-300 text-slate-800 font-medium rounded-lg px-2.5 py-1.5 text-xs sm:text-sm focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all cursor-pointer">
+                
+                <!-- Bouton Réinitialiser avec badge / bouton assorti -->
+                <button type="button" onclick="allerSemaineActuelle()" 
+                    class="p-1.5 bg-slate-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 border border-slate-200 hover:border-indigo-200 rounded-lg transition-all shadow-2xs shrink-0" 
+                    title="Revenir à la semaine courante">
                     ↺
                 </button>
             </div>
@@ -106,9 +166,141 @@
 </div>
 
 <!-- MODAL DE CRÉATION / ÉDITION -->
-
-<!-- Changement de max-w-xl à max-w-4xl pour élargir le formulaire -->
 <div id="modal-evenement-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6">
+        <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
+            <h2 class="text-base font-bold text-gray-800" id="titre-modal-form">Événement d'agenda</h2>
+            <button type="button" onclick="fermerModal('modal-evenement-form')" class="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+        </div>
+
+        <form id="form-evenement" onsubmit="soumettreFormulaire(event)" class="space-y-4 text-xs">
+            <input type="hidden" name="id" id="event-id">
+
+            <!-- Section Dossier & Titre -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="md:col-span-1">
+                    <label class="block font-semibold text-gray-700 mb-1">Dossier</label>
+                    {% comment %} <select name="dossier" id="field-dossier" onchange="chargerPartiesPrenantesDossier(this.value)" class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        <option value="">-- Hors dossier --</option>
+                        {% for d in dossiers %}
+                            <option value="{{ d.id }}">{{ d.label }} - {{ d.intitule }}</option>
+                        {% endfor %}
+                    </select> {% endcomment %}
+                    <select name="dossier" id="field-dossier" onchange="onChangerDossierFormulaire(this.value)" class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        <option value="">-- Hors dossier --</option>
+                        {% for d in dossiers %}
+                            <option value="{{ d.id }}">{{ d.label }} - {{ d.intitule }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block font-semibold text-gray-700 mb-1">Titre de l'événement *</label>
+                    <input type="text" name="titre" id="field-titre" required class="w-full border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <!-- Type, Date/Heure & Statut -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Type d'événement *</label>
+                    <select name="type" id="field-type" onchange="basculerChampsDelai(this.value)" required class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        {% for valeur, libelle in types_evenement %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Date et Heure *</label>
+                    <input type="datetime-local" name="date_heure" id="field-date-heure" required class="w-full border border-gray-300 rounded-lg p-2">
+                </div>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Statut</label>
+                    <select name="statut_traitement" id="field-statut" class="w-full border border-gray-300 rounded-lg p-2 bg-white">
+                        {% for valeur, libelle in statuts_traitement %}
+                            <option value="{{ valeur }}">{{ libelle }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Bloc Délais Procéduraux -->
+            <div id="bloc-delai-procedure" class="hidden bg-amber-50/60 p-3 rounded-lg border border-amber-200 space-y-3">
+                <span class="block font-bold text-amber-900">⚖️ Paramètres du délai de procédure</span>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-gray-700 mb-1">Type de délai</label>
+                        <select name="type_delai" id="field-type-delai" class="w-full border border-gray-300 rounded-lg p-1.5 bg-white">
+                            <option value="">-- Sélectionner --</option>
+                            {% for valeur, libelle in types_delai %}
+                                <option value="{{ valeur }}">{{ libelle }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">Date déclencheur</label>
+                        <input type="date" name="date_declencheur" id="field-date-declencheur" class="w-full border border-gray-300 rounded-lg p-1.5 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-gray-700 mb-1">Durée légale (jours)</label>
+                        <input type="number" name="duree_legale_jours" id="field-duree-legale" min="1" class="w-full border border-gray-300 rounded-lg p-1.5 bg-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Intervenants et Collaborateurs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Avocats / Collaborateurs Internes</label>
+                    <div class="w-full border border-gray-300 rounded-lg p-2 min-h-[140px] max-h-[180px] overflow-y-auto bg-slate-50/50 space-y-1">
+                        {% for u in utilisateurs %}
+                            <div class="flex items-center gap-2 p-1 bg-white rounded border border-gray-100 shadow-sm">
+                                <label class="flex items-center gap-2 cursor-pointer select-none w-full py-0.5">
+                                    <input type="checkbox" name="responsables" value="{{ u.id }}" class="checkbox-responsable rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5">
+                                    <div class="flex flex-col">
+                                        <span class="font-semibold text-gray-900">Me. {{ u.get_full_name|default:u.username }}</span>
+                                        <span class="text-[10px] text-gray-400 font-mono capitalize">{{ u.role|default:"Collaborateur" }}</span>
+                                    </div>
+                                </label>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="font-semibold text-gray-700">Sélection des Intervenants</label>
+                        <button type="button" onclick="ajouterIntervenantPonctuelALinterface()" class="text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                            <span>➕</span> Ajouter externe
+                        </button>
+                    </div>
+                    <div id="conteneur-parties-prenantes" class="w-full border border-gray-300 rounded-lg p-2 min-h-[140px] max-h-[180px] overflow-y-auto bg-slate-50/50 space-y-1">
+                        <p class="text-gray-400 italic py-6 text-center">Sélectionnez d'abord un dossier pour charger ses intervenants.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Urgence / Description -->
+            <div class="grid grid-cols-1 gap-2">
+                <label class="inline-flex items-center gap-2 text-red-700 font-semibold cursor-pointer">
+                    <input type="checkbox" name="critique" id="field-critique" class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                    <span>Marquer cet événement comme CRITIQUE / URGENT (Alerte renforcée au cabinet)</span>
+                </label>
+                <div>
+                    <label class="block font-semibold text-gray-700 mb-1">Description / Notes d'audience</label>
+                    <textarea name="description" id="field-description" rows="2" class="w-full border border-gray-300 rounded-lg p-2 focus:ring-1 focus:ring-indigo-500" placeholder="Instructions..."></textarea>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end gap-2 border-t border-gray-100 pt-3">
+                <button type="button" onclick="fermerModal('modal-evenement-form')" class="px-4 py-2 border rounded-lg font-medium text-gray-600 hover:bg-gray-50">Annuler</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium shadow-sm">Enregistrer l'événement</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Changement de max-w-xl à max-w-4xl pour élargir le formulaire -->
+{% comment %} <div id="modal-evenement-form" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-4xl p-6">
         <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-3">
             <h2 class="text-base font-bold text-gray-800" id="titre-modal-form">Nouvelle facture</h2>
@@ -242,7 +434,7 @@
             </div>
         </form>
     </div>
-</div>
+</div> {% endcomment %}
 
 <!-- SOUS-MODAL PERSONNALISÉ : AJOUT RAPIDE INTERVENANT PONCTUEL -->
 <div id="modal-intervenant-rapide" class="modal-overlay hidden fixed inset-0 bg-black/50 items-center justify-center z-[60] p-4 transition-all duration-200">
@@ -309,10 +501,28 @@
 </div>
 
 <script>
+
+// --- GESTION DU MODAL RAPPEL MANUEL ---
+let evenementRappelActifId = null; // Stocke l'ID de l'événement en cours de traitement
+
 /**
- * Engine JavaScript Dashboard Agenda - eCabinet
- * Gestion dynamique du tableau, filtres réactifs, modal AJAX et bascule de vues.
+ * Ouvre le modal de rappel manuel et réinitialise les champs
  */
+function configurerRappel(evtId) {
+    console.log("Le message -- > ", evtId);
+    evenementRappelActifId = evtId;
+    
+    // Réinitialise le champ de texte personnalisé
+    const msgInput = document.getElementById('rappel-message-custom');
+    if (msgInput) msgInput.value = '';
+
+    // Affiche le modal en remplaçant 'hidden' par la classe Flex appropriée
+    const modal = document.getElementById('modal-rappel-manuel');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
 
 // --- ÉTAT GLOBAL ---
 let vueActuelle = 'table';
@@ -410,41 +620,6 @@ async function chargerEvenements() {
     }
 }
 
-{% comment %} async function chargerEvenements() {
-    const params = new URLSearchParams({
-        'recherche': document.getElementById('filtre-recherche').value,
-        'type': document.getElementById('filtre-type').value,
-        'date_debut': document.getElementById('filtre-date-debut').value,
-        'date_fin': document.getElementById('filtre-date-fin').value,
-        'statut': document.getElementById('filtre-statut-traitement').value,
-        'critique': document.getElementById('filtre-critique').checked
-    });
-    console.log("Les params ", params);
-
-    try {
-        const response = await fetch(`/agenda/api/liste/?${params.toString()}`, {
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-        console.log("Le response ", response);
-
-        if (!response.ok) throw new Error("Erreur lors du chargement des données.");
-        
-        const result = await response.json();
-        console.log("Le result brut reçu de Django :", result);
-
-        // 🌟 FIXATION CRITIQUE : Changement de result.data vers result.resultats
-        evenementsCharges = result.resultats || [];
-        console.log("Les evenementsCharges corrigés : ", evenementsCharges);
-
-        if (vueActuelle === 'table') {
-            afficherTableau(evenementsCharges);
-        } else {
-            afficherVueSemaine(evenementsCharges);
-        }
-    } catch (err) {
-        console.error("Erreur API Agenda:", err);
-    }
-} {% endcomment %}
 // 🌟 OUTIL DE SÉCURITÉ : Empêche les injections et nettoie le texte avant affichage
 function echapper(t) { 
     if (t === null || t === undefined) return '';
@@ -490,6 +665,8 @@ function afficherTableau(donnees) {
     const etatVide = document.getElementById('etat-vide');
     corpsTableau.innerHTML = '';
 
+console.log('La dat reçu --> ',donnees)
+
     if (!donnees || donnees.length === 0) {
         if (etatVide) etatVide.classList.remove('hidden');
         return;
@@ -511,16 +688,6 @@ function afficherTableau(donnees) {
             `;
         }).join('') || '<span class="text-gray-400 italic text-xs">Non assigné</span>';
 
-        // 2. Correction pour les Parties Prenantes
-        /*const partiesPrenantes = evt.parties_prenantes || [];
-        const partHtml = partiesPrenantes.map(p => {
-            const nomPartie = typeof p === 'object' ? (p.nom || p.label) : p;
-            return `
-                <span class="inline-flex items-center bg-indigo-50 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-md border border-indigo-100 mr-1 mb-1">
-                    ${echapper(nomPartie)}
-                </span>
-            `;
-        }).join('') || '<span class="text-gray-400 italic text-xs">—</span>';*/
         // Extraction et formatage des badges de parties prenantes
 const partiesPrenantes = evt.parties_prenantes || [];
 const partHtml = partiesPrenantes.map(p => {
@@ -561,9 +728,11 @@ const partHtml = partiesPrenantes.map(p => {
         }) : '—';
 
         // 3. Correction pour la référence du dossier
-        const refDossier = evt.dossier_nom || evt.dossier_reference || (evt.dossier_detail ? evt.dossier_detail.nom : '—');
-
-        tr.innerHTML = `
+            // 1. Extraction sécurisée de la référence et de l'intitulé
+            const ref = evt.reference || evt.dossier_detail?.reference || '';
+            const intitule = evt.intitule || evt.dossier_detail?.intitule || '';
+                
+            tr.innerHTML = `
             <!-- 1. Date & Heure -->
             <td class="px-4 py-3 whitespace-nowrap text-xs font-mono font-semibold text-gray-700">
                 <div class="flex items-center space-x-1">
@@ -585,9 +754,28 @@ const partHtml = partiesPrenantes.map(p => {
             </td>
             
             <!-- 4. Référence Dossier -->
-            <td class="px-4 py-3 whitespace-nowrap text-xs font-mono text-gray-600 font-medium">
-                📂 ${echapper(refDossier)}
-            </td>
+           
+            <td class="px-4 py-2.5 whitespace-nowrap align-middle">
+    <div class="flex items-center gap-2">
+        <!-- Icône Dossier -->
+        <span class="text-sm shrink-0">📂</span>
+        
+        <!-- Conteneur Vertical pour les 2 lignes -->
+        <div class="flex flex-col min-w-0">
+            <!-- Span 1 : Référence (Ligne du haut) -->
+            <span class="font-mono text-xs font-semibold text-indigo-950 leading-tight">
+                ${echapper(ref) || '—'}
+            </span>
+            
+            <!-- Span 2 : Intitulé (Ligne du bas - discret & sécurisé) -->
+            ${intitule ? `
+                <span class="text-[11px] font-normal text-slate-500 leading-tight truncate max-w-[220px] mt-0.5" title="${echapper(intitule)}">
+                    ${echapper(intitule)}
+                </span>
+            ` : ''}
+        </div>
+    </div>
+</td>
             
             <!-- 5. Responsables -->
             <td class="px-4 py-3 text-xs">${respHtml}</td>
@@ -603,148 +791,35 @@ const partHtml = partiesPrenantes.map(p => {
             </td>
             
             <!-- 8. Actions -->
-            <td class="px-4 py-3 text-right text-xs whitespace-nowrap space-x-1">
-                <button onclick="editerEvenement('${evt.id}')" class="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm transition-colors">Ouvrir</button>  
-                <button onclick="editerEvenement('${evt.id}')" class="px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm transition-colors">Statuer</button>
+           <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+    
+    <!-- Action 1 : Ouvrir (Style Slate-Indigo Sobre) -->
+    <button onclick="editerEvenement('${evt.id}')" 
+            title="Ouvrir l'événement"
+            class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 hover:text-slate-900 bg-slate-900/5 hover:bg-slate-900/10 border border-slate-900/10 rounded backdrop-blur-sm transition-all">
+        <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+        </svg>
+        Ouvrir
+    </button>  
 
-                <button onclick="supprimerEvenement('${evt.id}')" title="Supprimer" class="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-gray-100">
-                            🗑️
-                </button>
-            </td>
+    <!-- Action 2 : Rappel (Style Ambre/Alerte Subtil) -->
+<button onclick="configurerRappel('${evt.id}')" 
+        title="Ajouter un rappel"
+        class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-800/90 hover:text-amber-950 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-600/15 rounded backdrop-blur-sm transition-all">
+    <svg class="w-3.5 h-3.5 text-amber-700/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+    </svg>
+    Rappel
+</button>
+
+
+</td>
         `;
         corpsTableau.appendChild(tr);
-    });
+          });
 }
-
-{% comment %} function afficherTableau(evenements) {
-    const corpsTableau = document.getElementById('corps-tableau');
-    const etatVide = document.getElementById('etat-vide');
-
-    if (!evenements || evenements.length === 0) {
-        corpsTableau.innerHTML = '';
-        etatVide.classList.remove('hidden');
-        return;
-    }
-
-    etatVide.classList.add('hidden');
-
-    corpsTableau.innerHTML = evenements.map(evt => {
-        // 1. Formatage Date & Heure
-        const dateFormatted = evt.date_debut 
-            ? new Date(evt.date_debut).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-            : 'N/A';
-        const heureFormatted = evt.date_debut 
-            ? new Date(evt.date_debut).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-            : '';
-
-        // 2. Formatage Dossier (Numéro + Intitulé)
-        const dossierLabel = evt.dossier_detail 
-            ? `${evt.dossier_detail.numero || ''} — ${evt.dossier_detail.nom || ''}`
-            : (evt.dossier_nom || 'Hors dossier');
-
-        // 3. Formatage Responsable(s) / Utilisateurs assignés
-        const responsablesHtml = evt.responsables && evt.responsables.length > 0
-            ? evt.responsables.map(r => `
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
-                    👤 ${r.first_name || r.username} ${r.last_name || ''}
-                </span>
-            `).join(' ')
-            : `<span class="text-gray-400 italic">Non assigné</span>`;
-
-        // 4. Formatage Parties prenantes
-        const partiesPrenantesHtml = evt.parties_prenantes && evt.parties_prenantes.length > 0
-            ? evt.parties_prenantes.map(p => `
-                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
-                    🤝 ${p.nom} <small class="ml-1 opacity-75">(${p.role_display || p.role})</small>
-                </span>
-            `).join(' ')
-            : `<span class="text-gray-400 italic">Aucune</span>`;
-
-        // 5. Badge Statut
-        const badgeStatut = getBadgeStatut(evt.statut, evt.statut_display);
-
-        return `
-            <tr class="hover:bg-indigo-50/60 transition-colors">
-                <!-- 1. Date & Heure -->
-                <td class="px-4 py-3 whitespace-nowrap">
-                    <div class="font-medium text-gray-900">${dateFormatted}</div>
-                    <div class="text-xs text-gray-500">${heureFormatted}</div>
-                </td>
-
-                <!-- 2. Titre -->
-                <td class="px-4 py-3">
-                    <div class="font-medium text-gray-900 max-w-xs truncate" title="${evt.titre}">
-                        ${evt.titre}
-                    </div>
-                    ${evt.lieu ? `<div class="text-xs text-gray-400">📍 ${evt.lieu}</div>` : ''}
-                </td>
-
-                <!-- 3. Type -->
-                <td class="px-4 py-3 whitespace-nowrap">
-                    <span class="px-2 py-1 text-xs rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        ${evt.type_display || evt.type}
-                    </span>
-                </td>
-
-                <!-- 4. Dossier -->
-                <td class="px-4 py-3">
-                    <div class="text-xs font-semibold text-indigo-900 max-w-xs truncate" title="${dossierLabel}">
-                        📂 ${dossierLabel}
-                    </div>
-                </td>
-
-                <!-- 5. Responsable(s) -->
-                <td class="px-4 py-3">
-                    <div class="flex flex-wrap gap-1 max-w-xs">
-                        ${responsablesHtml}
-                    </div>
-                </td>
-
-                <!-- 6. Parties prenantes -->
-                <td class="px-4 py-3">
-                    <div class="flex flex-wrap gap-1 max-w-xs">
-                        ${partiesPrenantesHtml}
-                    </div>
-                </td>
-
-                <!-- 7. Statut -->
-                <td class="px-4 py-3 whitespace-nowrap">
-                    ${badgeStatut}
-                </td>
-
-                <!-- 8. Actions -->
-                <td class="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
-                    <div class="flex items-center justify-end space-x-2">
-                        <button onclick="ouvrirModalEdition('${evt.id}')" title="Modifier" class="p-1 text-gray-500 hover:text-indigo-600 rounded hover:bg-gray-100">
-                            ✏️
-                        </button>
-                        <button onclick="supprimerEvenement('${evt.id}')" title="Supprimer" class="p-1 text-gray-500 hover:text-red-600 rounded hover:bg-gray-100">
-                            🗑️
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `;
-    }).join('');
-} 
-
-// Fonction auxiliaire pour formater le statut de traitement
-function getBadgeStatut(statutKey, statutLabel) {
-    const label = statutLabel || statutKey;
-    switch (statutKey) {
-        case 'traite':
-            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">✅ ${label}</span>`;
-        case 'en_attente':
-            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⏳ ${label}</span>`;
-        case 'renvoye':
-            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">🔄 ${label}</span>`;
-        case 'forclos':
-            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">⚠️ ${label}</span>`;
-        default:
-            return `<span class="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">${label}</span>`;
-    }
-}
-{% endcomment %}
 
 // --- BASCULEMENT DE LA VUE TABLEAU / SEMAINE ---
 function changerVue(typeVue) {
@@ -770,7 +845,7 @@ function naviguerSemaine(offset) {
     chargerEvenements();
 }
 
-function allerAujourdhui() {
+function allerSemaineActuelle() {
     dateReference = new Date();
     initialiserDatesSemaine();
     chargerEvenements();
@@ -786,6 +861,7 @@ function afficherVueSemaine(donnees) {
 // --- CHARGEMENT DYNAMIQUE DES PARTIES PRENANTES PAR DOSSIER (FORMULAIRE) ---
 let intervenantsPonctuelsFormulaire = [];
 
+{% comment %} BON ----------------- >
 async function chargerPartiesPrenantesDossier(dossierId) {
     const conteneur = document.getElementById('conteneur-parties-prenantes');
     if (!conteneur) return;
@@ -815,6 +891,127 @@ async function chargerPartiesPrenantesDossier(dossierId) {
         }
     } catch (err) {
         conteneur.innerHTML = `<p class="text-rose-600 font-medium py-4 text-center">⚠️ ${err.message}</p>`;
+    }
+} {% endcomment %}
+
+async function chargerPartiesPrenantesDossier(dossierId) {
+    const conteneur = document.getElementById('conteneur-parties-prenantes');
+    if (!conteneur) return;
+
+    if (!dossierId) {
+        conteneur.innerHTML = '<p class="text-gray-400 italic py-6 text-center">Sélectionnez d\'abord un dossier pour charger ses intervenants.</p>';
+        return;
+    }
+
+    conteneur.innerHTML = '<p class="text-indigo-600 italic py-6 text-center">Chargement des parties prenantes du dossier...</p>';
+
+    try {
+        const reponse = await fetch(`/agenda/api/dossiers/${dossierId}/parties-prenantes/`);
+        if (!reponse.ok) throw new Error("Erreur de chargement");
+        
+        const parties = await reponse.json(); // Reçoit le tableau des PartiePrenante du dossier
+
+        if (!parties || parties.length === 0) {
+            conteneur.innerHTML = '<p class="text-gray-400 italic py-6 text-center">Aucune partie prenante enregistrée sur ce dossier.</p>';
+            return;
+        }
+
+        // Construction HTML dynamique
+        conteneur.innerHTML = parties.map(pp => `
+            <div class="flex items-center gap-2 p-1 bg-white rounded border border-gray-100 shadow-sm hover:bg-indigo-50/30 transition-colors">
+                <label class="flex items-center gap-2 cursor-pointer select-none w-full py-0.5">
+                    <input type="checkbox" name="parties_prenantes" value="${pp.id}" class="checkbox-partie-prenante rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5">
+                    <div class="flex flex-col">
+                        <span class="font-semibold text-gray-900">${echapper(pp.nom)}</span>
+                        <span class="text-[10px] text-indigo-600 font-mono capitalize">${echapper(pp.role_display || pp.role)}</span>
+                    </div>
+                </label>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        console.error("Erreur lors de la récupération des parties prenantes :", e);
+        conteneur.innerHTML = '<p class="text-rose-500 italic py-6 text-center">Impossible de charger les parties prenantes.</p>';
+    }
+}
+
+
+function onChangerDossierFormulaire(dossierId) {
+    // 1. Lance la récupération et le rendu des parties prenantes externes
+    chargerPartiesPrenantesDossier(dossierId);
+    
+    // 2. Lance la récupération et le pré-cochage des avocats internes liés
+    chargerResponsablesDossier(dossierId);
+}
+
+
+async function chargerResponsablesDossier(dossierId) {
+    // 1. Décocher d'abord tous les responsables internes par sécurité
+    document.querySelectorAll('.checkbox-responsable').forEach(cb => cb.checked = false);
+
+    if (!dossierId || dossierId.trim() === "") return;
+
+    try {
+        const response = await fetch(`/agenda/api/dossiers/${dossierId}/responsables/`);
+        if (!response.ok) throw new Error("Erreur lors de la récupération des responsables.");
+        
+        const result = await response.json();
+
+        // 2. Cocher les cases des avocats/collaborateurs retournés par le dossier
+        if (result.status === 'success' && result.data.length > 0) {
+            result.data.forEach(responsable => {
+                // Recherche de la case à cocher via un attribut data ou une value correspondant à l'ID de l'utilisateur
+                const checkbox = document.querySelector(`.checkbox-responsable[value="${responsable.id}"]`);
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            });
+        }
+    } catch (err) {
+        console.error("⚠️ Impossible de pré-cocher les avocats du dossier :", err.message);
+    }
+}
+
+// À appeler dans votre écouteur d'événement sur le select "dossier"
+function onChangerDossierFormulaire(dossierId) {
+    // Charge et affiche les parties prenantes externes (clients, adversaires)
+    chargerPartiesPrenantesDossier(dossierId);
+    
+    // Charge et coche les avocats / collaborateurs internes
+    chargerResponsablesDossier(dossierId);
+}
+
+
+async function confirmerEnvoiNotification() {
+    console.log("Le mesage -- > ", evenementRappelActifId);
+    if (!evenementRappelActifId) {
+        console.error("Aucun événement cible spécifié pour le rappel.");
+        return;
+    }
+
+    const message = document.getElementById('rappel-message-custom')?.value.trim() || '';
+
+    try {
+        // Remplacer l'URL ci-dessous par votre route d'API réelle pour l'envoi de rappels
+        const response = await fetch(`/agenda/api/rappel/${evenementRappelActifId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken(),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ message: message })
+        });
+
+        if (!response.ok) throw new Error(`Erreur lors de l'envoi du rappel: ${response.status}`);
+        
+        // Notification de succès & fermeture du modal
+        alert("Le rappel a été planifié et transmis avec succès.");
+        fermerModal('modal-rappel-manuel');
+        
+    } catch (err) {
+        console.error("Erreur lors de la confirmation du rappel :", err);
+        alert("Une erreur est survenue lors de l'envoi du rappel.");
     }
 }
 
@@ -929,15 +1126,44 @@ function validerAjoutIntervenantPonctuel() {
     fermerSousModalIntervenant();
 }
 // --- MODAL DE CRÉATION ET ÉDITION ---
-function ouvrirModalCreation() {
+{% comment %} function ouvrirModalCreation() {
     document.getElementById('form-evenement').reset();
     document.getElementById('event-id').value = '';
     document.getElementById('titre-modal-form').textContent = "Nouvel événement d'agenda";
     document.getElementById('modal-evenement-form').classList.remove('hidden');
     document.getElementById('modal-evenement-form').classList.add('flex');
+} {% endcomment %}
+// A. Pour l'AJOUT : Réinitialise le formulaire et passe en mode "Création"
+function ouvrirModalCreation() {
+    // 1. Vider / Réinitialiser tous les champs du formulaire
+    const form = document.getElementById('form-evenement');
+    if (form) form.reset();
+
+    // 2. Réinitialiser l'ID caché à vide (indique qu'on est en CRÉATION)
+    document.getElementById('event-id').value = '';
+
+    // 3. Adapter le titre du Modal
+    document.getElementById('titre-modal-form').textContent = "Nouvel événement d'agenda";
+
+    // 4. Décocher les cases à cocher responsables et urgence
+    document.querySelectorAll('.checkbox-responsable').forEach(cb => cb.checked = false);
+    if (document.getElementById('field-critique')) document.getElementById('field-critique').checked = false;
+
+    // 5. Cacher le bloc de délai de procédure
+    const blocDelai = document.getElementById('bloc-delai-procedure');
+    if (blocDelai) blocDelai.classList.add('hidden');
+
+    // 6. Réinitialiser les intervenants du dossier
+    document.getElementById('conteneur-parties-prenantes').innerHTML = 
+        '<p class="text-gray-400 italic py-6 text-center">Sélectionnez d\'abord un dossier pour charger ses intervenants.</p>';
+
+    // 7. Afficher le modal
+    const modal = document.getElementById('modal-evenement-form');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
 
-function editerEvenement(id) {
+{% comment %} function editerEvenement(id) {
     const evt = evenementsCharges.find(e => e.id === id);
     if (!evt) return;
 
@@ -950,13 +1176,151 @@ function editerEvenement(id) {
 
     document.getElementById('modal-evenement-form').classList.remove('hidden');
     document.getElementById('modal-evenement-form').classList.add('flex');
+} {% endcomment %}
+
+// B. Pour la MODIFICATION : Pré-remplit les champs existants
+async function editerEvenement(id) {
+    // 1. Recherche de l'événement (Supporte UUID strings et ID entiers)
+    const evt = evenementsCharges.find(e => String(e.id) === String(id));
+    if (!evt) {
+        console.error("Événement introuvable avec l'ID :", id);
+        return;
+    }
+
+    // 2. ID caché et Titre du Modal
+    document.getElementById('event-id').value = evt.id;
+    document.getElementById('titre-modal-form').textContent = "Modifier l'événement d'agenda";
+
+    // 3. Remplissage des champs simples
+    if (document.getElementById('field-titre')) {
+        document.getElementById('field-titre').value = evt.titre || '';
+    }
+    if (document.getElementById('field-type')) {
+        document.getElementById('field-type').value = evt.type || 'autre';
+        if (typeof basculerChampsDelai === 'function') basculerChampsDelai(evt.type);
+    }
+    if (document.getElementById('field-statut')) {
+        document.getElementById('field-statut').value = evt.statut_traitement || evt.statut || 'en_attente';
+    }
+    if (document.getElementById('field-description')) {
+        document.getElementById('field-description').value = evt.description || '';
+    }
+
+    // 4. Formatage propre de la Date/Heure pour l'input datetime-local
+    if (document.getElementById('field-date-heure') && evt.date_heure) {
+        const d = new Date(evt.date_heure);
+        // Ajustement du décalage horaire local
+        const pad = (n) => String(n).padStart(2, '0');
+        const datetimeLocal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        document.getElementById('field-date-heure').value = datetimeLocal;
+    }
+
+    // 5. Urgence / Critique
+    if (document.getElementById('field-critique')) {
+        document.getElementById('field-critique').checked = Boolean(evt.critique);
+    }
+
+    // 6. Délais de procédure (si présents)
+    if (document.getElementById('field-type-delai')) document.getElementById('field-type-delai').value = evt.type_delai || '';
+    if (document.getElementById('field-date-declencheur')) document.getElementById('field-date-declencheur').value = evt.date_declencheur || '';
+    if (document.getElementById('field-duree-legale')) document.getElementById('field-duree-legale').value = evt.duree_legale_jours || '';
+
+    // ------------------------------------------------------------------
+    // CORRECTION 1 : Sélection du Dossier
+    // ------------------------------------------------------------------
+    const dossierId = evt.dossier_id || (evt.dossier ? evt.dossier.id || evt.dossier : '');
+    const selectDossier = document.getElementById('field-dossier');
+    if (selectDossier) {
+        selectDossier.value = dossierId ? String(dossierId) : '';
+    }
+
+    // ------------------------------------------------------------------
+    // CORRECTION 2 : Cochage des Avocats / Collaborateurs Internes
+    // ------------------------------------------------------------------
+    // Extraction universelle des IDs (supporte [ {id: "..."}, ... ] ou [ "uuid1", "uuid2" ])
+    const respIds = (evt.responsables || []).map(r => String(typeof r === 'object' ? r.id : r));
+    document.querySelectorAll('.checkbox-responsable').forEach(cb => {
+        cb.checked = respIds.includes(String(cb.value));
+    });
+
+    // ------------------------------------------------------------------
+    // CORRECTION 3 : Chargement & Cochage des Parties Prenantes
+    // ------------------------------------------------------------------
+    // Extraire les IDs des parties prenantes liées à l'événement
+    const ppIdsEvt = (evt.parties_prenantes || []).map(p => String(typeof p === 'object' ? p.id : p));
+
+    if (dossierId) {
+        // Attendre que la liste des parties prenantes du dossier soit générée dans le DOM
+        await chargerPartiesPrenantesDossier(dossierId);
+
+        // Cocher uniquement celles qui sont associées à cet événement d'agenda
+        document.querySelectorAll('.checkbox-partie-prenante').forEach(cb => {
+            cb.checked = ppIdsEvt.includes(String(cb.value));
+        });
+    } else {
+        document.getElementById('conteneur-parties-prenantes').innerHTML = 
+            '<p class="text-gray-400 italic py-6 text-center">Événement hors dossier (aucun intervenant lié).</p>';
+    }
+
+    // 7. Ouverture du Modal
+    const modal = document.getElementById('modal-evenement-form');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 }
 
-function fermerModal(modalId) {
+// Fonction de soumission AJAX
+{% comment %} async function soumettreFormulaire(event) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    
+    const data = Object.fromEntries(formData.entries());
+    // Récupération multi-sélection des responsables
+    data.responsables = formData.getAll('responsables');
+    data.critique = document.getElementById('field-critique').checked;
+
+    const eventId = document.getElementById('event-id').value;
+    const url = eventId ? `/agenda/api/evenements/${eventId}/modifier/` : `/agenda/api/evenements/creer/`;
+
+    try {
+        const reponse = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'json',
+                'X-CSRFToken': obtenirCookieCSRF()
+            },
+            body: JSON.stringify(data)
+        });
+
+        const res = await reponse.json();
+        if (!reponse.ok) throw new Error(res.erreur || "Erreur de traitement");
+
+        fermerModal('modal-evenement-form');
+        if (typeof rechargerAgenda === 'function') rechargerAgenda();
+    } catch (err) {
+        alert("Erreur lors de l'enregistrement : " + err.message);
+    }
+} {% endcomment %}
+
+/*function fermerModal(modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+}*/
+function fermerModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+
+    // Masque le modal de manière générique
+    modal.classList.add('hidden');
+    modal.classList.remove('flex', 'grid', 'block');
+
+    // Réinitialise l'ID actif uniquement s'il s'agit du modal de rappel
+    if (modalId === 'modal-rappel-manuel') {
+        evenementRappelActifId = null;
+    }
 }
+
 
 // --- SOUMISSION DU FORMULAIRE (AJAX POST) ---
 async function soumettreFormulaire(evt) {

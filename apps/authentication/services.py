@@ -21,6 +21,12 @@ from django.db.models.deletion import ProtectedError, RestrictedError
 
 from apps.authentication.models import User, Specialite
 
+#--- Securite
+from django.contrib.auth import authenticate, login as django_login, logout as django_logout
+from django.utils import timezone
+from .models import User, JournalConnexion
+#--- Fin securite
+
 
 # Champs réels sur lesquels porte la recherche libre (nom/prenom = propriétés,
 # on cible donc last_name/first_name directement).
@@ -36,6 +42,54 @@ CHAMPS_TRI_MAPPING = {
     "created_at": "created_at",
 }
 
+
+def se_connecter(request, email: str, mot_de_passe: str) -> tuple[bool, str]:
+    """
+    Retourne (succes: bool, message: str). Ne révèle jamais si c'est l'email
+    ou le mot de passe qui est incorrect (mitige l'énumération de comptes).
+    """
+    print("reception des donnees --> ",request, email, mot_de_passe)
+
+    ip = request.META.get('REMOTE_ADDR', '')
+    user_agent = request.META.get('HTTP_USER_AGENT', '')[:255]
+    print("Le ip = ",ip," le user_agent = ",user_agent)
+    try:
+        candidat = User.objects.get(email__iexact=email)
+        if candidat.est_verrouille():
+            _journaliser(email, ip, user_agent, succes=False)
+            return False, "Compte temporairement verrouillé suite à plusieurs échecs. Réessayez dans 15 minutes."
+    except User.DoesNotExist:
+        pass  # on continue quand même vers authenticate() pour un temps de réponse uniforme
+
+    utilisateur = authenticate(request, username=email, password=mot_de_passe)
+    print("tentative de connxeion --> ",utilisateur )
+    if utilisateur is None:
+        _journaliser(email, ip, user_agent, succes=False)
+        return False, "Email ou mot de passe incorrect."
+
+    if not utilisateur.is_active:
+        _journaliser(email, ip, user_agent, succes=False)
+        return False, "Ce compte a été désactivé. Contactez l'administrateur du cabinet."
+
+    django_login(request, utilisateur)
+    _journaliser(email, ip, user_agent, succes=True, utilisateur=utilisateur)
+    print("Fonction Journaliser --> ", _journaliser)
+    return True, "Connexion réussie."
+
+
+def se_deconnecter(request):
+    print("fonction sedeconnecter / request --> ",request)
+    django_logout(request)
+
+
+def _journaliser(email, ip, user_agent, succes, utilisateur=None):
+    JournalConnexion.objects.create(
+        utilisateur=utilisateur,
+        email_saisi=email,
+        adresse_ip=ip,
+        user_agent=user_agent,
+        succes=succes,
+    )
 
 def nom_affichage(utilisateur: User) -> str:
     """Nom complet d'affichage, cohérent avec __str__ du modèle."""

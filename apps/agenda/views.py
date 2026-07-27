@@ -14,7 +14,7 @@ from dossier.models import Dossier
 from agenda.models import EvenementAgenda, PartiePrenante, RolePartiePrenante
 
 from agenda.services import (evenement_vers_dict,_queryset_filtre, lister_evenements,obtenir_evenement,
-creer_evenement,modifier_evenement,supprimer_evenement,options_dossiers)
+creer_evenement,modifier_evenement_agenda,supprimer_evenement,options_dossiers)
 
 from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
 
@@ -45,6 +45,16 @@ def agenda_dashboard(request):
     #print("Le contexte est : ", contexte)  # Debugging line 
     return render(request, "agenda/agenda_dashboard.html", contexte)
 
+""" @require_GET
+def api_agenda_par_dossier(request, dossier_id):
+    evenements = (
+        EvenementAgenda.objects
+        .filter(dossier_id=dossier_id)
+        .select_related('dossier', 'dossier__avocat_referent', 'tribunal', 'chambre')
+        .prefetch_related('responsables', 'parties_prenantes', 'dossier__parties_prenantes')
+        .order_by('date_heure')
+    )
+    return JsonResponse({"resultats": [evenement_vers_dict(e) for e in evenements]}) """
 
 #@login_required
 def api_lister_evenements(request):
@@ -59,6 +69,27 @@ def api_lister_evenements(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'erreur': str(e)}, status=500)
+
+@login_required
+@require_GET
+def charger_responsables_dossier(request, dossier_id):
+    """
+    API JSON Endpoint : Retourne les responsables par défaut d'un dossier (Avocat référent).
+    """
+    try:
+        dossier = Dossier.objects.select_related('avocat_referent').get(id=dossier_id)
+        responsables = []
+        
+        if dossier.avocat_referent:
+            responsables.append({
+                'id': str(dossier.avocat_referent.id),
+                'nom': f"{dossier.avocat_referent.first_name} {dossier.avocat_referent.last_name}".strip() or dossier.avocat_referent.username
+            })
+        
+        return JsonResponse({'status': 'success', 'data': responsables})
+    except Dossier.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Dossier introuvable'}, status=404)
+
 
 @require_GET
 def api_parties_prenantes_dossier(request, dossier_id):
@@ -207,9 +238,34 @@ def api_creer_evenement(request):
         status=201,
     )
 
+@login_required
+@require_http_methods(["POST"])
+def api_modifier_evenement_agenda(request, event_id):
+    """
+    Vue d'API dédiée à la modification des événements d'agenda du cabinet.
+    """
+    try:
+        payload = json.loads(request.body)
+        evenement = modifier_evenement_agenda(event_id, payload, request.user)
+    except ObjectDoesNotExist:
+        return JsonResponse({"erreur": "Événement d'agenda introuvable."}, status=404)
+    except ValidationError as exc:
+        msg = exc.messages[0] if hasattr(exc, 'messages') else str(exc)
+        return JsonResponse({"erreur": msg}, status=400)
+
+    return JsonResponse({
+        "message": "Événement mis à jour avec succès.",
+        "evenement": {
+            "id": evenement.id,
+            "titre": evenement.titre,
+            "date_heure": evenement.date_heure.isoformat() if evenement.date_heure else None,
+            "statut_traitement": evenement.statut_traitement,
+            "critique": evenement.critique
+        }
+    }, status=200)
 
 #@login_required
-@require_http_methods(["POST"])
+""" @require_http_methods(["POST"])
 def api_modifier_evenement(request, evenement_id):
     user_pour_test = request.user
     if not user_pour_test.is_authenticated:
@@ -227,7 +283,7 @@ def api_modifier_evenement(request, evenement_id):
     return JsonResponse(
         {"message": "Événement modifié avec succès.", "evenement": evenement_vers_dict(evt)},
         status=200,
-    )
+    ) """
 
 
 #@login_required # 🛡️ Sécurité : Seul un utilisateur connecté peut supprimer

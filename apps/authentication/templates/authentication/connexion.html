@@ -1,0 +1,71 @@
+{% extends 'base_public.html' %}
+{% block title %}Connexion | eCabinet{% endblock %}
+{% block content %}
+
+<div class="h-full w-full flex items-center justify-center p-4 bg-slate-50"> <!-- Fond de page adouci -->
+    <div class="w-full max-w-md">
+        
+        <!-- Carte avec ombre plus visible et fine bordure Indigo Institutionnel -->
+        <div class="bg-white rounded-xl shadow-md border border-slate-200/80 p-8 relative overflow-hidden">
+            
+            <!-- Ligne de prestige supérieure (subtile évocation du sérieux juridique) -->
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-950 via-amber-600 to-indigo-950"></div>
+
+            <div class="text-center mb-6">
+                <!-- Icône contrastée Or/Ambre sur fond Indigo -->
+                <div class="inline-flex bg-indigo-950/10 p-3 rounded-xl border border-indigo-950/20 mb-3 text-indigo-950">
+                    <span class="text-2xl">⚖️</span>
+                </div>
+                <h1 class="text-xl font-bold text-indigo-950 tracking-tight">eCabinet</h1>
+                <p class="text-xs font-medium text-slate-500 mt-1">Plateforme sécurisée des Barreaux & Cabinets</p>
+            </div>
+
+            {% if erreur %}
+            <div class="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-lg p-3 mb-4 flex items-start gap-2 shadow-sm">
+                <span class="mt-0.5">⚠️</span>
+                <span class="font-medium">{{ erreur }}</span>
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                
+                <!-- Champ Email Professionnel -->
+                <div>
+                    <label class="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Email professionnel</label>
+                    <div class="relative">
+                        <input type="email" name="email" required autofocus autocomplete="username"
+                               placeholder="vous@cabinet.bf"
+                               class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 font-medium transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 focus:outline-none shadow-inner">
+                    </div>
+                </div>
+                
+                <!-- Champ Mot de passe -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="text-xs font-bold text-slate-700 block uppercase tracking-wider">Mot de passe</label>
+                        <a href="#" class="text-xs font-semibold text-indigo-900 hover:text-amber-700 hover:underline transition-colors">Oublié ?</a>
+                    </div>
+                    <div class="relative">
+                        <input type="password" name="mot_de_passe" required autocomplete="current-password"
+                               placeholder="••••••••"
+                               class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-900 placeholder-slate-400 transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 focus:outline-none shadow-inner">
+                    </div>
+                </div>
+
+                <!-- Bouton d'action principal -->
+                <button type="submit"
+                        class="w-full bg-indigo-950 hover:bg-indigo-900 text-white font-semibold py-3 rounded-lg text-sm transition-all duration-200 shadow-sm hover:shadow active:scale-[0.99] cursor-pointer mt-2">
+                    Accéder à mon espace
+                </button>
+            </form>
+        </div>
+
+        <!-- Pied de page informatif renforcé (Secret Professionnel - Art. 120) -->
+        <p class="text-center text-xs font-medium text-slate-500 mt-6 flex items-center justify-center gap-2 bg-slate-100/80 border border-slate-200/50 py-2 px-4 rounded-full max-w-sm mx-auto shadow-sm">
+            <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Connexion cryptée &bull; Secret Professionnel</span>
+        </p>
+    </div>
+</div>
+{% endblock %}

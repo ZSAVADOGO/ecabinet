@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.facturation',
     'apps.portal',
     'apps.dashboard',
+    'apps.notifications',
 
     'tailwind',
     'theme',  # C'est le nom de l'application contenant Tailwind que nous allons créer
@@ -67,6 +68,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'apps.core.middleware.LoginRequiredMiddleware',               # <- ajouté juste après
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 
@@ -110,29 +112,42 @@ DATABASES = {
     }
 }
 
+# Configuration Celery (Utilisation de Redis en local)
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Africa/Ouagadougou'  # Fuseau horaire du Burkina Faso
 
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 #AUTH_USER_MODEL = 'apps.authentication.User'
 AUTH_USER_MODEL = 'authentication.User'
-#AUTH_USER_MODEL = 'authentication.Collaborateur' 
+
+SESSION_COOKIE_SECURE = True       # cookie de session jamais envoyé en HTTP clair
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_HTTPONLY = True     # inaccessible en JS (protection XSS sur le cookie)
+SESSION_COOKIE_AGE = 3600 * 8      # 8h — cohérent avec une journée de travail cabinet
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+X_FRAME_OPTIONS = 'DENY'
+SECURE_CONTENT_TYPE_NOSNIFF = True
+LOGIN_URL = 'authentication:connexion'
+LOGIN_REDIRECT_URL = 'dashboard:liste'
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    #{'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 10}},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# settings.py
+AUTHENTICATION_BACKENDS = [
+    'authentication.backends.CabinetAuthBackend',
+    'django.contrib.auth.backends.ModelBackend',  # conservé en secours (admin Django, etc.)
+]
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

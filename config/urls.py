@@ -23,8 +23,13 @@ urlpatterns = [
 
     path("__reload__/", include("django_browser_reload.urls")),
 
+    # 0. Page de login
+    #path('auth/', include('apps.authentication.urls')),
+    path('', include('apps.authentication.urls')),
+
     # 1. Page d'accueil / Dashboard principal
-    path('', include('dashboard.urls')),
+    #path('', include('dashboard.urls')),
+    path('acceuil/', include('dashboard.urls')),
     
     # 2. Application Client
     path('clients/', include('client.urls')),
@@ -47,7 +52,6 @@ urlpatterns = [
     # 7. Portail Extranet
     path('portail/', include('portal.urls')),
 
-    # 2. Application Utilisateur
-    #path('utilisateur/', include('authentication.urls')),
-    path('utilisateur/', include('apps.authentication.urls')),
+    # 8. Application Notifications
+    path('notifications/', include('notifications.urls')),
 ]
