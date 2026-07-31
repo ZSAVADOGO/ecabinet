@@ -1,0 +1,186 @@
+
+{% extends 'base.html' %}
+{% load dict_extras %}
+{% block title %}Permissions par rôle | eCabinet{% endblock %}
+{% block content %}
+
+{{ etat_permissions_json|json_script:"etat-permissions-data" }}
+
+<div class="mb-6">
+    <h1 class="text-lg font-bold text-indigo-950">🔐 Permissions par rôle</h1>
+    <p class="text-xs text-gray-500 mt-1">
+        Cliquez sur un badge pour activer ou désactiver une capacité pour un rôle.
+        Chaque changement demande une confirmation et s'applique immédiatement à tous les utilisateurs du rôle concerné.
+    </p>
+</div>
+
+<div x-data="matricePermissions()">
+
+    {% for section in sections %}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+        <div class="px-5 py-3 border-b border-gray-100 bg-indigo-50/60">
+            <h2 class="text-sm font-semibold text-indigo-900">{{ section.categorie }}</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
+                    <tr>
+                        <th class="px-4 py-2.5 text-left sticky left-0 bg-indigo-950 z-10">Action / Écran</th>
+                        {% for code, libelle in roles %}
+                            <th class="px-3 py-2.5 text-center whitespace-nowrap">{{ libelle }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 [&>tr:nth-child(odd)]:bg-gray-50/50">
+                    {% for ligne in section.lignes %}
+                    <tr>
+                        <td class="px-4 py-2.5 text-gray-700 font-medium sticky left-0 bg-white whitespace-nowrap">
+                            {{ ligne.libelle }}
+                        </td>
+                        {% for code, libelle in roles %}
+                        <td class="px-3 py-2.5 text-center">
+                            {% if code == 'associe' and ligne.cle in capacites_verrouillees %}
+                                <span class="inline-flex items-center justify-center h-7 w-7 rounded-full bg-amber-50 text-amber-500 border border-amber-200 cursor-not-allowed"
+                                      title="Verrouillé : un Associé ne peut pas retirer ses propres droits d'administration (protection anti-blocage du système)">
+                                    🔒
+                                </span>
+                            {% else %}
+                                <button type="button"
+                                        @click="demanderChangement('{{ ligne.cle }}', '{{ code }}', '{{ ligne.libelle|escapejs }}', '{{ libelle|escapejs }}')"
+                                        class="inline-flex items-center justify-center h-7 w-7 rounded-full font-bold text-sm transition-colors"
+                                        :class="etat['{{ ligne.cle }}']['{{ code }}'] ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'"
+                                        :title="etat['{{ ligne.cle }}']['{{ code }}'] ? 'Autorisé — cliquer pour désactiver' : 'Non autorisé — cliquer pour activer'">
+                                    <span x-text="etat['{{ ligne.cle }}']['{{ code }}'] ? '✓' : '✕'"></span>
+                                </button>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+        <span class="text-lg">⚠️</span>
+        <div class="text-xs text-amber-800">
+            <p class="font-semibold mb-1">Les capacités verrouillées (🔒) protègent l'accès administrateur.</p>
+            <p>"Gérer les utilisateurs", "Paramétrage général" et "Gérer les fournisseurs SMS" restent
+            <strong>toujours actives pour le rôle Associé</strong> — les retirer priverait le cabinet de tout moyen
+            de rétablir ces droits sans intervention technique directe en base de données.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function matricePermissions() {
+        return {
+            etat: JSON.parse(document.getElementById('etat-permissions-data').textContent),
+
+            async demanderChangement(capacite, role, libelleCapacite, libelleRole) {
+                const etatActuel = this.etat[capacite][role];
+                const nouvelEtat = !etatActuel;
+
+                const confirmation = await eCabinetAlerts.confirmer({
+                    titre: nouvelEtat ? 'Activer cette permission ?' : 'Désactiver cette permission ?',
+                    message: `${libelleRole} — "${libelleCapacite}" sera ${nouvelEtat ? 'AUTORISÉ' : 'RETIRÉ'} pour tous les utilisateurs ayant ce rôle.`,
+                    icon: nouvelEtat ? 'question' : 'warning',
+                    confirmButtonText: nouvelEtat ? 'Activer' : 'Désactiver',
+                    confirmButtonColor: nouvelEtat ? '#059669' : '#dc2626',
+                });
+                if (!confirmation.isConfirmed) return; // aucun changement d'état tant que non confirmé
+
+                try {
+                    const res = await fetch("{% url 'core:api_definir_permission_role' %}", {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                        body: JSON.stringify({ role, capacite, autorise: nouvelEtat }),
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        eCabinetAlerts.erreur(data.erreur || 'Une erreur est survenue.', 'Échec de la mise à jour');
+                        return; // l'icône ne bouge pas : l'état réel côté serveur n'a pas changé
+                    }
+
+                    // La mise à jour visuelle n'intervient QU'APRÈS confirmation explicite du serveur —
+                    // élimine tout risque de désynchronisation entre l'affichage et la base de données.
+                    this.etat[capacite][role] = nouvelEtat;
+                    eCabinetAlerts.succes(data.message || 'Permission mise à jour avec succès.', 'Modifié');
+                } catch (e) {
+                    eCabinetAlerts.erreur("Impossible de contacter le serveur.", "Erreur réseau");
+                }
+            }
+        };
+    }
+</script>
+{% endblock %}
+
+{% comment %}
+
+BON MAIS NE PEUT PAS EDITER LES CAPACITES
+{% extends 'base.html' %}
+{% load dict_extras %}
+{% block title %}Permissions par rôle | eCabinet{% endblock %}
+{% block content %}
+
+<div class="mb-6">
+    <h1 class="text-lg font-bold text-indigo-950">🔐 Permissions par rôle</h1>
+    <p class="text-xs text-gray-500 mt-1">
+        Vue de consultation : qui peut voir ou faire quoi dans eCabinet, selon le rôle attribué à chaque collaborateur.
+        Cette matrice est définie dans <code class="bg-gray-100 px-1.5 py-0.5 rounded text-[11px]">apps/core/permissions.py</code>
+        — un seul fichier fait foi pour les menus, les boutons et les vérifications serveur.
+    </p>
+</div>
+
+{% for section in sections %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+    <div class="px-5 py-3 border-b border-gray-100 bg-indigo-50/60">
+        <h2 class="text-sm font-semibold text-indigo-900">{{ section.categorie }}</h2>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-indigo-950 text-indigo-200 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-2.5 text-left sticky left-0 bg-indigo-950 z-10">Action / Écran</th>
+                    {% for code, libelle in roles %}
+                        <th class="px-3 py-2.5 text-center whitespace-nowrap">{{ libelle }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 [&>tr:nth-child(odd)]:bg-gray-50/50">
+                {% for ligne in section.lignes %}
+                <tr>
+                    <td class="px-4 py-2.5 text-gray-700 font-medium sticky left-0 bg-white [&:nth-child(odd)]:bg-gray-50/50 whitespace-nowrap">
+                        {{ ligne.libelle }}
+                    </td>
+                    {% for code, libelle in roles %}
+                        <td class="px-3 py-2.5 text-center">
+                            {% if ligne.autorise_par_role|get_item:code %}
+                                <span class="inline-flex items-center justify-center h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold" title="Autorisé">✓</span>
+                            {% else %}
+                                <span class="inline-flex items-center justify-center h-5 w-5 rounded-full bg-gray-100 text-gray-300 text-xs" title="Non autorisé">—</span>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endfor %}
+
+<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+    <span class="text-lg">⚠️</span>
+    <div class="text-xs text-amber-800">
+        <p class="font-semibold mb-1">Cette page est en lecture seule.</p>
+        <p>Pour modifier une règle (ex. autoriser les stagiaires à créer un événement d'agenda), un développeur doit éditer
+        la table <code class="bg-amber-100 px-1 rounded">CAPACITES</code> dans <code class="bg-amber-100 px-1 rounded">apps/core/permissions.py</code>.
+        Le changement s'applique alors automatiquement aux menus, aux boutons et aux contrôles serveur, partout dans l'application.</p>
+    </div>
+</div>
+
+{% endblock %} {% endcomment %}

@@ -201,27 +201,29 @@
             </td> {% endcomment %}
             <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
                 <!-- Action principale : Ouvrir / Modifier -->
+                    {% if permissions.modifier_dossier %}
                 <a href="/dossiers/{{ d.id }}/modifier/"
                 class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-900/5 hover:bg-slate-900/10 border border-slate-900/10 rounded backdrop-blur-sm transition-all" 
                 title="Ouvrir le dossier">
+                
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     Ouvrir
                 </a>
+                    {% endif %}
 
                 <!-- Action secondaire : Agenda -->
+                 {% if permissions.voir_agenda_dossier %}
                 <button onclick="voirAgendaDossier('{{ d.id }}', this)"
                         title="Lister tous les agendas" 
                         class="cursor-pointer inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-900/80 hover:text-amber-950 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-600/15 rounded transition-all">
                     <svg class="w-3.5 h-3.5 text-amber-700/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     Agenda
                 </button> 
+                {% endif %}
             </td>
         </tr>
         {% endfor %}
-        </tbody> {% comment %}  <button onclick="voirDossier('{{ d.id }}')" class="p-1 text-gray-400 hover:text-indigo-600 transition-colors inline-flex items-center text-sm" title="Consulter le dossier">👁️</button>
-                <a href="/dossiers/{{ d.id }}/modifier/" class="p-1 text-gray-400 hover:text-amber-600 transition-colors inline-flex items-center text-sm" title="Modifier">✏️</a>
-                <button onclick="supprimerDossier('{{ d.id }}')" class="p-1 text-gray-400 hover:text-rose-600 transition-colors inline-flex items-center text-sm" title="Supprimer">🗑️</button>
-        {% endcomment %}
+        </tbody> 
     </table>
     <div id="etat-vide" class="hidden text-center text-gray-400 py-10 font-medium">Aucun dossier trouvé.</div>
 </div>
@@ -401,56 +403,10 @@
     </div>
 </div>
 
-<!-- ============================================================= -->
-<!-- MODAL : Agenda du dossier (tableau + détail Parties/Responsables) -->
-<!-- ============================================================= -->
-{% comment %} <div id="modal-agenda-dossier" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-lg w-full max-w-5xl max-h-[90vh] flex flex-col">
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h2 class="text-lg font-bold text-gray-800">Agenda du dossier — <span id="agenda-modal-reference" class="text-indigo-700 font-mono"></span></h2>
-            <button onclick="fermerModal('modal-agenda-dossier')" class="text-gray-400 hover:text-gray-600">✕</button>
-        </div>
-
-        <div class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-5">
-
-            <!-- BLOC 1 : TABLEAU DES ÉVÉNEMENTS -->
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
-                <table class="w-full text-xs">
-                    <thead class="bg-indigo-950 text-indigo-200 uppercase tracking-wide">
-                        <tr>
-                            <th class="px-3 py-2 text-left">Titre</th>
-                            <th class="px-3 py-2 text-left">Date / Heure</th>
-                            <th class="px-3 py-2 text-left">Statut</th>
-                            <th class="px-3 py-2 text-right">Détail</th>
-                        </tr>
-                    </thead>
-                    <tbody id="corps-agenda-modal" class="divide-y divide-gray-100 [&>tr:nth-child(odd)]:bg-gray-50/50"></tbody>
-                </table>
-                <p id="agenda-modal-vide" class="hidden text-center text-gray-400 py-8 text-sm">Aucun événement d'agenda pour ce dossier.</p>
-            </div>
-
-            <!-- BLOC 2 : DÉTAIL (Parties prenantes ou Responsables selon le bouton cliqué) -->
-            <div class="border border-gray-200 rounded-lg p-4 bg-indigo-50/40">
-                <h3 id="agenda-detail-titre" class="text-sm font-bold text-indigo-700 mb-3 uppercase tracking-wide">Détail</h3>
-                <div id="agenda-detail-contenu" class="space-y-2 text-sm text-gray-600">
-                    <p class="text-gray-400 italic">Cliquez sur "Parties prenantes" ou "Responsables" sur une ligne pour afficher le détail ici.</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div> {% endcomment %}
 
 <div id="modal-agenda-dossier" class="modal-overlay hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-6xl max-h-[92vh] flex flex-col">
-       {% comment %} <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-            <div>
-                <h2 class="text-lg font-bold text-gray-800">
-                    Agenda du dossier — <span id="agenda-modal-reference" class="text-indigo-700 font-mono"></span>
-                </h2>
-                <p id="agenda-modal-intitule" class="text-sm text-gray-500 mt-0.5"></p>
-            </div>
-            <button onclick="fermerModal('modal-agenda-dossier')" class="text-gray-400 hover:text-gray-600">✕</button>
-        </div> {% endcomment %}
+      
         <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-center relative">
             <h2 id="agenda-modal-titre-ligne" class="text-lg font-bold text-gray-800 text-center">
                 Agenda du dossier
@@ -487,7 +443,10 @@
     </div>
 </div>
 
+{{ permissions|json_script:"permissions-data" }}
+
 <script>
+        const PERMISSIONS = JSON.parse(document.getElementById('permissions-data').textContent);
     const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
     const URLS = {
         liste: "{% url 'dossier:api_lister_dossiers' %}",
@@ -528,14 +487,7 @@ async function voirAgendaDossier(dossierId, boutonElement) {
         vide.classList.add('hidden');
         evenements.forEach(e => {
             const ligne = document.createElement('tr');
-            /*ligne.innerHTML = `
-                <td class="px-3 py-2 font-medium text-gray-800">${echapper(e.titre)} ${e.critique ? '<span title="Critique">🚨</span>' : ''}</td>
-                <td class="px-3 py-2 text-gray-500">${formaterDateHeure(e.date_heure)}</td>
-                <td class="px-3 py-2"><span class="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600">${echapper(e.statut_display)}</span></td>
-                <td class="px-3 py-2 text-right space-x-1 whitespace-nowrap">
-                    <button onclick="afficherDetailAgenda('${e.id}', 'parties')" class="px-2 py-1 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-semibold">Parties prenantes</button>
-                    <button onclick="afficherDetailAgenda('${e.id}', 'responsables')" class="px-2 py-1 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 text-[11px] font-semibold">Responsables</button>
-                </td>`;*/
+           
             ligne.innerHTML = `
                 <td class="px-4 py-3.5 text-center font-medium text-gray-800">${echapper(e.titre)} ${e.critique ? '<span title="Critique">🚨</span>' : ''}</td>
                 <td class="px-4 py-3.5 text-center text-gray-500">${formaterDateHeure(e.date_heure)}</td>
@@ -740,13 +692,17 @@ function afficherTableau(resultats) {
 
     <!-- Actions -->
     <td class="py-3 px-4 text-right space-x-1 whitespace-nowrap">
+    
+    <!-- Action : Modifier (conditionnelle) -->
+    ${PERMISSIONS.modifier_dossier ? `
     <a href="/dossiers/{{ d.id }}/modifier/"
                 class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-900/5 hover:bg-slate-900/10 border border-slate-900/10 rounded backdrop-blur-sm transition-all" 
                 title="Ouvrir le dossier">
                     <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                     Ouvrir
-                </a>
-
+                </a> 
+                ` : ''}
+            ${PERMISSIONS.voir_agenda_dossier ? `
                 <!-- Action secondaire : Agenda -->
                 <button onclick="voirAgendaDossier('{{ d.id }}', this)"
                         title="Lister tous les agendas" 
@@ -754,6 +710,7 @@ function afficherTableau(resultats) {
                     <svg class="w-3.5 h-3.5 text-amber-700/70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 002-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                     Agenda
                 </button> 
+             ` : ''}
            </td>
 `; 
 corps.appendChild(ligne);   /*  <button onclick="voirDossier('${d.id}')" class="p-1 text-gray-400 hover:text-indigo-600 transition-colors inline-flex items-center text-sm" title="Consulter le dossier">👁️</button>

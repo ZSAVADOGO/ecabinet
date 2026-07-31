@@ -19,7 +19,8 @@ urlpatterns = [
     path("connexion/", views.connexion_view, name="connexion"),
     path("deconnexion/", views.deconnexion_view, name="deconnexion"),
     path("changer-mot-de-passe/", views.changer_mot_de_passe_oblige_view, name="changer_mot_de_passe_oblige"),
-    
+
+    path("permissions/", views.permissions_par_role_view, name="permissions_par_role"),
 # Fin Securite
 
 ]

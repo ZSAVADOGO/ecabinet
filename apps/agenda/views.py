@@ -9,6 +9,8 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.db.models import Q
 
+from apps.authentication.models import Chambre, Tribunal
+
 
 from dossier.models import Dossier
 from agenda.models import EvenementAgenda, PartiePrenante, RolePartiePrenante
@@ -40,21 +42,96 @@ def agenda_dashboard(request):
         "types_delai": EvenementAgenda.TypeDelaiProcedure.choices,
         "dossiers": options_dossiers(),
         'utilisateurs': utilisateurs_data,
+
+         # AJOUT INDISPENSABLE : Alimentation des listes du Modal HTML
+        "tribunaux": Tribunal.objects.all().order_by('ville', 'nom', 'code'),
+        "chambres": Chambre.objects.all().order_by('libelle'),
+
         #"utilisateurs": User.objects.filter(is_active=True).values("id", "first_name", "last_name", "username"),
     }
     #print("Le contexte est : ", contexte)  # Debugging line 
     return render(request, "agenda/agenda_dashboard.html", contexte)
 
-""" @require_GET
-def api_agenda_par_dossier(request, dossier_id):
-    evenements = (
-        EvenementAgenda.objects
-        .filter(dossier_id=dossier_id)
-        .select_related('dossier', 'dossier__avocat_referent', 'tribunal', 'chambre')
-        .prefetch_related('responsables', 'parties_prenantes', 'dossier__parties_prenantes')
-        .order_by('date_heure')
-    )
-    return JsonResponse({"resultats": [evenement_vers_dict(e) for e in evenements]}) """
+""" @login_required
+@require_GET
+def charger_juridiction_evenement_ou_dossier(request):
+    dossier_id = request.GET.get('dossier_id', '').strip()
+    evenement_id = request.GET.get('evenement_id', '').strip()
+
+    tribunal_id = None
+    chambre_id = None
+
+    # 1. Recherche du tribunal/chambre associés
+    if evenement_id:
+        evt = EvenementAgenda.objects.filter(pk=evenement_id).first()
+        if evt:
+            tribunal_id = str(evt.tribunal_id) if evt.tribunal_id else None
+            chambre_id = str(evt.chambre_id) if evt.chambre_id else None
+
+    if not tribunal_id and dossier_id:
+        dossier = Dossier.objects.filter(pk=dossier_id).first()
+        if dossier:
+            tribunal_id = str(dossier.tribunal_id) if dossier.tribunal_id else None
+            chambre_id = str(dossier.chambre_id) if dossier.chambre_id else None
+
+    # 2. Récupération de tous les tribunaux pour le <select>
+    tribunaux = Tribunal.objects.values('id', 'nom')
+    liste_tribunaux = [{'id': str(t['id']), 'nom': t['nom']} for t in tribunaux]
+
+    # 3. Récupération des chambres (filtrées par le tribunal sélectionné)
+    liste_chambres = []
+    if tribunal_id:
+        chambres = Chambre.objects.filter(tribunal_id=tribunal_id).values('id', 'nom')
+        liste_chambres = [{'id': str(c['id']), 'nom': c['nom']} for c in chambres]
+
+    return JsonResponse({
+        'status': 'success',
+        'tribunal_id': tribunal_id,
+        'chambre_id': chambre_id,
+        'tribunaux': liste_tribunaux,
+        'chambres': liste_chambres
+    }) """
+
+@login_required
+@require_GET
+def charger_juridiction_evenement_ou_dossier(request):
+    """
+    API JSON Endpoint : Retourne le tribunal et la chambre associés à un événement ou un dossier (repli).
+    """
+    evenement_id = request.GET.get('evenement_id', '').strip()
+    dossier_id = request.GET.get('dossier_id', '').strip()
+    
+    tribunal_id = None
+    chambre_id = None
+
+    # 1. Priorité absolue à l'événement existant (Mode Édition)
+    if evenement_id:
+        try:
+            evt = EvenementAgenda.objects.get(id=evenement_id)
+            if evt.tribunal_id:
+                tribunal_id = str(evt.tribunal_id)
+                chambre_id = str(evt.chambre_id) if evt.chambre_id else None
+        except EvenementAgenda.DoesNotExist:
+            pass
+
+    # 2. Système de repli sur le Dossier (Mode Création ou si l'événement n'a pas de spécificité)
+    if not tribunal_id and dossier_id:
+        try:
+            dossier = Dossier.objects.get(id=dossier_id)
+            tribunal_id = str(dossier.tribunal_id) if dossier.tribunal_id else None
+            chambre_id = str(dossier.chambre_id) if dossier.chambre_id else None
+        except Dossier.DoesNotExist:
+            pass
+
+    # 3. Retour de la structure de données propre
+    return JsonResponse({
+        'status': 'success',
+        'data': {
+            'tribunal_id': tribunal_id,
+            'chambre_id': chambre_id
+        }
+    })
+
 
 #@login_required
 def api_lister_evenements(request):

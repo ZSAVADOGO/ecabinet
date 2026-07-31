@@ -6,6 +6,9 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
+
+from apps.core.permissions import CAPACITES, CAPACITES_VERROUILLEES_POUR_ASSOCIE
+
 from apps.authentication.models import User, Specialite
 from django.utils import timezone
 
@@ -24,10 +27,34 @@ from apps.authentication.services import (
     utilisateur_vers_dict,
 )
 
+from apps.core.decorators import capacite_requise
+from apps.core.permissions import matrice_permissions
+
+
 from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
 User = get_user_model()
 
+
+
 # ----- Securite
+
+
+""" @capacite_requise('gerer_utilisateurs')
+def permissions_par_role_view(request):
+    contexte = matrice_permissions()
+    return render(request, "authentication/permissions_par_role.html", contexte) """
+# authentication/views.py
+@capacite_requise('gerer_utilisateurs')
+def permissions_par_role_view(request):
+    contexte = matrice_permissions()
+    etat = {}
+    for section in contexte['sections']:
+        for ligne in section['lignes']:
+            etat[ligne['cle']] = ligne['autorise_par_role']
+    contexte['etat_permissions_json'] = etat
+    contexte['capacites_verrouillees'] = list(CAPACITES_VERROUILLEES_POUR_ASSOCIE)
+    return render(request, "authentication/permissions_par_role.html", contexte)
+
 
 @require_http_methods(["GET", "POST"])
 def connexion_view(request):

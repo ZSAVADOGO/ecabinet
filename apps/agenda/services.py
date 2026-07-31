@@ -219,6 +219,7 @@ def lister_evenements(request):
             'parties_prenantes': parties_prenantes,
 
             'tribunal_nom': evt.tribunal.nom if evt.tribunal else None,
+            'tribunal_code': evt.tribunal.code if evt.tribunal else None,  # 🌟 Ligne indispensable à vérifier/ajouter
             'chambre_nom': evt.chambre.libelle if evt.chambre else None,
         })
     return {'resultats': data}
@@ -282,9 +283,15 @@ def creer_evenement(payload: dict, utilisateur) -> EvenementAgenda:
         statut_traitement=payload.get("statut_traitement", "en_attente"),
         description=payload.get("description") or None,
         dossier_id=payload.get("dossier_id") or None,
+
+          # 🌟 CORRECTION ICI : Utilisation des clés exactes du payload JS
         tribunal_id=payload.get("tribunal_id") or None,
         chambre_id=payload.get("chambre_id") or None,
+
+        #tribunal_id=payload.get("tribunal_id") or None,
+        #chambre_id=payload.get("chambre_id") or None,
         created_by=utilisateur,
+
     )
     evt.full_clean()
     evt.save()
@@ -376,45 +383,70 @@ def modifier_evenement(evenement_id, payload: dict, utilisateur) -> EvenementAge
     return evt """
 
 @transaction.atomic
-def modifier_evenement_agenda(event_id, payload: dict, utilisateur) -> EvenementAgenda:
-    evt = get_object_or_404(EvenementAgenda, pk=event_id)
+def modifier_evenement_agenda(evt_id: str, payload: dict, utilisateur) -> EvenementAgenda:
+    try:
+        evt = EvenementAgenda.objects.get(id=evt_id)
+    except EvenementAgenda.DoesNotExist:
+        raise ValidationError("L'événement à modifier n'existe pas.")
+        
+    _valider_payload(payload)
+    
+    # 1. Mise à jour des champs de base
+    evt.titre = payload["titre"]
+    evt.type = payload.get("type", "autre")
+    evt.type_delai = payload.get("type_delai") or None
+    evt.date_heure = payload["date_heure"]
+    evt.date_declencheur = payload.get("date_declencheur") or None
+    evt.duree_legale_jours = payload.get("duree_legale_jours") or None
+    evt.critique = str(payload.get("critique", False)).lower() in ("true", "1")
+    evt.statut_traitement = payload.get("statut_traitement", "en_attente")
+    evt.description = payload.get("description") or None
+    evt.dossier_id = payload.get("dossier_id") or None
 
-    # Mise à jour des attributs principaux
-    evt.titre = payload.get('titre', evt.titre)
-    evt.type = payload.get('type', evt.type)
-    evt.statut_traitement = payload.get('statut_traitement', evt.statut_traitement)
-    evt.description = payload.get('description', evt.description)
-    evt.critique = bool(payload.get('critique', evt.critique))
-    evt.edited_by = utilisateur
-    # Gestion de la clé étrangère Dossier
-    dossier_id = payload.get('dossier')
-    evt.dossier_id = dossier_id if dossier_id else None
+    # 🌟 CORRECTION : Alignement strict sur les clés du Payload JS
+    evt.tribunal_id = payload.get("tribunal_id") or None
+    evt.chambre_id = payload.get("chambre_id") or None
 
-    if payload.get('date_heure'):
-        evt.date_heure = payload['date_heure']
-
-    # Délais de procédure
-    evt.type_delai = payload.get('type_delai') or None
-    evt.date_declencheur = payload.get('date_declencheur') or None
-    evt.duree_legale_jours = payload.get('duree_legale_jours') or None
-
+    evt.full_clean()
     evt.save()
 
-    # 1. Mise à jour de la M2M Responsables (Avocats / Collaborateurs)
-    if 'responsables' in payload:
-        evt.responsables.set(payload['responsables'])
+    # 2. Synchronisation des Avocats / Collaborateurs internes (responsables)
+    if "responsables" in payload:
+        evt.responsables.set(payload["responsables"])
 
-    # 2. Mise à jour de la M2M Parties Prenantes (Sécurisée selon le dossier)
-    if 'parties_prenantes' in payload:
-        pps = payload['parties_prenantes']
-        if evt.dossier_id:
-            # Sécurité procédurale : filtrer les parties prenantes qui appartiennent au dossier
-            pps_valides = PartiePrenante.objects.filter(id__in=pps, dossier_id=evt.dossier_id)
-            evt.parties_prenantes.set(pps_valides)
-        else:
-            evt.parties_prenantes.clear()
+    # 3. MISE À JOUR ET FUSION DES PARTIES PRENANTES
+    liste_ids_finales = set()
 
+    # A. Récupération automatique du dossier lié
+    if evt.dossier_id:
+        parties_existantes_dossier = PartiePrenante.objects.filter(dossier_id=evt.dossier_id)
+        for pp in parties_existantes_dossier:
+            liste_ids_finales.add(str(pp.id))
+
+    # B. Traitement des nouveaux profils ponctuels créés à la volée
+    if "nouvelles_parties_prenantes" in payload and payload["nouvelles_parties_prenantes"]:
+        for nv_pp in payload["nouvelles_parties_prenantes"]:
+            if nv_pp.get("nom") and nv_pp.get("role"):
+                nouvelle_pp_isolee = PartiePrenante.objects.create(
+                    dossier=None,
+                    nom=nv_pp["nom"].strip(),
+                    role=nv_pp["role"].strip(),
+                    notes=f"[EVENEMENT_ONLY] Créé pour la modification de l'audience : {evt.titre}",
+                    created_by=utilisateur
+                )
+                liste_ids_finales.add(str(nouvelle_pp_isolee.id))
+
+    # C. Récupération des sélections de cases cochées
+    if "parties_prenantes" in payload and payload["parties_prenantes"]:
+        for pp_id in payload["parties_prenantes"]:
+            if pp_id:
+                liste_ids_finales.add(str(pp_id))
+
+    # D. Écriture finale
+    evt.parties_prenantes.set(list(liste_ids_finales))
+    
     return evt
+
 
 """ def modifier_evenement(evenement_id, payload: dict, utilisateur) -> EvenementAgenda:
     _valider_payload(payload)

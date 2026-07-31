@@ -17,6 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+
 urlpatterns = [
     # Interface d'administration Django par défaut
     path('admin/', admin.site.urls),     # Utilise la méthode sécurisée de récupération
@@ -54,4 +55,10 @@ urlpatterns = [
 
     # 8. Application Notifications
     path('notifications/', include('notifications.urls')),
+
+    # 9. Application Notifications
+    path('statistiques/', include('statistiques.urls')),
+
+    # config/urls.py (ou apps/core/urls.py inclus depuis la racine)
+    path('core/', include('core.urls')),   # <- ligne à ajouter
 ]

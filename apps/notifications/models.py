@@ -10,7 +10,7 @@ class ProviderSMS(models.Model):
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField(max_length=100, unique=True, help_text="Ex: AQILAS SMS, Orange BF")
-    sender_id = models.CharField(max_length=11, default="CABINET", help_text="Nom de l'expéditeur affiché (ex: AQILAS)")
+    sender_id = models.CharField(max_length=11, help_text="Nom de l'expéditeur affiché (ex: AQILAS)")
     base_url = models.URLField(help_text="Ex: https://api.aqilas.com/v1")
     api_key = models.CharField(max_length=255, help_text="Clé d'API ou Token d'authentification")
     

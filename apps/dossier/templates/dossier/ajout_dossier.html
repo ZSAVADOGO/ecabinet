@@ -69,6 +69,8 @@
                     <span>💾</span>
                     <span>Enregistrer</span>
                 </button>
+
+                
             </div>
         </div>
 
@@ -112,23 +114,23 @@
                         <label class="text-xs font-bold text-slate-800 block mb-1">Client <span class="text-rose-500">*</span></label> 
                        
                         <select x-model="dossier.client_id" @change="capturerLabel('client_nom', $event)" required
-        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-    <option value="">— Sélectionner un client —</option>
-    {% for c in clients %}
-        <option value="{{ c.id }}">{{ c.nom|default:c.raison_sociale }}</option>
-    {% endfor %}
-</select>
+                                class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">— Sélectionner un client —</option>
+                            {% for c in clients %}
+                                <option value="{{ c.id }}">{{ c.nom|default:c.raison_sociale }}</option>
+                            {% endfor %}
+                        </select>
                     </div> 
                     <div> 
                         <label class="text-xs font-bold text-slate-800 block mb-1">Avocat Référent</label> 
                        
                         <select x-model="dossier.avocat_referent_id" @change="capturerLabel('avocat_referent_nom', $event)"
-        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-    <option value="">— Non assigné —</option>
-    {% for a in avocats %}
-        <option value="{{ a.id }}">Me. {{ a.first_name }} {{ a.last_name }}</option>
-    {% endfor %}
-</select>
+                                class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">— Non assigné —</option>
+                            {% for a in avocats %}
+                                <option value="{{ a.id }}">Me. {{ a.first_name }} {{ a.last_name }}</option>
+                            {% endfor %}
+                        </select>
                     </div> 
                     <div> 
                         <label class="text-xs font-bold text-slate-800 block mb-1">Matière / Type <span class="text-rose-500">*</span></label> 
@@ -153,20 +155,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                     <div> 
                         <label class="text-xs font-bold text-slate-800 block mb-1">Tribunal</label> 
-                        {% comment %} <select x-model="dossier.tribunal_id" @change="dossier.chambre_id=''" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
-                            <option value="">— Aucun / Hors tribunal —</option> 
-                            {% for t in tribunaux %} 
-                                <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option> 
-                            {% endfor %} 
-                        </select>  {% endcomment %}
+                       
                         <select x-model="dossier.tribunal_id" @change="dossier.chambre_id=''; capturerLabel('tribunal_nom', $event)"
-        class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
-    <option value="">— Sélectionner un tribunal —</option>
-    {% for t in tribunaux %}
-        <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>
-    {% endfor %}
-</select>
+                                class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                            <option value="">— Sélectionner un tribunal —</option>
+                            {% for t in tribunaux %}
+                                <option value="{{ t.id }}">{{ t.code }} — {{ t.nom }}</option>
+                            {% endfor %}
+                        </select>
                     </div> 
+
                     <div> 
                         <label class="text-xs font-bold text-slate-800 block mb-1">Chambre</label> 
                         <select x-model="dossier.chambre_id" :disabled="!dossier.tribunal_id" class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all disabled:bg-slate-100 disabled:text-slate-400"> 
@@ -176,6 +174,7 @@
                             </template> 
                         </select> 
                     </div> 
+
                     <div> 
                         <label class="text-xs font-bold text-slate-800 block mb-1">Statut initial <span class="text-rose-500">*</span></label> 
                         <select x-model="dossier.statut" required class="w-full border border-slate-300 bg-white text-slate-900 rounded-lg px-2.5 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all"> 
@@ -420,111 +419,7 @@
 
     </div> 
 
-    <!-- MODAL RÉCAPITULATIF : listé par module, en 4 blocs horizontaux --> 
-    {% comment %} <div x-show="modalRecapOuvert" x-cloak class="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" @click.self="modalRecapOuvert=false"> 
-        <div class="bg-white rounded-xl shadow-lg w-full max-w-5xl max-h-[90vh] flex flex-col"> 
-            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between"> 
-                <h3 class="font-semibold text-indigo-950">Récapitulatif avant enregistrement</h3> 
-                <button type="button" @click="modalRecapOuvert=false" class="text-gray-400 hover:text-gray-600">✕</button> 
-            </div> 
-
-            <div class="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-4 gap-4"> 
-                <!-- BLOC DOSSIER --> 
-                <div class="bg-indigo-50/60 border border-indigo-100 rounded-lg p-4 space-y-1.5"> 
-                    <p class="text-xs uppercase tracking-wide font-bold text-indigo-700 mb-2">📂 Dossier</p> 
-                    <p class="text-xs text-gray-600"><span class="text-gray-400">Réf :</span> <span x-text="dossier.reference"></span></p> 
-                    <p class="text-xs text-gray-600"><span class="text-gray-400">Intitulé :</span> <span x-text="dossier.intitule || '—'"></span></p> 
-                    <p class="text-xs text-gray-600" x-show="dossier.numero_role"><span class="text-gray-400">N° rôle :</span> <span x-text="dossier.numero_role"></span></p> 
-                    
-                    <p class="text-xs text-gray-600">
-                        <span class="text-gray-400">Client :</span> 
-                        <span x-text="libelleOption(clientsOptions, dossier.client_id) || '—'"></span>
-                    </p> 
-                    
-                    <p class="text-xs text-gray-600">
-                        <span class="text-gray-400">Avocat référent :</span> 
-                        <span x-text="libelleOption(avocatsOptions, dossier.avocat_referent_id) || 'Non assigné'"></span>
-                    </p> 
-                    
-                    <p class="text-xs text-gray-600"><span class="text-gray-400">Type :</span> <span x-text="libelleChoix('type_affaire', dossier.type_affaire)"></span></p> 
-                    <p class="text-xs text-gray-600"><span class="text-gray-400">Statut :</span> <span x-text="libelleChoix('statut_dossier', dossier.statut)"></span></p> 
-                    <p class="text-xs text-gray-600"><span class="text-gray-400">Degré :</span> <span x-text="libelleChoix('degre_instance', dossier.degre_instance)"></span></p> 
-                    <p class="text-xs text-gray-600" x-show="dossier.partie_adverse"><span class="text-gray-400">Partie adverse :</span> <span x-text="dossier.partie_adverse"></span></p> 
-                    <p class="text-xs text-gray-600" x-show="dossier.avocat_adverse"><span class="text-gray-400">Avocat adverse :</span> <span x-text="dossier.avocat_adverse"></span></p> 
-                    
-                    <p class="text-xs text-gray-600" x-show="dossier.tribunal_id">
-                        <span class="text-gray-400">Tribunal :</span> 
-                        <span x-text="libelleOption(tribunauxOptions, dossier.tribunal_id)"></span>
-                    </p> 
-
-                    <p class="text-xs text-gray-600" x-show="dossier.chambre_id">
-                        <span class="text-gray-400">Chambre :</span> 
-                        <span x-text="libelleChambre(dossier.chambre_id)"></span>
-                    </p>
-
-                    <p class="text-xs text-gray-600" x-show="dossier.juge_en_charge"><span class="text-gray-400">Juge :</span> <span x-text="dossier.juge_en_charge"></span></p> 
-                    <p class="text-xs text-gray-600" x-show="dossier.numero_bureau"><span class="text-gray-400">Bureau :</span> <span x-text="dossier.numero_bureau"></span></p> 
-                    <p class="text-xs text-gray-600" x-show="dossier.date_ouverture"><span class="text-gray-400">Ouverture :</span> <span x-text="dossier.date_ouverture"></span></p> 
-                    <p class="text-xs text-gray-600" x-show="dossier.date_prochaine_echeance"><span class="text-gray-400">Échéance :</span> <span x-text="dossier.date_prochaine_echeance"></span></p> 
-                </div> 
-
-                <!-- BLOC AGENDA --> 
-                <div class="rounded-lg p-4 space-y-1.5 border" :class="agendaRenseigne ? 'bg-indigo-50/60 border-indigo-100' : 'bg-gray-50 border-gray-200'"> 
-                    <p class="text-xs uppercase tracking-wide font-bold mb-2" :class="agendaRenseigne ? 'text-indigo-700' : 'text-gray-400'">📅 Agenda</p> 
-                    <template x-if="agendaRenseigne"> 
-                        <div class="space-y-1.5"> 
-                            <p class="text-xs text-gray-600">
-                                <span class="text-gray-400">Titre :</span> 
-                                <span x-text="agenda.titre"></span></p> 
-                            <p class="text-xs text-gray-600"><span class="text-gray-400">Type :</span> <span x-text="libelleChoix('types_agenda', agenda.type)"></span></p> 
-                            <p class="text-xs text-gray-600" x-show="agenda.date_heure"><span class="text-gray-400">Date/heure :</span> <span x-text="agenda.date_heure"></span></p> 
-                            <p class="text-xs text-gray-600" x-show="agenda.description"><span class="text-gray-400">Notes :</span> <span x-text="agenda.description"></span></p> 
-                            <p class="text-xs font-semibold text-rose-600" x-show="agenda.critique">🚨 Marqué critique</p> 
-                        </div> 
-                    </template> 
-                    <p class="text-xs text-gray-400 italic" x-show="!agendaRenseigne">Non renseigné</p> 
-                </div> 
-
-                <!-- BLOC PARTIES PRENANTES --> 
-                <div class="rounded-lg p-4 space-y-1.5 border" :class="partiesRenseignees ? 'bg-indigo-50/60 border-indigo-100' : 'bg-gray-50 border-gray-200'"> 
-                    <p class="text-xs uppercase tracking-wide font-bold mb-2" :class="partiesRenseignees ? 'text-indigo-700' : 'text-gray-400'">🧑‍⚖️ Parties prenantes</p> 
-                    <template x-if="partiesRenseignees"> 
-                        <div class="space-y-1.5"> 
-                            <template x-for="(p, i) in partiesPrenantes.filter(p => p.nom)" :key="i"> 
-                                <p class="text-xs text-gray-600"> 
-                                    <span x-text="p.nom"></span> 
-                                    <span class="text-gray-400" x-text="' — ' + libelleChoix('roles_partie_prenante', p.role)"></span> 
-                                    <span x-show="p.notifiable">🔔</span> 
-                                </p> 
-                            </template> 
-                        </div> 
-                    </template> 
-                    <p class="text-xs text-gray-400 italic" x-show="!partiesRenseignees">Non renseigné</p> 
-                </div> 
-
-                <!-- BLOC FACTURE --> 
-                <div class="rounded-lg p-4 space-y-1.5 border" :class="factureRenseignee ? 'bg-indigo-50/60 border-indigo-100' : 'bg-gray-50 border-gray-200'"> 
-                    <p class="text-xs uppercase tracking-wide font-bold mb-2" :class="factureRenseignee ? 'text-indigo-700' : 'text-gray-400'">💳 Facture</p> 
-                    <template x-if="factureRenseignee"> 
-                        <div class="space-y-1.5"> 
-                            <p class="text-xs text-gray-600"><span class="text-gray-400">N° (aperçu) :</span> <span x-text="facture.numero_apercu"></span></p> 
-                            <p class="text-xs text-gray-600"><span class="text-gray-400">Montant HT :</span> <span x-text="facture.montant_ht + ' F CFA'"></span></p> 
-                            <p class="text-xs text-gray-600"><span class="text-gray-400">TVA :</span> <span x-text="facture.taux_tva + ' %'"></span></p> 
-                            <p class="text-xs text-gray-600"><span class="text-gray-400">Montant TTC :</span> <span x-text="(facture.montant_ttc || '0') + ' F CFA'"></span></p> 
-                            <p class="text-xs text-gray-600"><span class="text-gray-400">Statut :</span> <span x-text="libelleChoix('statut_facture', facture.statut)"></span></p> 
-                            <p class="text-xs text-gray-600" x-show="facture.date_echeance"><span class="text-gray-400">Échéance :</span> <span x-text="facture.date_echeance"></span></p> 
-                        </div> 
-                    </template> 
-                    <p class="text-xs text-gray-400 italic" x-show="!factureRenseignee">Non renseigné</p> 
-                </div> 
-            </div> 
-
-            <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2"> 
-                <button type="button" @click="modalRecapOuvert=false" class="px-4 py-2 rounded-md text-sm font-medium border border-gray-200 text-gray-600">Modifier</button> 
-                <button type="button" @click="valider()" class="px-5 py-2 rounded-md text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700">✓ Valider et enregistrer</button> 
-            </div> 
-        </div> 
-    </div>  {% endcomment %}
+    
         <!-- MODAL RÉCAPITULATIF : listé par module, en 4 blocs horizontaux -->
     <div x-show="modalRecapOuvert" x-cloak
          class="modal-overlay fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"

@@ -256,11 +256,13 @@ def creer_campagne_sms(payload: dict, utilisateur) -> list:
         if immediat:
             groupe = _creer_groupe(provider, evenement_id, utilisateur, message, numeros, destinataire_noms, destinataire_roles, envoyer_at=timezone.now())
             _envoyer_groupe(groupe)
+            groupes_crees.append(groupe)
 
         for date_str in dates_programmees:
             envoyer_at = _parse_datetime_local(date_str)
             groupe = _creer_groupe(provider, evenement_id, utilisateur, message, numeros, destinataire_noms, destinataire_roles, envoyer_at=envoyer_at)
-
+            groupes_crees.append(groupe)
+            
     return groupes_crees
 
 
@@ -402,8 +404,34 @@ def creer_fournisseur(payload: dict) -> ProviderSMS:
         is_default=bool(payload.get("is_default")),
     )
 
-
 def modifier_fournisseur(fournisseur_id, payload: dict) -> ProviderSMS:
+    print("Le payload recu -->", payload, "L'id -->", fournisseur_id)
+    with transaction.atomic():
+        provider = ProviderSMS.objects.get(pk=fournisseur_id)
+        
+        provider.nom = payload.get("nom", provider.nom)
+        provider.sender_id = payload.get("sender_id", provider.sender_id)
+        provider.base_url = payload.get("base_url", provider.base_url)
+        
+        # Mettre à jour uniquement si fourni
+        if payload.get("api_key"):
+            provider.api_key = payload["api_key"]
+            
+        if "is_default" in payload:
+            provider.is_default = bool(payload["is_default"])
+            
+        if "is_active" in payload:
+            provider.is_active = bool(payload["is_active"])
+
+        # CORRECTION ICI : fournisseur_id au lieu de provider_id
+        if provider.is_default:
+            ProviderSMS.objects.exclude(pk=fournisseur_id).update(is_default=False)
+
+        provider.full_clean()
+        provider.save()
+        return provider
+
+""" def modifier_fournisseur(fournisseur_id, payload: dict) -> ProviderSMS:
     provider = ProviderSMS.objects.get(pk=fournisseur_id)
     provider.nom = payload.get("nom", provider.nom)
     provider.sender_id = payload.get("sender_id", provider.sender_id)
@@ -413,7 +441,7 @@ def modifier_fournisseur(fournisseur_id, payload: dict) -> ProviderSMS:
     provider.is_default = bool(payload.get("is_default", provider.is_default))
     provider.full_clean()
     provider.save()
-    return provider
+    return provider """
 
 
 def supprimer_fournisseur(fournisseur_id):

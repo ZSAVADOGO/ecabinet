@@ -19,6 +19,11 @@ urlpatterns = [
 
     path("api/dossiers/<uuid:dossier_id>/responsables/", views.charger_responsables_dossier, name="charger_responsables_dossier"),
 
+# NOUVELLE ROUTE : Obtention de la juridiction (Tribunal & Chambre)
+    #path("api/dossiers/<uuid:dossier_id>/juridiction/", views.charger_juridiction_evenement_ou_dossier, name="api_obtenir_juridiction"),
+    path("api/juridiction/", views.charger_juridiction_evenement_ou_dossier, name="api_obtenir_juridiction"),
+
+    #path('api/dossiers/<uuid:dossier_id>/juridiction/', views.charger_juridiction_evenement_ou_dossier, name='api_charger_juridiction'),
     #path("api/dossier/<uuid:dossier_id>/", views.api_agenda_par_dossier, name="api_par_dossier"),
 ]
 

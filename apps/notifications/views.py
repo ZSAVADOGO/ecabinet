@@ -121,6 +121,35 @@ def api_creer_fournisseur(request):
 
 
 @login_required
+@require_http_methods(["PUT"])
+def api_modifier_fournisseur(request, fournisseur_id):
+    try:
+        payload = json.loads(request.body)
+        provider = modifier_fournisseur(fournisseur_id, payload)
+        
+        # On retourne l'objet complet mis à jour
+        return JsonResponse({
+            "message": "Fournisseur modifié avec succès.",
+            "fournisseur": {
+                "id": str(provider.id),
+                "nom": provider.nom,
+                "sender_id": provider.sender_id,
+                "base_url": provider.base_url,
+                "api_key": provider.api_key,
+                "is_default": provider.is_default,
+                "is_active": provider.is_active,
+            }
+        }, status=200)
+
+    except ObjectDoesNotExist:
+        return JsonResponse({"erreur": "Fournisseur introuvable."}, status=404)
+    except ValidationError as exc:
+        return JsonResponse({"erreur": _message_validation(exc)}, status=400)
+    except json.JSONDecodeError:
+        return JsonResponse({"erreur": "Format JSON invalide."}, status=400)
+
+
+""" @login_required
 @require_http_methods(["POST"])
 def api_modifier_fournisseur(request, fournisseur_id):
     try:
@@ -130,7 +159,7 @@ def api_modifier_fournisseur(request, fournisseur_id):
         return JsonResponse({"erreur": "Fournisseur introuvable."}, status=404)
     except ValidationError as exc:
         return JsonResponse({"erreur": _message_validation(exc)}, status=400)
-    return JsonResponse({"message": "Fournisseur modifié avec succès."}, status=200)
+    return JsonResponse({"message": "Fournisseur modifié avec succès."}, status=200) """
 
 
 @login_required

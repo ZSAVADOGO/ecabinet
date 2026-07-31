@@ -54,10 +54,15 @@ INSTALLED_APPS = [
     'apps.portal',
     'apps.dashboard',
     'apps.notifications',
+    'apps.statistiques',
+    
+    'apps.core',
+
 
     'tailwind',
     'theme',  # C'est le nom de l'application contenant Tailwind que nous allons créer
     'django_browser_reload',  # Facultatif (rechargement automatique)
+
     
 ]
 
@@ -88,6 +93,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+
+                'apps.core.context_processors.permissions_utilisateur',   # <- ajouté
             ],
         },
     },
