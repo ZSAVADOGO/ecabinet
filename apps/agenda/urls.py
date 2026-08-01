@@ -23,6 +23,10 @@ urlpatterns = [
     #path("api/dossiers/<uuid:dossier_id>/juridiction/", views.charger_juridiction_evenement_ou_dossier, name="api_obtenir_juridiction"),
     path("api/juridiction/", views.charger_juridiction_evenement_ou_dossier, name="api_obtenir_juridiction"),
 
+
+    path('api/evenements/<uuid:evenement_id>/sms/', views.api_liste_sms_evenement, name='api_liste_sms_evenement'),
+    path('api/evenements/<uuid:evenement_id>/parties/', views.api_parties_prenantes_evenement, name='api_parties_prenantes_evenement'),
+
     #path('api/dossiers/<uuid:dossier_id>/juridiction/', views.charger_juridiction_evenement_ou_dossier, name='api_charger_juridiction'),
     #path("api/dossier/<uuid:dossier_id>/", views.api_agenda_par_dossier, name="api_par_dossier"),
 ]

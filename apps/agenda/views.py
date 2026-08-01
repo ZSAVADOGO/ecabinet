@@ -9,21 +9,23 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.db.models import Q
 
-from apps.authentication.models import Chambre, Tribunal
+from dossier.models import Chambre, Tribunal
+
+from notifications.models import SMSDetailDestinataire
 
 
 from dossier.models import Dossier
 from agenda.models import EvenementAgenda, PartiePrenante, RolePartiePrenante
 
-from agenda.services import (evenement_vers_dict,_queryset_filtre, lister_evenements,obtenir_evenement,
-creer_evenement,modifier_evenement_agenda,supprimer_evenement,options_dossiers)
+from agenda.services import (evenement_vers_dict, lister_evenements,obtenir_evenement,
+creer_evenement,modifier_evenement_agenda,options_dossiers)
 
 from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
 
 User = get_user_model()
 
 
-#@login_required
+@login_required
 def agenda_dashboard(request):
     utilisateurs_data = [
     {
@@ -51,46 +53,6 @@ def agenda_dashboard(request):
     }
     #print("Le contexte est : ", contexte)  # Debugging line 
     return render(request, "agenda/agenda_dashboard.html", contexte)
-
-""" @login_required
-@require_GET
-def charger_juridiction_evenement_ou_dossier(request):
-    dossier_id = request.GET.get('dossier_id', '').strip()
-    evenement_id = request.GET.get('evenement_id', '').strip()
-
-    tribunal_id = None
-    chambre_id = None
-
-    # 1. Recherche du tribunal/chambre associés
-    if evenement_id:
-        evt = EvenementAgenda.objects.filter(pk=evenement_id).first()
-        if evt:
-            tribunal_id = str(evt.tribunal_id) if evt.tribunal_id else None
-            chambre_id = str(evt.chambre_id) if evt.chambre_id else None
-
-    if not tribunal_id and dossier_id:
-        dossier = Dossier.objects.filter(pk=dossier_id).first()
-        if dossier:
-            tribunal_id = str(dossier.tribunal_id) if dossier.tribunal_id else None
-            chambre_id = str(dossier.chambre_id) if dossier.chambre_id else None
-
-    # 2. Récupération de tous les tribunaux pour le <select>
-    tribunaux = Tribunal.objects.values('id', 'nom')
-    liste_tribunaux = [{'id': str(t['id']), 'nom': t['nom']} for t in tribunaux]
-
-    # 3. Récupération des chambres (filtrées par le tribunal sélectionné)
-    liste_chambres = []
-    if tribunal_id:
-        chambres = Chambre.objects.filter(tribunal_id=tribunal_id).values('id', 'nom')
-        liste_chambres = [{'id': str(c['id']), 'nom': c['nom']} for c in chambres]
-
-    return JsonResponse({
-        'status': 'success',
-        'tribunal_id': tribunal_id,
-        'chambre_id': chambre_id,
-        'tribunaux': liste_tribunaux,
-        'chambres': liste_chambres
-    }) """
 
 @login_required
 @require_GET
@@ -133,7 +95,7 @@ def charger_juridiction_evenement_ou_dossier(request):
     })
 
 
-#@login_required
+@login_required
 def api_lister_evenements(request):
     try:
         #  CORRECTION : Appeler la fonction uniquement avec request
@@ -146,6 +108,200 @@ def api_lister_evenements(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'erreur': str(e)}, status=500)
+
+@login_required
+def api_liste_sms_evenement(request, evenement_id):
+    """
+    Retourne la liste des SMS rattachés à un événement sous forme JSON propre.
+    """
+    try:
+        details = SMSDetailDestinataire.objects.filter(
+            group_envoi__evenement_agenda_id=evenement_id
+        ).select_related('group_envoi').order_by('-group_envoi__created_at')
+
+        data = [{
+            'id': str(d.id),
+            'telephone': d.telephone,
+            'destinataire_nom': d.destinataire_nom or d.telephone,
+            'destinataire_role': d.destinataire_role or 'Partie',
+            'status': d.status,
+            'status_display': d.get_status_display(),
+            'message_text': d.group_envoi.message_text if d.group_envoi else '',
+            'created_at': d.group_envoi.created_at.strftime('%d/%m/%Y %H:%M') if d.group_envoi else '',
+        } for d in details]
+
+        return JsonResponse({'status': 'success', 'resultats': data})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
+
+from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
+from .models import EvenementAgenda
+
+def api_parties_prenantes_evenement(request, evenement_id):
+    """
+    Retourne la liste combinée des destinataires potentiels pour un événement :
+    1. Responsables de l'événement (ManyToMany User)
+    2. Avocat référent du dossier (ForeignKey User)
+    3. Client du dossier (ForeignKey Client)
+    4. Partie adverse (Texte)
+    """
+    try:
+        # 1. Récupération de l'événement avec optimisation d'accès au dossier/client
+        evenement = get_object_or_404(
+            EvenementAgenda.objects.select_related('dossier__client', 'dossier__avocat_referent')
+                                   .prefetch_related('responsables'),
+            id=evenement_id
+        )
+        
+        resultats = []
+        ids_ajoutes = set()  # Pour éviter les doublons si un utilisateur a plusieurs rôles
+
+        # -------------------------------------------------------------
+        # A. RESPONSABLES DE L'ÉVÉNEMENT (EvenementAgenda.responsables)
+        # -------------------------------------------------------------
+        for resp in evenement.responsables.all():
+            nom = f"{resp.first_name} {resp.last_name}".strip() or resp.username
+            tel = getattr(resp, 'telephone_direct', '') or getattr(resp, 'phone', '') or ''
+            resultats.append({
+                'id': f"user_{resp.id}",
+                'nom': nom,
+                'role': "Responsable Événement",
+                'telephone': tel,
+                'is_responsable': True
+            })
+            ids_ajoutes.add(f"user_{resp.id}")
+
+        # Si un dossier est lié à l'événement
+        dossier = evenement.dossier
+        if dossier:
+            # -------------------------------------------------------------
+            # B. AVOCAT RÉFÉRENT DU DOSSIER (Dossier.avocat_referent)
+            # -------------------------------------------------------------
+            if dossier.avocat_referent:
+                ref = dossier.avocat_referent
+                ref_key = f"user_{ref.id}"
+                if ref_key not in ids_ajoutes:
+                    nom = f"{ref.first_name} {ref.last_name}".strip() or ref.username
+                    tel = getattr(ref, 'telephone', '') or getattr(ref, 'phone', '') or ''
+                    resultats.append({
+                        'id': ref_key,
+                        'nom': nom,
+                        'role': "Avocat Référent (Dossier)",
+                        'telephone': tel,
+                        'is_responsable': False
+                    })
+                    ids_ajoutes.add(ref_key)
+
+            # -------------------------------------------------------------
+            # C. CLIENT DU DOSSIER (Dossier.client)
+            # -------------------------------------------------------------
+            if dossier.client:
+                client = dossier.client
+                nom_client = getattr(client, 'nom_complet', None) or getattr(client, 'nom', str(client))
+                tel_client = getattr(client, 'telephone', '') or getattr(client, 'telephone_mobile', '') or ''
+                resultats.append({
+                    'id': f"client_{client.id}",
+                    'nom': nom_client,
+                    'role': "Client",
+                    'telephone': tel_client,
+                    'is_responsable': False
+                })
+
+            # -------------------------------------------------------------
+            # D. PARTIE ADVERSE (Dossier.partie_adverse)
+            # -------------------------------------------------------------
+            if dossier.partie_adverse:
+                resultats.append({
+                    'id': f"adverse_{dossier.id}",
+                    'nom': dossier.partie_adverse,
+                    'role': "Partie Adverse",
+                    'telephone': '',  # Souvent non renseigné direct
+                    'is_responsable': False
+                })
+
+        return JsonResponse(resultats, safe=False)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+    
+""" @login_required
+def api_parties_prenantes_evenement(request, evenement_id):
+    evenement = get_object_or_404(EvenementAgenda, id=evenement_id)
+    dossier = evenement.dossier  # Récupération du dossier associé
+    
+    resultats = []
+
+    # 1. Ajouter le Responsable du dossier (S'il existe)
+    if dossier and dossier.responsable:
+        resp = dossier.responsable
+        resultats.append({
+            'id': f"resp_{resp.id}",
+            'nom': f"{resp.first_name} {resp.last_name}".strip() or resp.username,
+            'role': "Responsable du dossier",
+            'telephone': getattr(resp, 'telephone', '') or "Sans N°",
+            'is_responsable': True
+        })
+
+    # 2. Ajouter les autres Parties Prenantes / Contacts
+    if dossier:
+        for party in dossier.parties_prenantes.all():
+            resultats.append({
+                'id': f"partie_{party.id}",
+                'nom': party.nom_complet,
+                'role': party.get_role_display() if hasattr(party, 'get_role_display') else "Partie Prenante",
+                'telephone': party.telephone or "Sans N°",
+                'is_responsable': False
+            })
+
+    return JsonResponse(resultats, safe=False) """
+
+""" 
+@login_required
+def api_parties_prenantes_evenement(request, evenement_id):
+    try:
+        evt = get_object_or_404(EvenementAgenda, id=evenement_id)
+        
+        if not evt.dossier_id:
+            return JsonResponse([], safe=False)
+
+        parties = PartiePrenante.objects.filter(dossier_id=evt.dossier_id)
+        
+        data = [{
+            "id": str(p.id),
+            "nom": p.nom,
+            "telephone": getattr(p, 'telephone', ''),
+            "role_display": dict(RolePartiePrenante.choices).get(p.role, p.role)
+        } for p in parties]
+
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500) """
+    
+""" 
+@login_required
+def api_liste_sms_evenement(request, evenement_id):
+   
+    evt = get_object_or_404(EvenementAgenda, id=evenement_id)
+    
+    # Récupération via le ForeignKey related_name 'campagnes_sms'
+    details = SMSDetailDestinataire.objects.filter(
+        group_envoi__evenement_agenda=evt
+    ).select_related('group_envoi').order_by('-group_envoi__created_at')
+
+    data = [{
+        'id': str(d.id),
+        'telephone': d.telephone,
+        'destinataire_nom': d.destinataire_nom,
+        'destinataire_role': d.destinataire_role,
+        'status': d.status,
+        'status_display': d.get_status_display(),
+        'message_text': d.group_envoi.message_text,
+        'created_at': d.group_envoi.created_at.isoformat(),
+    } for d in details]
+
+    return JsonResponse({'resultats': data}) """
 
 @login_required
 @require_GET

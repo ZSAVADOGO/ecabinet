@@ -508,25 +508,774 @@
 
 
 
-<!-- MODAL NOTIFICATION RAPPEL MANUEL -->
-<div id="modal-rappel-manuel" class="hidden fixed inset-0 bg-black/40 items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-5 space-y-3 text-xs">
-        <h3 class="font-bold text-gray-800 text-sm">Notifier les parties prenantes</h3>
-        <p class="text-gray-500">Un rappel automatique sera transmis aux personnes marquées comme <i>Notifiables</i> dans le dossier.</p>
-
-        <div>
-            <label class="block font-semibold text-gray-700 mb-1">Message personnalisé</label>
-            <textarea id="rappel-message-custom" rows="3" class="w-full border border-gray-300 rounded-lg p-2" placeholder="Ex: Veuillez vous présenter 15 minutes avant le début de l'audience..."></textarea>
+<!-- MODAL DE GESTION DES SMS (SPLIT 60% / 40% STRICT) -->
+<div id="modal-historique-sms-evenement" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs items-center justify-center z-50 p-4">
+    <!-- Conteneur Principal du Modal -->
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-6xl  flex flex-col overflow-hidden border border-slate-200">
+        
+        <!-- En-tête du Modal (Pleine Largeur) -->
+        <div class="px-5 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-3">
+                <div class="p-1.5 bg-amber-500/20 text-amber-400 rounded-lg border border-amber-500/30">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                </div>
+                <div>
+                    <h2 class="text-xs font-bold tracking-wide text-white leading-tight">Suivi & Notifications SMS</h2>
+                    <p class="text-[10px] text-slate-400" id="modal-sms-titre-evenement">Événement Agenda #---</p>
+                </div>
+            </div>
+            <button onclick="fermerModalSms()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
         </div>
 
-        <div class="flex justify-end gap-2 pt-2">
-            <button onclick="fermerModal('modal-rappel-manuel')" class="px-3 py-1.5 border rounded-lg font-medium">Annuler</button>
-            <button onclick="confirmerEnvoiNotification()" class="px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-medium shadow-sm">Envoyer le rappel</button>
+        <!-- CORPS DU MODAL : CONTENEUR FLEX SPLIT -->
+        <div class="flex flex-row w-full flex-1 overflow-hidden divide-x divide-slate-200">
+            
+            <!-- ================= BLOC 1 : HISTORIQUE & PAGINATION (60% DE LA LARGEUR) ================= -->
+            <div class="w-[60%] flex flex-col h-full bg-slate-50/40 overflow-hidden">
+                
+                <!-- Barre d'actions du bloc gauche -->
+                <div class="px-4 py-2.5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-slate-800">Historique des Rappels</span>
+                        <span id="badge-total-sms" class="px-2 py-0.5 text-[10px] font-semibold bg-indigo-50 text-indigo-700 rounded-full border border-indigo-200">0 SMS</span>
+                    </div>
+                    <button onclick="preparerNouveauSms()" class="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-950 hover:bg-indigo-900 text-white rounded-md text-[11px] font-medium transition cursor-pointer shadow-xs">
+                        <span class="text-xs font-bold">+</span>
+                        <span>Nouveau SMS</span>
+                    </button>
+                </div>
+
+                <!-- Conteneur des Cartes SMS (Scrollable) -->
+                <div class="p-3 overflow-y-auto flex-1 space-y-2" id="conteneur-liste-sms">
+                    <!-- Les cartes compactes seront injectées ici via JS -->
+                </div>
+
+                <!-- Footer du Bloc 1 : Barre de Pagination -->
+                <div class="px-4 py-2 bg-white border-t border-slate-200 flex items-center justify-between shrink-0 text-[10px] text-slate-500">
+                    <span id="pagination-info">Affichage 0 - 0 sur 0</span>
+                    <div class="flex items-center gap-1">
+                        <button id="btn-page-prev" onclick="changerPageSms(-1)" class="px-2.5 py-0.5 border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer font-medium">Précédent</button>
+                        <span id="pagination-actuelle" class="font-bold text-slate-700 px-2">1 / 1</span>
+                        <button id="btn-page-next" onclick="changerPageSms(1)" class="px-2.5 py-0.5 border border-slate-200 rounded hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer font-medium">Suivant</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= BLOC 2 : FORMULAIRE D'AJOUT / ÉDITION (40% DE LA LARGEUR) ================= -->
+            <!-- ================= BLOC 2 : FORMULAIRE & WIZARD (40% DROITE) ================= -->
+<div class="w-[40%] flex flex-col h-full bg-white overflow-hidden border-l border-slate-200" id="bloc-formulaire-sms">
+    
+    <!-- En-tête du Bloc Droit (Stepper Intégré) -->
+    <div class="px-4 py-2.5 border-b border-slate-200 shrink-0 flex items-center justify-between bg-slate-50/50">
+        <h3 class="text-xs font-bold text-slate-800" id="titre-form-sms">Nouveau SMS</h3>
+        
+        <!-- Stepper Visuel (Gestion par JS) -->
+        <div class="flex items-center gap-1.5 text-[10px]">
+            <span id="badge-etape-1" class="px-2 py-0.5 rounded-full font-semibold transition-all bg-indigo-600 text-white">1. Contenu</span>
+            <span class="text-slate-300">→</span>
+            <span id="badge-etape-2" class="px-2 py-0.5 rounded-full font-semibold transition-all bg-slate-100 text-slate-400">2. Envoi</span>
+        </div>
+    </div>
+
+    <!-- Formulaire d'envoi -->
+    <form id="form-sms-evenement" onsubmit="soumettreSmsWizard(event)" class="flex-1 flex flex-col justify-between overflow-hidden">
+        <input type="hidden" id="sms-id-edition" value="">
+
+        <div class="p-4 overflow-y-auto space-y-3 flex-1">
+            
+            <!-- SECTION SLIDE 1 : SELECTION & MESSAGE -->
+            <div id="wizard-slide-1" class="space-y-3">
+                <!-- Choix Événement -->
+                <div>
+                    <label class="text-[10px] font-bold text-slate-700 block mb-1">Événement Agenda <span class="text-slate-400 font-normal">(Optionnel)</span></label>
+
+                    <select id="sms-destinataire-select" onchange="onChangerAgendaSms(this.value); auChangementDestinataire(this);" class="w-full border border-slate-300 rounded-md p-1.5 text-[11px] focus:ring-1 focus:ring-indigo-500 bg-slate-50 focus:bg-white">
+                        <option value="">-- Chargement des destinataires... --</option>
+                    </select>
+                </div>
+
+                <!-- Hors agenda : Numéros libres -->
+                <div id="bloc-numeros-libres">
+                    <label class="text-[10px] font-bold text-slate-700 block mb-1">Numéro(s) de téléphone</label>
+                    <input type="text" id="sms-telephone-manual" placeholder="Ex: 70123456; 76987654" class="w-full border border-slate-300 rounded-md p-1.5 text-[11px] focus:ring-1 focus:ring-indigo-500 bg-slate-50 focus:bg-white" oninput="verifierValiditeSlide1()">
+                    <p class="text-[9px] text-slate-400 mt-0.5">Séparez plusieurs numéros par un point-virgule (;)</p>
+                </div>
+
+                <!-- Agenda choisi : Liste des destinataires à cocher -->
+                <div id="bloc-partie-prenante" class="hidden border border-indigo-100 rounded-lg p-2.5 bg-indigo-50/30 max-h-40 overflow-y-auto space-y-1">
+                    <p class="text-[10px] font-bold text-indigo-900 mb-1">Parties prenantes notifiables</p>
+                    <div id="conteneur-checkboxes-personnes">
+                        <!-- Checkboxes injectées dynamiquement par JS -->
+                    </div>
+                </div>
+
+                <!-- Texte du Message -->
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[10px] font-bold text-slate-700">Contenu du Message</label>
+                        <span id="compteur-caracteres" class="text-[9px] text-slate-400">0 / 459</span>
+                    </div>
+                    <textarea id="sms-message-text" rows="5" maxlength="459" required oninput="calculerCaracteresSms(this); verifierValiditeSlide1();" class="w-full border border-slate-300 rounded-md p-2 text-[11px] leading-snug focus:ring-1 focus:ring-indigo-500 bg-slate-50 focus:bg-white" placeholder="Saisissez le texte du SMS..."></textarea>
+                </div>
+            </div>
+
+            <!-- SECTION SLIDE 2 : PLANIFICATION ET OPTIONS -->
+            <div id="wizard-slide-2" class="hidden space-y-3">
+                <p class="text-[10.5px] text-slate-500">Choisissez le mode de diffusion du message :</p>
+                
+                <label id="label-option-immediat" class="flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all bg-indigo-50/60 border-indigo-300 text-indigo-950">
+                    <input type="checkbox" id="sms-chk-immediat" checked onchange="toggleOptionPlanification('immediat')" class="rounded text-indigo-600 h-3.5 w-3.5">
+                    <span class="text-[11px] font-semibold">📤 Envoyer immédiatement</span>
+                </label>
+
+                <label id="label-option-ulterieur" class="flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all bg-slate-50 border-slate-200 text-slate-600">
+                    <input type="checkbox" id="sms-chk-ulterieur" onchange="toggleOptionPlanification('ulterieur')" class="rounded text-indigo-600 h-3.5 w-3.5">
+                    <span class="text-[11px] font-semibold">🕒 Programmer pour plus tard</span>
+                </label>
+
+                <!-- Container Multi-dates -->
+                <div id="bloc-dates-programmees" class="hidden space-y-2 pl-3 border-l-2 border-indigo-200">
+                    <div id="liste-inputs-dates" class="space-y-1.5">
+                        <div class="flex items-center gap-1.5 class-rangee-date">
+                            <input type="datetime-local" class="flex-1 border border-slate-300 rounded p-1 text-[10px] bg-slate-50 sms-input-datetime">
+                        </div>
+                    </div>
+                    <button type="button" onclick="ajouterRangerDateSms()" class="text-[10px] font-semibold text-indigo-700 hover:underline">+ Ajouter une date</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Pied de Formulaire / Controls Navigation -->
+        <div class="p-3 border-t border-slate-200 bg-slate-50/50 flex items-center justify-between shrink-0">
+            <button type="button" id="btn-wizard-prev" onclick="changerSlideSms(1)" class="hidden px-2.5 py-1 border border-slate-300 rounded text-[11px] font-medium text-slate-600 hover:bg-white transition cursor-pointer">
+                ← Retour
+            </button>
+            <div id="spacer-wizard"></div>
+
+            <div class="flex items-center gap-2">
+                <button type="button" id="btn-wizard-next" onclick="changerSlideSms(2)" disabled class="px-3 py-1 bg-indigo-950 hover:bg-indigo-900 text-white rounded text-[11px] font-medium transition cursor-pointer disabled:opacity-40">
+                    Suivant →
+                </button>
+
+                <button type="submit" id="btn-wizard-submit" class="hidden px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-semibold transition flex items-center gap-1.5 cursor-pointer">
+                    <span id="label-btn-soumettre">✓ Confirmer</span>
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+            {% comment %} <div class="w-[40%] flex flex-col h-full bg-white overflow-hidden">
+                
+                <!-- En-tête du bloc droit -->
+                <div class="px-4 py-2.5 border-b border-slate-200 shrink-0 flex items-center justify-between bg-slate-50/50">
+                    <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <span>💬</span> <span id="titre-form-sms">Nouveau Message</span>
+                    </h3>
+                    <span id="tag-mode-form" class="px-2 py-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-800 rounded">Ajout</span>
+                </div>
+
+                <!-- Formulaire d'édition / création -->
+                <form id="form-sms-evenement" onsubmit="soumettreSms(event)" class="p-4 flex-1 flex flex-col justify-between overflow-y-auto space-y-3">
+                    <input type="hidden" id="sms-id-edition" value="">
+
+                    <div class="space-y-3">
+                        <!-- Sélection Destinataire -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1">Destinataire (Partie Prenante)</label>
+                            <select id="sms-destinataire-select" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md p-2 text-[11px] focus:bg-white focus:ring-1 focus:ring-indigo-500">
+                                <option value="">-- Sélectionner dans le dossier --</option>
+                            </select>
+                        </div>
+
+                        <!-- Téléphone direct -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-700 mb-1">Ou Numéro Téléphone Direct</label>
+                            <input type="text" id="sms-telephone-manual" placeholder="+226 XX XX XX XX" class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md p-2 text-[11px] focus:bg-white focus:ring-1 focus:ring-indigo-500">
+                        </div>
+
+                        <!-- Message -->
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="block text-[10px] font-bold text-slate-700">Contenu du Message</label>
+                                <span id="compteur-caracteres" class="text-[9px] text-slate-400">0 / 160</span>
+                            </div>
+                            <textarea id="sms-message-text" rows="7" oninput="calculerCaracteresSms(this)" required class="w-full bg-slate-50 border border-slate-300 text-slate-800 rounded-md p-2.5 text-[11px] leading-relaxed focus:bg-white focus:ring-1 focus:ring-indigo-500" placeholder="Saisissez le texte du SMS..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Pied de formulaire -->
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2 shrink-0">
+                        <button type="button" onclick="preparerNouveauSms()" class="px-3 py-1.5 border border-slate-300 text-slate-600 rounded-md text-[11px] font-medium hover:bg-slate-50 transition cursor-pointer">
+                            Réinitialiser
+                        </button>
+                        <button type="submit" id="btn-soumettre-sms" class="px-4 py-1.5 bg-indigo-950 hover:bg-indigo-900 text-white rounded-md text-[11px] font-medium transition cursor-pointer flex items-center gap-1 shadow-xs">
+                            <span id="label-btn-envoyer">Envoyer</span>
+                        </button>
+                    </div>
+                </form>
+            </div> {% endcomment %}
+
         </div>
     </div>
 </div>
 
+
 <script>
+
+
+// #############   LISTE DES SMS PAR AGENDA  #################################
+let evenementRappelActifId = null;
+//let listeSmsEvenement = [];
+
+// --- VARIABLES DE GESTION DE LA PAGINATION ET DU CACHE ---
+window.listeSmsEvenementCache = [];
+window.pageActuelleSms = 1;
+window.smsParPage = 5; // Nombre d'éléments affichés par page
+
+// ----------- NOUVEAU SMS
+// Variable globale pour suivre la slide active (1 ou 2)
+let currentSlideSms = 1;
+
+// 1. Navigation entre Slide 1 et Slide 2
+function changerSlideSms(slideNumber) {
+    currentSlideSms = slideNumber;
+    
+    const slide1 = document.getElementById('wizard-slide-1');
+    const slide2 = document.getElementById('wizard-slide-2');
+    const badge1 = document.getElementById('badge-etape-1');
+    const badge2 = document.getElementById('badge-etape-2');
+    const btnPrev = document.getElementById('btn-wizard-prev');
+    const btnNext = document.getElementById('btn-wizard-next');
+    const btnSubmit = document.getElementById('btn-wizard-submit');
+    const spacer = document.getElementById('spacer-wizard');
+
+    if (slideNumber === 1) {
+        slide1.classList.remove('hidden');
+        slide2.classList.add('hidden');
+        
+        badge1.className = "px-2 py-0.5 rounded-full font-semibold transition-all bg-indigo-600 text-white";
+        badge2.className = "px-2 py-0.5 rounded-full font-semibold transition-all bg-slate-100 text-slate-400";
+
+        btnPrev.classList.add('hidden');
+        btnNext.classList.remove('hidden');
+        btnSubmit.classList.add('hidden');
+        spacer.classList.remove('hidden');
+        
+        verifierValiditeSlide1();
+    } else {
+        slide1.classList.add('hidden');
+        slide2.classList.remove('hidden');
+        
+        badge1.className = "px-2 py-0.5 rounded-full font-semibold transition-all bg-emerald-100 text-emerald-800";
+        badge2.className = "px-2 py-0.5 rounded-full font-semibold transition-all bg-indigo-600 text-white";
+
+        btnPrev.classList.remove('hidden');
+        btnNext.classList.add('hidden');
+        btnSubmit.classList.remove('hidden');
+        spacer.classList.add('hidden');
+    }
+}
+
+// 2. Validation dynamique du Slide 1 (Active/Désactive le bouton "Suivant")
+function verifierValiditeSlide1() {
+    const msgInput = document.getElementById('sms-message-text');
+    const msg = msgInput ? msgInput.value.trim() : '';
+
+    // Récupérer toutes les checkboxes cochées dans le conteneur
+    const checkboxes = document.querySelectorAll('#conteneur-checkboxes-personnes input[type="checkbox"]:checked');
+    
+    // Ne conserver que celles qui ont une valeur (un numéro de téléphone)
+    const auMoinsUnNumeroValide = Array.from(checkboxes).some(cb => cb.value && cb.value.trim() !== '');
+
+    console.log("--- Check Validité Slide 1 ---");
+    console.log("Message présent :", msg.length > 0);
+    console.log("Destinataire(s) sélectionné(s) avec numéro :", auMoinsUnNumeroValide);
+
+    const btnNext = document.getElementById('btn-wizard-next');
+    if (btnNext) {
+        // Le bouton s'active SI le message n'est pas vide ET au moins un destinataire est sélectionné
+        const estValide = msg.length > 0 && auMoinsUnNumeroValide;
+        btnNext.disabled = !estValide;
+    }
+}
+
+function obtenirDestinatairesSelectionnes() {
+    const checkboxes = document.querySelectorAll('#conteneur-checkboxes-personnes input[type="checkbox"]:checked');
+    
+    const numeros = [];
+    const noms = [];
+    const roles = [];
+
+    checkboxes.forEach(cb => {
+        if (cb.value && cb.value.trim() !== '') {
+            numeros.push(cb.value.trim());
+            noms.push(cb.getAttribute('data-nom') || 'Inconnu');
+            roles.push(cb.getAttribute('data-role') || 'Partie prenante');
+        }
+    });
+
+    console.log(' Dans obtenirDestinatairesSelectionnes # Destinataires sélectionnés :', { numeros, noms, roles });
+
+    return { numeros, noms, roles };
+}
+
+function cocherTousDestinataires(etat = true) {
+    const checkboxes = document.querySelectorAll('#conteneur-checkboxes-personnes input[type="checkbox"]:not(:disabled)');
+    checkboxes.forEach(cb => cb.checked = etat);
+    verifierValiditeSlide1();
+}
+
+/**
+ * Injecte la liste des personnes dans le DOM
+ */
+function afficherPersonnesAgenda(listePersonnes) {
+    const conteneur = document.getElementById('conteneur-checkboxes-personnes');
+    if (!conteneur) return;
+
+    conteneur.innerHTML = '';
+
+    if (!listePersonnes || listePersonnes.length === 0) {
+        conteneur.innerHTML = '<p class="text-[10px] text-slate-400 italic">Aucun destinataire disponible pour cet événement.</p>';
+        verifierValiditeSlide1();
+        return;
+    }
+
+    listePersonnes.forEach((p, index) => {
+        const telValide = p.telephone && p.telephone.trim() !== '';
+        
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 py-1 px-1.5 rounded hover:bg-white/60 text-[11px] text-slate-700 cursor-pointer border-b border-indigo-50 last:border-0';
+
+        // L'élément input avec l'événement onchange obligatoire
+        label.innerHTML = `
+            <input type="checkbox" 
+                   id="chk-dest-${index}"
+                   value="${telValide ? p.telephone.trim() : ''}" 
+                   data-nom="${p.nom || ''}" 
+                   data-role="${p.role || ''}"
+                   onchange="verifierValiditeSlide1()"
+                   class="rounded text-indigo-600 h-3.5 w-3.5 cursor-pointer" 
+                   ${telValide ? 'checked' : 'disabled'}>
+            <span class="flex-1 font-medium text-slate-800">${p.nom}</span>
+            <span class="text-indigo-700 bg-indigo-100/70 px-1.5 py-0.2 rounded text-[9px] font-semibold">${p.role}</span>
+            <span class="font-mono text-[10px] ${telValide ? 'text-slate-500' : 'text-rose-400 italic'}">
+                ${telValide ? p.telephone : 'Pas de N°'}
+            </span>
+        `;
+        conteneur.appendChild(label);
+    });
+
+    console.log('Dans afficherPersonnesAgenda() telValide --> ', listePersonnes.map(p => ({ nom: p.nom, role: p.role, tel: p.telephone, valide: p.telephone && p.telephone.trim() !== '' })));
+    // Exécuter la vérification immédiatement après le rendu des éléments
+    verifierValiditeSlide1();
+}
+
+function ouvrirModalSms(evenementId, evenementTitre, listePersonnes) {
+    const selectAgenda = document.getElementById('sms-destinataire-select');
+    
+    if (selectAgenda) {
+        selectAgenda.innerHTML = `<option value="${evenementId}">${evenementTitre}</option>`;
+        selectAgenda.value = evenementId;
+    }
+
+    // Afficher la liste des personnes et vérifier la validité
+    afficherPersonnesAgenda(listePersonnes);
+}
+
+function soumettreSmsWizard(event) {
+    event.preventDefault();
+    
+    const agendaId = document.getElementById('sms-destinataire-select').value;
+    const message = document.getElementById('sms-message-text').value.trim();
+    const { numeros, noms, roles } = obtenirDestinatairesSelectionnes();
+
+    if (numeros.length === 0) {
+        alert("Veuillez cocher au moins un destinataire valide.");
+        return;
+    }
+
+    const payload = {
+        evenement_id: agendaId,
+        numeros: numeros,
+        nomDestinataire: noms,
+        roleDestinataire: roles,
+        message: message,
+        immediat: document.getElementById('sms-chk-immediat').checked
+    };
+
+    console.log("Données prêtes à envoyer :", payload);
+    // Exécuter l'appel API (fetch) ici...
+}
+
+
+// 3. Gestion de la sélection Agenda / Numéros libres
+function onChangerAgendaSms(valeurAgenda) {
+    const blocLibre = document.getElementById('bloc-numeros-libres');
+    const blocParties = document.getElementById('bloc-partie-prenante');
+
+    if (valeurAgenda) {
+        blocLibre.classList.add('hidden');
+        blocParties.classList.remove('hidden');
+        // Charger les personnes de l'événement ici via AJAX si nécessaire
+    } else {
+        blocLibre.classList.remove('hidden');
+        blocParties.classList.add('hidden');
+    }
+    verifierValiditeSlide1();
+}
+// ---------- FIN NOUVEAU SMS
+
+
+/**
+ * Déclenché au clic sur le bouton "Rappel" de l'agenda
+ */
+async function configurerRappel(evtId) {window.evenementRappelActifId = evtId;
+    window.pageActuelleSms = 1; // Réinitialiser à la 1ère page
+    
+    const modal = document.getElementById('modal-historique-sms-evenement');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    const titreEl = document.getElementById('modal-sms-titre-evenement');
+    if (titreEl) titreEl.innerText = `Événement Agenda #${evtId}`;
+
+    preparerNouveauSms();
+
+    await Promise.all([
+        chargerHistoriqueSmsEvenement(evtId),
+        chargerDestinatairesDossier(evtId)
+    ]);
+}
+
+function fermerModalSms() {
+    const modal = document.getElementById('modal-historique-sms-evenement');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+}
+
+/**
+ * Récupération et mise en cache des SMS
+ */
+async function chargerHistoriqueSmsEvenement(evtId) {
+    const conteneur = document.getElementById('conteneur-liste-sms');
+    conteneur.innerHTML = `<div class="text-center py-6 text-slate-400 text-[11px]">Chargement en cours...</div>`;
+
+    try {
+        const response = await fetch(`/agenda/api/evenements/${evtId}/sms/`);
+        
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            throw new Error("Réponse non-JSON du serveur.");
+        }
+
+        const data = await response.json();
+        window.listeSmsEvenementCache = data.resultats || [];
+        document.getElementById('badge-total-sms').innerText = `${window.listeSmsEvenementCache.length} SMS`;
+
+        // Afficher la page 1
+        afficherPageSms(1);
+
+    } catch (err) {
+        console.error("Erreur API SMS:", err);
+        conteneur.innerHTML = `<div class="text-center py-6 text-rose-500 text-[11px]">Erreur lors du chargement des SMS.</div>`;
+    }
+}
+
+/**
+ * Rendu de la page de SMS sélectionnée
+ */
+function afficherPageSms(page) {
+    const conteneur = document.getElementById('conteneur-liste-sms');
+    const total = window.listeSmsEvenementCache.length;
+
+    if (total === 0) {
+        conteneur.innerHTML = `
+            <div class="text-center py-8 space-y-1">
+                <span class="text-2xl">📭</span>
+                <p class="text-[11px] font-medium text-slate-500">Aucun rappel SMS pour cet événement.</p>
+            </div>`;
+        mettreAJourPaginationUI(0, 0, 0, 1, 1);
+        return;
+    }
+
+    // Calcul des bornes de pagination
+    const totalPages = Math.ceil(total / window.smsParPage);
+    window.pageActuelleSms = Math.max(1, Math.min(page, totalPages));
+    
+    const debut = (window.pageActuelleSms - 1) * window.smsParPage;
+    const fin = Math.min(debut + window.smsParPage, total);
+    const smsPage = window.listeSmsEvenementCache.slice(debut, fin);
+
+    // Rendu compact avec message COMPLET (sans line-clamp)
+    conteneur.innerHTML = smsPage.map(sms => `
+        <div class="p-2 rounded-lg border border-slate-200 bg-white hover:border-indigo-300 transition-all space-y-1 text-[10px]">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5 truncate">
+                    <span class="font-bold text-slate-800 text-[11px] truncate">${sms.destinataire_nom}</span>
+                    <span class="text-[9px] px-1 py-0.2 rounded bg-slate-100 text-slate-600 font-medium shrink-0">${sms.destinataire_role}</span>
+                </div>
+                ${rendreBadgeStatutSms(sms.status)}
+            </div>
+            
+            <!-- Message en plein texte avec retour à la ligne automatique -->
+            <p class="text-slate-700 text-[10.5px] leading-snug bg-slate-50/80 p-1.5 rounded border border-slate-100 break-words font-normal">
+                ${sms.message_text}
+            </p>
+
+            <div class="flex items-center justify-between text-[9.5px] text-slate-400 pt-0.5">
+                <span>📱 ${sms.telephone} ${sms.created_at ? '• ' + sms.created_at : ''}</span>
+                <button onclick="chargerSmsDansFormulaire('${sms.id}')" class="text-indigo-600 font-semibold hover:underline cursor-pointer">Éditer / Renvoyer</button>
+            </div>
+        </div>
+    `).join('');
+
+    mettreAJourPaginationUI(debut + 1, fin, total, window.pageActuelleSms, totalPages);
+}
+
+
+function changerPageSms(delta) {
+    afficherPageSms(window.pageActuelleSms + delta);
+}
+
+
+function mettreAJourPaginationUI(debut, fin, total, page, totalPages) {
+    document.getElementById('pagination-info').innerText = total > 0 ? `Affichage ${debut}-${fin} sur ${total}` : `0 sur 0`;
+    document.getElementById('pagination-actuelle').innerText = `${page} / ${totalPages || 1}`;
+    
+    document.getElementById('btn-page-prev').disabled = (page <= 1);
+    document.getElementById('btn-page-next').disabled = (page >= totalPages);
+}
+
+function rendreBadgeStatutSms(statut) {
+    const mapStatuts = {
+        'DELIVERY_SUCCESS': '<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">✅ Livré</span>',
+        'PENDING': '<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">⏳ En cours</span>',
+        'DELIVERY_FAILED': '<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">✖️ Échec</span>',
+        'EXPIRED': '<span class="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">⌛ Expiré</span>'
+    };
+    return mapStatuts[statut] || `<span class="px-1.5 py-0.2 rounded text-[9px] bg-slate-100">${statut}</span>`;
+}
+
+
+// 7. Fonction d'ouverture/réinitialisation (appelée par preparer NouveauSms)
+function preparerNouveauSms() {
+    document.getElementById('sms-id-edition').value = '';
+    document.getElementById('sms-message-text').value = '';
+    document.getElementById('sms-telephone-manual').value = '';
+    
+    // 🟢 CORRECTION ICI : 'sms-destinataire-select' au lieu de 'sms-destinataire-select'
+    const selectAgenda = document.getElementById('sms-destinataire-select');
+    if (selectAgenda) selectAgenda.value = '';
+
+    document.getElementById('titre-form-sms').innerText = "Nouveau Message";
+    
+    // Sécurisation optionnelle pour éviter de planter si ces tags n'existent pas
+    const tagMode = document.getElementById('tag-mode-form');
+    if (tagMode) {
+        tagMode.innerText = "Ajout";
+        tagMode.className = "px-1.5 py-0.2 text-[9px] font-semibold bg-emerald-100 text-emerald-800 rounded";
+    }
+
+    const labelBtn = document.getElementById('label-btn-envoyer');
+    if (labelBtn) labelBtn.innerText = "Envoyer";
+
+    calculerCaracteresSms(document.getElementById('sms-message-text'));
+}
+/*function preparerNouveauSms() {
+    document.getElementById('sms-id-edition').value = '';
+    document.getElementById('sms-message-text').value = '';
+    document.getElementById('sms-telephone-manual').value = '';
+    document.getElementById('sms-destinataire-select').value = '';
+    
+    onChangerAgendaSms('');
+    changerSlideSms(1);
+    calculerCaracteresSms(document.getElementById('sms-message-text'));
+}*/
+
+/*function calculerCaracteresSms(textarea) {
+    const len = textarea.value.length;
+    document.getElementById('compteur-caracteres').innerText = `${len} / 160`;
+}*/
+
+
+/*function preparerNouveauSms() {
+    document.getElementById('sms-id-edition').value = '';
+    document.getElementById('sms-message-text').value = '';
+    document.getElementById('sms-telephone-manual').value = '';
+    document.getElementById('sms-destinataire-select').value = '';
+    document.getElementById('titre-form-sms').innerText = "Nouveau Message";
+    document.getElementById('tag-mode-form').innerText = "Ajout";
+    document.getElementById('tag-mode-form').className = "px-1.5 py-0.2 text-[9px] font-semibold bg-emerald-100 text-emerald-800 rounded";
+    document.getElementById('label-btn-envoyer').innerText = "Envoyer";
+    calculerCaracteresSms(document.getElementById('sms-message-text'));
+}*/
+
+/*function chargerSmsDansFormulaire(smsId) {
+    const sms = (window.listeSmsEvenementCache || []).find(item => item.id === smsId);
+    if (!sms) return;
+
+    document.getElementById('sms-id-edition').value = sms.id;
+    document.getElementById('sms-message-text').value = sms.message_text;
+    document.getElementById('sms-telephone-manual').value = sms.telephone;
+    document.getElementById('titre-form-sms').innerText = "Modifier le SMS";
+    document.getElementById('tag-mode-form').innerText = "Édition";
+    document.getElementById('tag-mode-form').className = "px-1.5 py-0.2 text-[9px] font-semibold bg-amber-100 text-amber-800 rounded";
+    document.getElementById('label-btn-envoyer').innerText = "Renvoyer";
+
+    calculerCaracteresSms(document.getElementById('sms-message-text'));
+}*/
+
+function chargerSmsDansFormulaire(smsId) {
+    const sms = (window.listeSmsEvenementCache || []).find(item => item.id === smsId);
+    if (!sms) return;
+
+    // Remplissage sécurisé des champs du formulaire
+    const elId = document.getElementById('sms-id-edition');
+    if (elId) elId.value = sms.id;
+
+    const elMsg = document.getElementById('sms-message-text');
+    if (elMsg) elMsg.value = sms.message_text;
+
+    const elTel = document.getElementById('sms-telephone-manual');
+    if (elTel) elTel.value = sms.telephone;
+
+    // Titres & Badges
+    const elTitre = document.getElementById('titre-form-sms');
+    if (elTitre) elTitre.innerText = "Modifier le SMS";
+
+    const elTag = document.getElementById('tag-mode-form');
+    if (elTag) {
+        elTag.innerText = "Édition";
+        elTag.className = "px-2 py-0.5 text-[9px] font-semibold bg-amber-100 text-amber-800 rounded";
+    }
+
+    const elBtnLabel = document.getElementById('label-btn-soumettre') || document.getElementById('label-btn-envoyer');
+    if (elBtnLabel) elBtnLabel.innerText = "Renvoyer";
+
+    // Revenir au slide 1 si on utilise le wizard
+    if (typeof changerSlideSms === 'function') changerSlideSms(1);
+    if (typeof calculerCaracteresSms === 'function' && elMsg) calculerCaracteresSms(elMsg);
+}
+
+// 4. Calculateur de caractères
+function calculerCaracteresSms(textarea) {
+    const total = textarea.value.length;
+    const compteur = document.getElementById('compteur-caracteres');
+    if (compteur) compteur.textContent = `${total} / 459`;
+}
+
+// 5. Bascule des options de planification (Immédiat / Ulterieur)
+function toggleOptionPlanification(type) {
+    const chkImmediat = document.getElementById('sms-chk-immediat');
+    const chkUlterieur = document.getElementById('sms-chk-ulterieur');
+    const blocDates = document.getElementById('bloc-dates-programmees');
+    
+    const labelImm = document.getElementById('label-option-immediat');
+    const labelUlt = document.getElementById('label-option-ulterieur');
+
+    if (chkImmediat.checked) {
+        labelImm.className = "flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all bg-indigo-50/60 border-indigo-300 text-indigo-950";
+    } else {
+        labelImm.className = "flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all bg-slate-50 border-slate-200 text-slate-600";
+    }
+
+    if (chkUlterieur.checked) {
+        labelUlt.className = "flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all bg-indigo-50/60 border-indigo-300 text-indigo-950";
+        blocDates.classList.remove('hidden');
+    } else {
+        labelUlt.className = "flex items-center gap-2.5 p-2.5 rounded-lg border cursor-pointer transition-all bg-slate-50 border-slate-200 text-slate-600";
+        blocDates.classList.add('hidden');
+    }
+}
+
+// 6. Ajouter / Supprimer des dates dynamiquement
+function ajouterRangerDateSms() {
+    const conteneur = document.getElementById('liste-inputs-dates');
+    const div = document.createElement('div');
+    div.className = "flex items-center gap-1.5 class-rangee-date";
+    div.innerHTML = `
+        <input type="datetime-local" class="flex-1 border border-slate-300 rounded p-1 text-[10px] bg-slate-50 sms-input-datetime">
+        <button type="button" onclick="this.parentElement.remove()" class="text-slate-400 hover:text-rose-600 px-1 text-xs">✕</button>
+    `;
+    conteneur.appendChild(div);
+}
+
+async function chargerDestinatairesDossier(evtId) {
+    const select = document.getElementById('sms-destinataire-select') || document.getElementById('sms-agenda-select');
+    
+    if (!select) return;
+
+    try {
+        const response = await fetch(`/agenda/api/evenements/${evtId}/parties/`);
+        if (!response.ok) return;
+
+        const personnes = await response.json();
+        
+        if (personnes.length === 0) {
+            select.innerHTML = `<option value="">-- Aucun destinataire trouvé --</option>`;
+            return;
+        }
+
+        // Construction des options enrichies avec Rôle et Téléphone
+        let optionsHTML = `<option value="">-- Choisir un destinataire (${personnes.length}) --</option>`;
+        
+        personnes.forEach(p => {
+            const telTxt = p.telephone ? `📱 ${p.telephone}` : 'Pas de N°';
+            const badgeRole = p.is_responsable ? `⭐ ${p.role}` : p.role;
+            
+            optionsHTML += `
+                <option value="${p.id}" data-tel="${p.telephone || ''}">
+                    ${p.nom} — [${badgeRole}] (${telTxt})
+                </option>
+            `;
+        });
+
+        select.innerHTML = optionsHTML;
+
+    } catch (e) {
+        console.error("Erreur lors du chargement des destinataires:", e);
+    }
+}
+
+/**
+ * Auto-remplir le numéro de téléphone au clic/changement dans le select
+ */
+function auChangementDestinataire(selectEl) {
+    const optionSelectionnee = selectEl.options[selectEl.selectedIndex];
+    const telephone = optionSelectionnee.getAttribute('data-tel');
+    
+    const inputTel = document.getElementById('sms-telephone-manual');
+    if (inputTel && telephone) {
+        inputTel.value = telephone;
+    }
+    
+    // Déclencher la re-vérification du formulaire pour activer le bouton "Suivant"
+    if (typeof verifierValiditeSlide1 === 'function') {
+        verifierValiditeSlide1();
+    }
+}
+
+/*async function chargerDestinatairesDossier(evtId) {
+    const select = document.getElementById('sms-destinataire-select');
+    try {
+        const response = await fetch(`/agenda/api/evenements/${evtId}/parties/`);
+        if (!response.ok) return;
+
+        const parties = await response.json();
+        select.innerHTML = `<option value="">-- Sélectionner un destinataire --</option>` + 
+            parties.map(p => `<option value="${p.id}" data-tel="${p.telephone}">${p.nom} (${p.role_display})</option>`).join('');
+    } catch(e) {
+        console.error("Erreur chargement parties prenantes:", e);
+    }
+}*/
+// #############  FIN SMS PAR AGENDA  #################################    
 
 // GEstion de la chambre en fonction du Tribunal
 document.getElementById('field-tribunal')?.addEventListener('change', function() {
@@ -560,19 +1309,19 @@ function filtrerChambresParTribunal(tribunalId, chambreIdASelectionner = '') {
     if (!correspondanceTrouvee) {
         selectChambre.value = ''; // Réinitialise si la chambre précédente ne correspond pas au tribunal
     }
-}
+};
 
 
 
 
 // --- GESTION DU MODAL RAPPEL MANUEL ---
-let evenementRappelActifId = null; // Stocke l'ID de l'événement en cours de traitement
+//let evenementRappelActifId = null; // Stocke l'ID de l'événement en cours de traitement
 
 /**
  * Ouvre le modal de rappel manuel et réinitialise les champs
  */
-function configurerRappel(evtId) {
-    console.log("Le message -- > ", evtId);
+/*function configurerRappel(evtId) {
+    //console.log("Le message -- > ", evtId);
     evenementRappelActifId = evtId;
     
     // Réinitialise le champ de texte personnalisé
@@ -585,7 +1334,51 @@ function configurerRappel(evtId) {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
-}
+};*/
+
+// On s'assure que la fonction est accessible globalement
+/*window.configurerRappel = async function(evtId) {
+    console.log("🟢 1. Clic détecté pour l'événement ID :", evtId);
+    
+    evenementRappelActifId = evtId;
+    
+    // 1. Chercher le Modal
+    const modal = document.getElementById('modal-historique-sms-evenement');
+    
+    if (!modal) {
+        console.error("🔴 ERREUR CRITIQUE : L'élément HTML avec l'ID 'modal-historique-sms-evenement' est introuvable. Vérifiez votre fichier HTML.");
+        alert("Erreur technique : Le modal est introuvable sur la page.");
+        return; // On arrête tout si le modal n'existe pas
+    }
+
+    // 2. Afficher le Modal
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    console.log("🟢 2. Modal affiché avec succès.");
+
+    const titreEl = document.getElementById('modal-sms-titre-evenement');
+    if (titreEl) titreEl.innerText = `Événement ID: #${evtId}`;
+
+    // 3. Lancer les requêtes API avec protection Try/Catch
+    try {
+        console.log("🟢 3. Début du chargement des données API...");
+        await Promise.all([
+            chargerHistoriqueSmsEvenement(evtId),
+            chargerDestinatairesDossier(evtId)
+        ]);
+        console.log("🟢 4. Chargement API terminé.");
+    } catch (error) {
+        console.error("🔴 ERREUR lors des appels API (Historique ou Destinataires) :", error);
+    }
+
+    // 4. Préparer le formulaire
+    try {
+        preparerNouveauSms();
+        console.log("🟢 5. Formulaire réinitialisé.");
+    } catch (error) {
+        console.error("🔴 ERREUR dans la fonction preparerNouveauSms() :", error);
+    }
+};*/
 
 // --- ÉTAT GLOBAL ---
 let vueActuelle = 'table';
@@ -603,17 +1396,28 @@ document.addEventListener('DOMContentLoaded', () => {
 function getCSRFToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
            document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
-}
+};
+
 
 // --- INITIALISATION DES DATES DE LA SEMAINE ---
 function initialiserDatesSemaine() {
-    const curr = new Date(dateReference);
-    const first = curr.getDate() - curr.getDay() + (curr.getDay() === 0 ? -6 : 1); // Lundi
-    const last = first + 6; // Dimanche
+    // 1. Définir le jour de référence (aujourd'hui ou dateReference)
+    const ref = typeof dateReference !== 'undefined' ? new Date(dateReference) : new Date();
+    
+    // 2. Calculer le décalage pour obtenir le Lundi
+    // (En JS, getDay() renvoie : 0 = Dimanche, 1 = Lundi, ..., 6 = Samedi)
+    const dayOfWeek = ref.getDay();
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; 
 
-    const premierJour = new Date(curr.setDate(first));
-    const dernierJour = new Date(curr.setDate(last));
+    // 3. Obtenir le Lundi (sans altérer ref)
+    const premierJour = new Date(ref);
+    premierJour.setDate(ref.getDate() + diffToMonday);
 
+    // 4. Obtenir le Dimanche (+6 jours par rapport au Lundi)
+    const dernierJour = new Date(premierJour);
+    dernierJour.setDate(premierJour.getDate() + 6);
+
+    // 5. Injecter dans les inputs au format YYYY-MM-DD
     document.getElementById('filtre-date-debut').value = premierJour.toISOString().split('T')[0];
     document.getElementById('filtre-date-fin').value = dernierJour.toISOString().split('T')[0];
 }
@@ -642,7 +1446,6 @@ function initialiserEcouteursFiltres() {
 }
 
 // --- CHARGEMENT DES DONNÉES DEPUIS L'API ---
-// --- CHARGEMENT DES DONNÉES DEPUIS L'API ---
 async function chargerEvenements() {
     const elCritique = document.getElementById('filtre-critique');
     
@@ -663,14 +1466,14 @@ async function chargerEvenements() {
         const response = await fetch(`/agenda/api/liste/?${params.toString()}`, {
             headers: { 'X-Requested-With': 'XMLHttpRequest' }
         });
-        console.log('le response de l api ', response)
+        //console.log('le response de l api ', response)
 
         if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
         
         const result = await response.json();
         evenementsCharges = result.resultats || [];
 
-        console.log('les evenements contenus dans l api ', evenementsCharges)
+        //console.log('les evenements contenus dans l api ', evenementsCharges)
 
 
         if (vueActuelle === 'table') {
@@ -723,12 +1526,12 @@ function formaterDate(iso) {
 
 // --- RENDU : VUE TABLEAU ---
 function afficherTableau(donnees) {
-    console.log('les donnees reçues --> ', donnees);
+    //console.log('les donnees reçues --> ', donnees);
     const corpsTableau = document.getElementById('corps-tableau');
     const etatVide = document.getElementById('etat-vide');
     corpsTableau.innerHTML = '';
 
-console.log('La dat reçu --> ',donnees)
+    //console.log('La dat reçu --> ',donnees)
 
     if (!donnees || donnees.length === 0) {
         if (etatVide) etatVide.classList.remove('hidden');
@@ -943,7 +1746,7 @@ function allerSemaineActuelle() {
 function afficherVueSemaine(donnees) {
     const conteneurTable = document.getElementById('vue-conteneur-table');
     // Note: Si une grille de calendrier spécifique est nécessaire, injectez le HTML ici
-    console.log("Rendu de la vue semaine pour", donnees.length, "événements.");
+    //console.log("Rendu de la vue semaine pour", donnees.length, "événements.");
 }
 
 // --- CHARGEMENT DYNAMIQUE DES PARTIES PRENANTES PAR DOSSIER (FORMULAIRE) ---
@@ -1050,57 +1853,6 @@ async function chargerJuridictionDossier(dossierId) {
 }
 
 
-/*async function chargerJuridictionDossier(dossierId) {
-    const evenementIdInput = document.getElementById('event-id');
-    const evenementId = evenementIdInput ? evenementIdInput.value : "";
-
-    const selectTribunal = document.getElementById('field-tribunal');
-    const selectChambre = document.getElementById('field-chambre');
-
-    if (!dossierId && !evenementId) {
-        if (selectTribunal) selectTribunal.innerHTML = '<option value="">-- Aucun tribunal --</option>';
-        if (selectChambre) selectChambre.innerHTML = '<option value="">-- Aucune chambre --</option>';
-        return;
-    }
-
-    try {
-        const response = await fetch(`/agenda/api/juridiction/?dossier_id=${dossierId}&evenement_id=${evenementId}`);
-        if (!response.ok) throw new Error("Erreur HTTP " + response.status);
-
-        const result = await response.json();
-
-        if (result.status === 'success') {
-            // A. Construction dynamique du SELECT Tribunal
-            if (selectTribunal && result.tribunaux) {
-                let htmlTribunaux = '<option value="">-- Choisir un tribunal --</option>';
-                htmlTribunaux += result.tribunaux.map(t => {
-                    const estSelectionne = (t.id === result.tribunal_id) ? 'selected' : '';
-                    return `<option value="${t.id}" ${estSelectionne}>${echapper(t.nom)}</option>`;
-                }).join('');
-                
-                selectTribunal.innerHTML = htmlTribunaux;
-            }
-
-            // B. Construction dynamique du SELECT Chambre
-            if (selectChambre) {
-                let htmlChambres = '<option value="">-- Choisir une chambre --</option>';
-                if (result.chambres && result.chambres.length > 0) {
-                    htmlChambres += result.chambres.map(c => {
-                        const estSelectionne = (c.id === result.chambre_id) ? 'selected' : '';
-                        return `<option value="${c.id}" ${estSelectionne}>${echapper(c.nom)}</option>`;
-                    }).join('');
-                }
-                
-                selectChambre.innerHTML = htmlChambres;
-            }
-        }
-    } catch (err) {
-        console.error("⚠️ Erreur lors du chargement de la juridiction :", err);
-    }
-}*/
-
-
-
 async function chargerResponsablesDossier(dossierId) {
     // 1. Décocher d'abord tous les responsables internes par sécurité
     document.querySelectorAll('.checkbox-responsable').forEach(cb => cb.checked = false);
@@ -1143,7 +1895,7 @@ function onChangerDossierFormulaire(dossierId) {
 
 
 async function confirmerEnvoiNotification() {
-    console.log("Le mesage -- > ", evenementRappelActifId);
+    //console.log("Le mesage -- > ", evenementRappelActifId);
     if (!evenementRappelActifId) {
         console.error("Aucun événement cible spécifié pour le rappel.");
         return;
@@ -1285,14 +2037,6 @@ function validerAjoutIntervenantPonctuel() {
     // Fermeture du sous-modal
     fermerSousModalIntervenant();
 }
-// --- MODAL DE CRÉATION ET ÉDITION ---
-{% comment %} function ouvrirModalCreation() {
-    document.getElementById('form-evenement').reset();
-    document.getElementById('event-id').value = '';
-    document.getElementById('titre-modal-form').textContent = "Nouvel événement d'agenda";
-    document.getElementById('modal-evenement-form').classList.remove('hidden');
-    document.getElementById('modal-evenement-form').classList.add('flex');
-} {% endcomment %}
 // A. Pour l'AJOUT : Réinitialise le formulaire et passe en mode "Création"
 function ouvrirModalCreation() {
     // 1. Vider / Réinitialiser tous les champs du formulaire
@@ -1326,111 +2070,6 @@ function ouvrirModalCreation() {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
-
-{% comment %} function editerEvenement(id) {
-    const evt = evenementsCharges.find(e => e.id === id);
-    if (!evt) return;
-
-    document.getElementById('event-id').value = evt.id;
-    document.getElementById('titre-modal-form').textContent = "Modifier l'événement d'agenda";
-    
-    // Remplissage des champs si présents dans votre modal
-    if (document.getElementById('field-titre')) document.getElementById('field-titre').value = evt.titre;
-    if (document.getElementById('field-dossier')) document.getElementById('field-dossier').value = evt.dossier_id || '';
-
-    document.getElementById('modal-evenement-form').classList.remove('hidden');
-    document.getElementById('modal-evenement-form').classList.add('flex');
-} {% endcomment %}
-
-// B. Pour la MODIFICATION : Pré-remplit les champs existants
-{% comment %} async function editerEvenement(id) {
-    // 1. Recherche de l'événement (Supporte UUID strings et ID entiers)
-    const evt = evenementsCharges.find(e => String(e.id) === String(id));
-    if (!evt) {
-        console.error("Événement introuvable avec l'ID :", id);
-        return;
-    }
-
-    // 2. ID caché et Titre du Modal
-    document.getElementById('event-id').value = evt.id;
-    document.getElementById('titre-modal-form').textContent = "Modifier l'événement d'agenda";
-
-    // 3. Remplissage des champs simples
-    if (document.getElementById('field-titre')) {
-        document.getElementById('field-titre').value = evt.titre || '';
-    }
-    if (document.getElementById('field-type')) {
-        document.getElementById('field-type').value = evt.type || 'autre';
-        if (typeof basculerChampsDelai === 'function') basculerChampsDelai(evt.type);
-    }
-    if (document.getElementById('field-statut')) {
-        document.getElementById('field-statut').value = evt.statut_traitement || evt.statut || 'en_attente';
-    }
-    if (document.getElementById('field-description')) {
-        document.getElementById('field-description').value = evt.description || '';
-    }
-
-    // 4. Formatage propre de la Date/Heure pour l'input datetime-local
-    if (document.getElementById('field-date-heure') && evt.date_heure) {
-        const d = new Date(evt.date_heure);
-        // Ajustement du décalage horaire local
-        const pad = (n) => String(n).padStart(2, '0');
-        const datetimeLocal = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-        document.getElementById('field-date-heure').value = datetimeLocal;
-    }
-
-    // 5. Urgence / Critique
-    if (document.getElementById('field-critique')) {
-        document.getElementById('field-critique').checked = Boolean(evt.critique);
-    }
-
-    // 6. Délais de procédure (si présents)
-    if (document.getElementById('field-type-delai')) document.getElementById('field-type-delai').value = evt.type_delai || '';
-    if (document.getElementById('field-date-declencheur')) document.getElementById('field-date-declencheur').value = evt.date_declencheur || '';
-    if (document.getElementById('field-duree-legale')) document.getElementById('field-duree-legale').value = evt.duree_legale_jours || '';
-
-    // ------------------------------------------------------------------
-    // CORRECTION 1 : Sélection du Dossier
-    // ------------------------------------------------------------------
-    const dossierId = evt.dossier_id || (evt.dossier ? evt.dossier.id || evt.dossier : '');
-    const selectDossier = document.getElementById('field-dossier');
-    if (selectDossier) {
-        selectDossier.value = dossierId ? String(dossierId) : '';
-    }
-
-    // ------------------------------------------------------------------
-    // CORRECTION 2 : Cochage des Avocats / Collaborateurs Internes
-    // ------------------------------------------------------------------
-    // Extraction universelle des IDs (supporte [ {id: "..."}, ... ] ou [ "uuid1", "uuid2" ])
-    const respIds = (evt.responsables || []).map(r => String(typeof r === 'object' ? r.id : r));
-    document.querySelectorAll('.checkbox-responsable').forEach(cb => {
-        cb.checked = respIds.includes(String(cb.value));
-    });
-
-    // ------------------------------------------------------------------
-    // CORRECTION 3 : Chargement & Cochage des Parties Prenantes
-    // ------------------------------------------------------------------
-    // Extraire les IDs des parties prenantes liées à l'événement
-    const ppIdsEvt = (evt.parties_prenantes || []).map(p => String(typeof p === 'object' ? p.id : p));
-
-    if (dossierId) {
-        // Attendre que la liste des parties prenantes du dossier soit générée dans le DOM
-        await chargerPartiesPrenantesDossier(dossierId);
-
-        // Cocher uniquement celles qui sont associées à cet événement d'agenda
-        document.querySelectorAll('.checkbox-partie-prenante').forEach(cb => {
-            cb.checked = ppIdsEvt.includes(String(cb.value));
-        });
-    } else {
-        document.getElementById('conteneur-parties-prenantes').innerHTML = 
-            '<p class="text-gray-400 italic py-6 text-center">Événement hors dossier (aucun intervenant lié).</p>';
-    }
-
-    // 7. Ouverture du Modal
-    const modal = document.getElementById('modal-evenement-form');
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-} {% endcomment %}
 
 async function editerEvenement(id) {
     // 1. Recherche de l'événement (Supporte UUID strings et ID entiers)
@@ -1535,46 +2174,6 @@ async function editerEvenement(id) {
     modal.classList.add('flex');
 }
 
-
-// Fonction de soumission AJAX
-{% comment %} async function soumettreFormulaire(event) {
-    event.preventDefault();
-    const form = event.target;
-    const formData = new FormData(form);
-    
-    const data = Object.fromEntries(formData.entries());
-    // Récupération multi-sélection des responsables
-    data.responsables = formData.getAll('responsables');
-    data.critique = document.getElementById('field-critique').checked;
-
-    const eventId = document.getElementById('event-id').value;
-    const url = eventId ? `/agenda/api/evenements/${eventId}/modifier/` : `/agenda/api/evenements/creer/`;
-
-    try {
-        const reponse = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'json',
-                'X-CSRFToken': obtenirCookieCSRF()
-            },
-            body: JSON.stringify(data)
-        });
-
-        const res = await reponse.json();
-        if (!reponse.ok) throw new Error(res.erreur || "Erreur de traitement");
-
-        fermerModal('modal-evenement-form');
-        if (typeof rechargerAgenda === 'function') rechargerAgenda();
-    } catch (err) {
-        alert("Erreur lors de l'enregistrement : " + err.message);
-    }
-} {% endcomment %}
-
-/*function fermerModal(modalId) {
-    const modal = document.getElementById(modalId);
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-}*/
 function fermerModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) return;
@@ -1709,7 +2308,7 @@ const selectChambre = document.getElementById('field-chambre');
         }
     }
 
-    console.log("➡️ LE PAYLOAD ENVOYÉ CORRIGÉ & SÉCURISÉ :", payload);
+    //console.log("➡️ LE PAYLOAD ENVOYÉ CORRIGÉ & SÉCURISÉ :", payload);
 
     eCabinetAlerts.chargement("Enregistrement de l'événement...");
     const url = payload.id ? `/agenda/api/${payload.id}/modifier/` : `/agenda/api/creer/`;
@@ -1734,102 +2333,6 @@ const selectChambre = document.getElementById('field-chambre');
         eCabinetAlerts.erreur("Erreur de communication avec le serveur : " + err.message);
     }
 }
-
-{% comment %} async function soumettreFormulaire(evt) {
-    evt.preventDefault();
-    const form = document.getElementById('form-evenement');
-    const formData = new FormData(form);
-    
-    // 1. EXTRACTION DES COLLABORATEURS INTERNES (responsables)
-    const avocatsCoches = form.querySelectorAll('input[name="responsables"]:checked');
-    const responsablesIds = Array.from(avocatsCoches).map(cb => cb.value);
-
-    // 2. EXTRACTION ET TRI SÉCURISÉ DES PARTIES PRENANTES
-    let partiesPrenantesIds = [];
-    let nouvellesPartiesPrenantesObjets = [];
-
-    // On cible TOUTES les cases à cocher situées dans le conteneur des parties prenantes
-    const conteneurPP = document.getElementById('conteneur-parties-prenantes');
-    if (conteneurPP) {
-        const checkboxesPP = conteneurPP.querySelectorAll('input[type="checkbox"]:checked');
-        
-        checkboxesPP.forEach(cb => {
-            const valueId = cb.value;
-            
-            if (valueId.startsWith('tmp_')) {
-                // C'est un nouvel intervenant ponctuel ajouté depuis le sous-modal personnalisé
-                // On extrait textuellement son nom et son rôle directement depuis les balises du DOM
-                const conteneurTexte = cb.parentElement.querySelector('.flex.flex-col');
-                const nomText = conteneurTexte.querySelector('.font-semibold').textContent.trim();
-                // On nettoie le libellé du rôle pour enlever la mention "(Ponctuel)"
-                const roleText = conteneurTexte.querySelector('.font-mono').textContent.replace('(Ponctuel)', '').trim();
-                
-                nouvellesPartiesPrenantesObjets.push({
-                    nom: nomText,
-                    role: roleText
-                });
-            } else {
-                // C'est une partie prenante structurelle existante en BDD rattachée au dossier
-                partiesPrenantesIds.push(valueId);
-            }
-        });
-    }
-
-    // 3. ENCAPSULATION DU PAYLOAD GLOBAL
-    const payload = {
-        id: document.getElementById('event-id').value || null,
-        dossier_id: document.getElementById('field-dossier').value || null,
-        titre: formData.get('titre') ? formData.get('titre').trim() : '',
-        type: formData.get('type'),
-        date_heure: formData.get('date_heure'),
-        statut_traitement: formData.get('statut_traitement'),
-        critique: form.querySelector('input[name="critique"]').checked,
-        description: formData.get('description') ? formData.get('description').trim() : null,
-        
-        // Validation des tableaux d'intervenants
-        responsables: responsablesIds,       
-        parties_prenantes: partiesPrenantesIds, // Ne sera plus vide !
-        nouvelles_parties_prenantes: nouvellesPartiesPrenantesObjets, // Ne sera plus vide !
-                     
-        // Paramètres liés aux délais de procédure (bloc jaune)
-        type_delai: formData.get('type_delai') || null,
-        date_declencheur: formData.get('date_declencheur') || null,
-        duree_legale_jours: formData.get('duree_legale_jours') || null,
-    };
-
-    // Gestion de la règle d'historique de renvoi automatique
-    if (payload.statut_traitement === 'renvoye') {
-        const nouvelleDate = prompt("Date et Heure de la prochaine audience de renvoi (Format: AAAA-MM-JJ HH:MM) :");
-        if (nouvelleDate && nouvelleDate.trim() !== "") {
-            payload.generer_prochain_renvoi_date = nouvelleDate;
-        }
-    }
-
-    console.log("➡️ LE PAYLOAD ENVOYÉ CORRIGÉ & SÉCURISÉ :", payload);
-
-    eCabinetAlerts.chargement("Enregistrement de l'événement...");
-    const url = payload.id ? `/agenda/api/${payload.id}/modifier/` : `/agenda/api/creer/`;
-    
-    try {
-        const r = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
-            body: JSON.stringify(payload)
-        });
-
-        const d = await r.json();
-        eCabinetAlerts.fermerChargement();
-
-        if (!r.ok) return eCabinetAlerts.erreur(d.erreur || "Une erreur est survenue.");
-        
-        fermerModal('modal-evenement-form');
-        eCabinetAlerts.succes(d.message);
-        chargerEvenements(); // Re-dessine l'agenda principal
-    } catch (err) {
-        eCabinetAlerts.fermerChargement();
-        eCabinetAlerts.erreur("Erreur de communication avec le serveur : " + err.message);
-    }
-} {% endcomment %}
 
 function basculerChampsDelai(typeEvenement) {
     const blocDelai = document.getElementById('bloc-delai-procedure');

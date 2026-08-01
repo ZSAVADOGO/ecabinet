@@ -108,8 +108,8 @@ class EvenementAgenda(AuditableModel):
         help_text="Parties prenantes associées à cet événement"
         )
     # Juridiction spécifique (Si différente de celle du dossier)
-    tribunal = models.ForeignKey('authentication.Tribunal', on_delete=models.SET_NULL, null=True, blank=True)
-    chambre = models.ForeignKey('authentication.Chambre', on_delete=models.SET_NULL, null=True, blank=True)
+    tribunal = models.ForeignKey('dossier.Tribunal', on_delete=models.SET_NULL, null=True, blank=True)
+    chambre = models.ForeignKey('dossier.Chambre', on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         db_table = 'evenements_agenda'

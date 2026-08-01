@@ -10,6 +10,10 @@ Miroir de client/services.py, adapté au modèle User (AbstractUser) :
   vrais champs (last_name, first_name), jamais par nom__icontains.
 """
 
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
+
 from datetime import datetime
 
 from django.core.exceptions import ValidationError
@@ -42,6 +46,61 @@ CHAMPS_TRI_MAPPING = {
     "created_at": "created_at",
 }
 
+
+
+def obtenir_profil_utilisateur(user) -> dict:
+    return {
+        "id": str(user.id),
+        "nom": user.last_name,
+        "prenom": user.first_name,
+        "nom_complet": f"{user.first_name} {user.last_name}".strip() or user.username,
+        "email": user.email,
+        "username": user.username,
+        "role": user.role,
+        "role_libelle": user.get_role_display(),
+        "departement": user.departement,
+        "telephone_direct": user.telephone_direct,
+        "telephone2": user.telephone2,
+        "date_prestation_serment": user.date_prestation_serment.strftime("%d/%m/%Y") if user.date_prestation_serment else None,
+        "annees_experience": user.annees_experience,
+        "taux_horaire_defaut": str(user.taux_horaire_defaut) if user.taux_horaire_defaut is not None else None,
+        "specialites": [s.libelle for s in user.specialites.all()],
+        "derniere_connexion_ip": user.derniere_connexion_ip,
+        "date_dernier_changement_mdp": user.date_dernier_changement_mdp.strftime("%d/%m/%Y à %H:%M") if user.date_dernier_changement_mdp else "Jamais modifié",
+    }
+
+
+def modifier_coordonnees_profil(user, payload: dict) -> dict:
+    """
+    Seules les coordonnées de contact direct sont modifiables par l'utilisateur
+    lui-même. Nom, rôle, département, date de prestation de serment restent
+    gérés par l'associé (données d'identité judiciaire/hiérarchique du cabinet) —
+    évite qu'un collaborateur modifie son propre rôle ou son ancienneté officielle.
+    """
+    user.telephone_direct = (payload.get("telephone_direct") or "").strip() or None
+    user.telephone2 = (payload.get("telephone2") or "").strip() or None
+    user.save(update_fields=["telephone_direct", "telephone2"])
+    return obtenir_profil_utilisateur(user)
+
+
+def changer_mot_de_passe_utilisateur(user, ancien_mot_de_passe: str, nouveau_mot_de_passe: str, confirmation: str):
+    if not user.check_password(ancien_mot_de_passe):
+        raise ValidationError("Le mot de passe actuel est incorrect.")
+    if nouveau_mot_de_passe != confirmation:
+        raise ValidationError("Les deux mots de passe ne correspondent pas.")
+    if ancien_mot_de_passe == nouveau_mot_de_passe:
+        raise ValidationError("Le nouveau mot de passe doit être différent de l'ancien.")
+
+    try:
+        validate_password(nouveau_mot_de_passe, user=user)
+    except DjangoValidationError as exc:
+        raise ValidationError(" ".join(exc.messages))
+
+    user.set_password(nouveau_mot_de_passe)
+    user.doit_changer_mot_de_passe = False
+    user.date_dernier_changement_mdp = timezone.now()
+    user.save(update_fields=["password", "doit_changer_mot_de_passe", "date_dernier_changement_mdp"])
+    return user
 
 def se_connecter(request, email: str, mot_de_passe: str) -> tuple[bool, str]:
     """

@@ -31,6 +31,13 @@ TAILWIND_APP_NAME = 'theme'
 
 NPM_BIN_PATH = r"C:/Program Files/nodejs/npm.cmd" # Chemin vers le binaire npm sur Windows
 
+# settings.py
+CELERY_BEAT_SCHEDULE = {
+    'synchroniser-statuts-sms-toutes-les-5min': {
+        'task': 'notifications.tasks.update_pending_sms_statuses',
+        'schedule': 300.0,  # 300 secondes = 5 minutes
+    },
+}
 
 # Application definition
 

@@ -93,7 +93,8 @@
               </div> 
             </button> 
             <div x-show="userMenu" x-cloak x-transition class="absolute right-0 mt-1 w-48 bg-white text-gray-800 rounded-md shadow-lg border border-gray-100 py-1 z-50"> 
-              <a href="#" class="block px-4 py-2 text-sm hover:bg-indigo-50">🙍 Mon profil</a> 
+              {% comment %} <a href="#" class="block px-4 py-2 text-sm hover:bg-indigo-50">🙍 Mon profil</a>  {% endcomment %}
+              <a href="{% url 'authentication:mon_profil' %}" class="block px-4 py-2 text-sm hover:bg-indigo-50">🙍 Mon profil</a>
               <a href="{% url 'authentication:deconnexion' %}" class="block px-4 py-2 text-sm hover:bg-indigo-50 text-red-600">🚪 Se déconnecter</a> 
             </div> 
           </div> 

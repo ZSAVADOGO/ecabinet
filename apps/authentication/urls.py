@@ -14,6 +14,11 @@ urlpatterns = [
     path("api/<uuid:utilisateur_id>/modifier/", views.api_modifier_utilisateur, name="api_modifier_utilisateur"),
     path("api/<uuid:utilisateur_id>/supprimer/", views.api_supprimer_utilisateur, name="api_supprimer_utilisateur"),
 
+# --- Profil utilisateur ---
+    path("profil/", views.mon_profil_view, name="mon_profil"),
+    path("api/profil/modifier/", views.api_modifier_profil, name="api_modifier_profil"),
+    path("api/profil/changer-mot-de-passe/", views.api_changer_mot_de_passe, name="api_changer_mot_de_passe"),
+
 # --- Securite
     path("", views.connexion_view, name="connexion"),
     path("connexion/", views.connexion_view, name="connexion"),

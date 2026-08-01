@@ -3,11 +3,88 @@ from django.db import models
 from django.conf import settings
 from client.models import Client, AuditableModel
 
-from apps.authentication.models import Chambre
+#from dossier.models import Chambre
 
 from django.utils import timezone  # Résout "timezone" is not defined
 
 
+
+# ==========================================
+# 2. ENTITÉ TYPE DE TRIBUNAL (ÉVOLUTIF)
+# ==========================================
+class TypeTribunal(models.Model):
+    """
+    Permet au cabinet d'ajouter/modifier des types de juridictions sans toucher au code.
+    Ex: 'TJ' -> Tribunal Judiciaire, 'TC' -> Tribunal de Commerce, etc.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    code = models.CharField(max_length=15, unique=True, help_text="Ex: 'TJ', 'TC', 'CA'")
+    libelle = models.CharField(max_length=150, help_text="Ex: 'Tribunal Judiciaire'")
+    ordre_affichage = models.PositiveIntegerField(default=0, help_text="Ordre dans les menus déroulants")
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'type_tribunal'
+        verbose_name = "Type de Tribunal"
+        verbose_name_plural = "Types de Tribunaux"
+        ordering = ['ordre_affichage', 'libelle']
+
+    def __str__(self):
+        return f"{self.libelle} ({self.code})"
+
+
+# ==========================================
+# 3. ENTITÉ TRIBUNAL / JURIDICTION
+# ==========================================
+class Tribunal(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    nom = models.CharField(max_length=255, help_text="Ex: Tribunal Judiciaire de Paris")
+    code = models.CharField(
+        max_length=20, unique=True, db_index=True, null=True, blank=True,
+        help_text="Ex: T.G.I.O — abréviation utilisée dans les documents/courriers"
+    )
+    # Clé étrangère vers le type évolutif
+    type_tribunal = models.ForeignKey(
+        TypeTribunal, 
+        on_delete=models.PROTECT, 
+        related_name="tribunaux",
+        db_index=True
+    )
+    
+    adresse = models.TextField(blank=True, null=True)
+    code_postal = models.CharField(max_length=10, db_index=True, blank=True, null=True)
+    ville = models.CharField(max_length=150, db_index=True)
+    telephone = models.CharField(max_length=20, blank=True, null=True)
+    email_greffe = models.EmailField(blank=True, null=True)
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'tribunal'
+        verbose_name = "Tribunal"
+        verbose_name_plural = "Tribunaux"
+        ordering = ['ville', 'nom']
+
+    def __str__(self):
+        return f"{self.nom} ({self.ville})"
+
+# ==========================================
+# . ENTITÉ CHAMBRE
+# ==========================================
+
+class Chambre(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    tribunal = models.ForeignKey(Tribunal, on_delete=models.CASCADE, related_name='chambres')
+    libelle = models.CharField(max_length=150, help_text="Ex: Chambre de Conseil, Correctionnelle, ECOFI")
+    notes = models.TextField(null=True, blank=True)
+    class Meta:
+        db_table = 'chambres'
+        verbose_name = "Chambre"
+        verbose_name_plural = "Chambres"
+        unique_together = ('tribunal', 'libelle')
+        ordering = ['tribunal', 'libelle']
+
+    def __str__(self):
+        return f"{self.libelle} ({self.tribunal.code})"
 
 class Dossier(AuditableModel):
     class StatutDossier(models.TextChoices):
@@ -48,8 +125,8 @@ class Dossier(AuditableModel):
     partie_adverse = models.CharField(max_length=255, blank=True, null=True)
     avocat_adverse = models.CharField(max_length=255, blank=True, null=True)
 
-    tribunal = models.ForeignKey('authentication.Tribunal', on_delete=models.PROTECT, null=True, blank=True, related_name='dossiers')
-    chambre = models.ForeignKey('authentication.Chambre', on_delete=models.SET_NULL, null=True, blank=True, related_name='dossiers')
+    tribunal = models.ForeignKey('dossier.Tribunal', on_delete=models.PROTECT, null=True, blank=True, related_name='dossiers')
+    chambre = models.ForeignKey('dossier.Chambre', on_delete=models.SET_NULL, null=True, blank=True, related_name='dossiers')
     juge_en_charge = models.CharField(max_length=150, blank=True, null=True)
     numero_bureau = models.CharField(max_length=20, blank=True, null=True)
 

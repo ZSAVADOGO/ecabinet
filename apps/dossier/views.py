@@ -24,7 +24,7 @@ from dossier.services import (creer_facture_pour_dossier, creer_agenda_pour_doss
 creer_dossier, modifier_dossier, supprimer_dossier, options_clients, options_avocats,options_chambres, creer_parties_prenantes_pour_dossier)
 
 from client.models import Client
-from apps.authentication.models import Tribunal
+from dossier.models import Tribunal
 
 from django.contrib.auth import get_user_model # <-- Ajouté pour récupérer le modèle User
 
@@ -222,7 +222,7 @@ def api_creer_dossier(request):
                     noms = ", ".join(p.nom for p in parties)
                     summary += f"<br><b>🧑‍⚖️ Parties prenantes ajoutées :</b> {noms}"
 
-            print("Bilan des services -> Dossier:", dossier, "Facture:", facture, "Agenda:", agenda, "Parties:", parties)
+            #print("Bilan des services -> Dossier:", dossier, "Facture:", facture, "Agenda:", agenda, "Parties:", parties)
 
             # 🛠️ FIX ATTRIBUTEERROR 'STR' : On force le rafraîchissement de l'instance
             # avant la sérialisation pour convertir les chaînes de dates en objets 'date' Python.

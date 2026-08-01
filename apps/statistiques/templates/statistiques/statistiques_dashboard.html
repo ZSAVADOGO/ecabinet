@@ -7,6 +7,30 @@
     <p class="text-xs text-gray-500">Vue synthétique adaptée à votre rôle dans le cabinet</p>
 </div>
 
+<!-- FILTRE DE PÉRIODE GLOBAL -->
+<form method="get" class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-5 flex flex-wrap items-end gap-3">
+    <div>
+        <label class="text-xs font-medium text-gray-500 block mb-1">Du</label>
+        <input type="date" name="date_debut" value="{{ date_debut }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+    </div>
+    <div>
+        <label class="text-xs font-medium text-gray-500 block mb-1">Au</label>
+        <input type="date" name="date_fin" value="{{ date_fin }}" class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm">
+    </div>
+    <button type="submit" class="px-4 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-lg text-sm font-medium transition-colors">Filtrer</button>
+    {% if date_debut or date_fin %}
+        <a href="{% url 'statistiques:liste' %}" class="px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50">Toutes les dates</a>
+    {% endif %}
+    <span class="text-xs text-gray-400 ml-auto">
+        {% if date_debut or date_fin %}
+            <span class="text-indigo-700 font-medium">Période filtrée</span>
+        {% else %}
+            Toutes les données (aucun filtre actif)
+        {% endif %}
+        · Les indicateurs marqués <span class="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-medium text-gray-500">temps réel</span> reflètent toujours l'état actuel, quelle que soit la période choisie.
+    </span>
+</form>
+
 {% if juridique %}
 <!-- ================= BLOC JURIDIQUE (Associé / Avocat / Collaborateur) ================= -->
 <div class="mb-8">
@@ -14,26 +38,26 @@
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-2xl font-bold text-gray-800">{{ juridique.total_dossiers }}</p>
-            <p class="text-[11px] text-gray-400 font-medium">Dossiers au total</p>
+            <p class="text-2xl font-bold text-gray-800">{{ juridique.total_dossiers_periode }}</p>
+            <p class="text-[11px] text-gray-400 font-medium">Dossiers ouverts (période)</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-100 p-4">
             <p class="text-2xl font-bold text-indigo-700">{{ juridique.dossiers_actifs }}</p>
-            <p class="text-[11px] text-gray-400 font-medium">Dossiers actifs</p>
+            <p class="text-[11px] text-gray-400 font-medium">Dossiers actifs <span class="px-1 py-0.5 bg-gray-100 rounded text-[9px] text-gray-400 ml-1">temps réel</span></p>
         </div>
         <div class="bg-white rounded-xl border {% if juridique.echeances_a_risque > 0 %}border-amber-300 bg-amber-50{% else %}border-gray-100{% endif %} p-4">
             <p class="text-2xl font-bold {% if juridique.echeances_a_risque > 0 %}text-amber-600{% else %}text-gray-800{% endif %}">{{ juridique.echeances_a_risque }}</p>
-            <p class="text-[11px] {% if juridique.echeances_a_risque > 0 %}text-amber-600{% else %}text-gray-400{% endif %} font-medium">Échéances sous 7 jours</p>
+            <p class="text-[11px] {% if juridique.echeances_a_risque > 0 %}text-amber-600{% else %}text-gray-400{% endif %} font-medium">Échéances sous 7 jours <span class="px-1 py-0.5 bg-white/60 rounded text-[9px] ml-1">temps réel</span></p>
         </div>
         <div class="bg-white rounded-xl border {% if juridique.echeances_depassees > 0 %}border-rose-300 bg-rose-50{% else %}border-gray-100{% endif %} p-4">
             <p class="text-2xl font-bold {% if juridique.echeances_depassees > 0 %}text-rose-600{% else %}text-gray-800{% endif %}">{{ juridique.echeances_depassees }}</p>
-            <p class="text-[11px] {% if juridique.echeances_depassees > 0 %}text-rose-600{% else %}text-gray-400{% endif %} font-medium">Échéances dépassées ⚠️</p>
+            <p class="text-[11px] {% if juridique.echeances_depassees > 0 %}text-rose-600{% else %}text-gray-400{% endif %} font-medium">Échéances dépassées ⚠️ <span class="px-1 py-0.5 bg-white/60 rounded text-[9px] ml-1">temps réel</span></p>
         </div>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-xs font-semibold text-gray-600 mb-3">Répartition par type d'affaire</p>
+            <p class="text-xs font-semibold text-gray-600 mb-3">Répartition par type d'affaire (période)</p>
             <div class="space-y-2.5">
                 {% for r in juridique.repartition_type %}
                 <div>
@@ -46,13 +70,13 @@
                     </div>
                 </div>
                 {% empty %}
-                <p class="text-xs text-gray-400 italic">Aucune donnée.</p>
+                <p class="text-xs text-gray-400 italic">Aucune donnée sur cette période.</p>
                 {% endfor %}
             </div>
         </div>
 
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-xs font-semibold text-gray-600 mb-3">Top 5 clients (nb. de dossiers)</p>
+            <p class="text-xs font-semibold text-gray-600 mb-3">Top 5 clients — nb. de dossiers (période)</p>
             <div class="space-y-2.5">
                 {% for c in juridique.top_clients %}
                 <div>
@@ -65,7 +89,7 @@
                     </div>
                 </div>
                 {% empty %}
-                <p class="text-xs text-gray-400 italic">Aucune donnée.</p>
+                <p class="text-xs text-gray-400 italic">Aucune donnée sur cette période.</p>
                 {% endfor %}
             </div>
         </div>
@@ -79,20 +103,20 @@
     <h2 class="text-sm font-semibold text-indigo-900 mb-3 flex items-center gap-2">🗂️ Secrétariat</h2>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-2xl font-bold text-gray-800">{{ secretariat.nouveaux_clients_mois }}</p>
-            <p class="text-[11px] text-gray-400 font-medium">Nouveaux clients (mois)</p>
+            <p class="text-2xl font-bold text-gray-800">{{ secretariat.nouveaux_clients_periode }}</p>
+            <p class="text-[11px] text-gray-400 font-medium">Nouveaux clients (période)</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-2xl font-bold text-indigo-700">{{ secretariat.evenements_semaine }}</p>
-            <p class="text-[11px] text-gray-400 font-medium">Événements cette semaine</p>
+            <p class="text-2xl font-bold text-indigo-700">{{ secretariat.evenements_periode }}</p>
+            <p class="text-[11px] text-gray-400 font-medium">Événements d'agenda (période)</p>
         </div>
         <div class="bg-white rounded-xl border {% if secretariat.evenements_critiques_a_venir > 0 %}border-rose-300 bg-rose-50{% else %}border-gray-100{% endif %} p-4">
             <p class="text-2xl font-bold {% if secretariat.evenements_critiques_a_venir > 0 %}text-rose-600{% else %}text-gray-800{% endif %}">{{ secretariat.evenements_critiques_a_venir }}</p>
-            <p class="text-[11px] {% if secretariat.evenements_critiques_a_venir > 0 %}text-rose-600{% else %}text-gray-400{% endif %} font-medium">Événements critiques à venir</p>
+            <p class="text-[11px] {% if secretariat.evenements_critiques_a_venir > 0 %}text-rose-600{% else %}text-gray-400{% endif %} font-medium">Critiques à venir <span class="px-1 py-0.5 bg-white/60 rounded text-[9px] ml-1">temps réel</span></p>
         </div>
         <div class="bg-white rounded-xl border border-gray-100 p-4">
             <p class="text-2xl font-bold text-emerald-600">{{ secretariat.sms_taux_livraison }}%</p>
-            <p class="text-[11px] text-gray-400 font-medium">Taux livraison SMS ({{ secretariat.sms_total }} envoyés)</p>
+            <p class="text-[11px] text-gray-400 font-medium">Taux livraison SMS ({{ secretariat.sms_total }} — période)</p>
         </div>
     </div>
 </div>
@@ -105,40 +129,34 @@
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-xl font-bold text-emerald-700">{{ comptable.ca_mois|floatformat:0 }} F</p>
-            <p class="text-[11px] text-gray-400 font-medium">CA encaissé (mois)</p>
+            <p class="text-xl font-bold text-emerald-700">{{ comptable.ca_periode|floatformat:0 }} F</p>
+            <p class="text-[11px] text-gray-400 font-medium">CA encaissé (période)</p>
         </div>
         <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-xl font-bold text-gray-800">{{ comptable.ca_annee|floatformat:0 }} F</p>
-            <p class="text-[11px] text-gray-400 font-medium">CA encaissé (année)</p>
+            <p class="text-xl font-bold text-gray-800">{{ comptable.cout_sms_periode|floatformat:0 }} F</p>
+            <p class="text-[11px] text-gray-400 font-medium">Coût SMS (période)</p>
         </div>
         <div class="bg-white rounded-xl border {% if comptable.montant_impaye > 0 %}border-amber-300 bg-amber-50{% else %}border-gray-100{% endif %} p-4">
             <p class="text-xl font-bold {% if comptable.montant_impaye > 0 %}text-amber-600{% else %}text-gray-800{% endif %}">{{ comptable.montant_impaye|floatformat:0 }} F</p>
-            <p class="text-[11px] {% if comptable.montant_impaye > 0 %}text-amber-600{% else %}text-gray-400{% endif %} font-medium">Montant impayé</p>
+            <p class="text-[11px] {% if comptable.montant_impaye > 0 %}text-amber-600{% else %}text-gray-400{% endif %} font-medium">Montant impayé <span class="px-1 py-0.5 bg-white/60 rounded text-[9px] ml-1">temps réel</span></p>
         </div>
         <div class="bg-white rounded-xl border {% if comptable.nb_en_retard > 0 %}border-rose-300 bg-rose-50{% else %}border-gray-100{% endif %} p-4">
             <p class="text-xl font-bold {% if comptable.nb_en_retard > 0 %}text-rose-600{% else %}text-gray-800{% endif %}">{{ comptable.nb_en_retard }}</p>
-            <p class="text-[11px] {% if comptable.nb_en_retard > 0 %}text-rose-600{% else %}text-gray-400{% endif %} font-medium">Factures en retard</p>
+            <p class="text-[11px] {% if comptable.nb_en_retard > 0 %}text-rose-600{% else %}text-gray-400{% endif %} font-medium">Factures en retard <span class="px-1 py-0.5 bg-white/60 rounded text-[9px] ml-1">temps réel</span></p>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="bg-white rounded-xl border border-gray-100 p-4">
-            <p class="text-xs font-semibold text-gray-600 mb-3">Factures par statut</p>
-            <div class="space-y-2">
-                {% for r in comptable.repartition_statut %}
-                <div class="flex items-center justify-between text-xs py-1 border-b border-gray-50 last:border-0">
-                    <span class="text-gray-600">{{ r.libelle }}</span>
-                    <span class="text-gray-800 font-medium">{{ r.total }} · {{ r.montant|floatformat:0 }} F</span>
-                </div>
-                {% empty %}
-                <p class="text-xs text-gray-400 italic">Aucune donnée.</p>
-                {% endfor %}
+    <div class="bg-white rounded-xl border border-gray-100 p-4">
+        <p class="text-xs font-semibold text-gray-600 mb-3">Factures par statut (période)</p>
+        <div class="space-y-2">
+            {% for r in comptable.repartition_statut %}
+            <div class="flex items-center justify-between text-xs py-1 border-b border-gray-50 last:border-0">
+                <span class="text-gray-600">{{ r.libelle }}</span>
+                <span class="text-gray-800 font-medium">{{ r.total }} · {{ r.montant|floatformat:0 }} F</span>
             </div>
-        </div>
-        <div class="bg-white rounded-xl border border-gray-100 p-4 flex flex-col justify-center">
-            <p class="text-xs font-semibold text-gray-600 mb-1">Coût SMS (mois en cours)</p>
-            <p class="text-2xl font-bold text-gray-800">{{ comptable.cout_sms_mois|floatformat:0 }} F CFA</p>
+            {% empty %}
+            <p class="text-xs text-gray-400 italic">Aucune donnée sur cette période.</p>
+            {% endfor %}
         </div>
     </div>
 </div>

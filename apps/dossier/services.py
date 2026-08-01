@@ -17,12 +17,12 @@ from dossier.models import Dossier
 from datetime import date
 
 from apps.authentication.models import User
-#from apps.authentication.models import Collaborateur
+#from dossier.models import Collaborateur
 from django.db import transaction, IntegrityError
-#from apps.authentication.models import PartiePrenante  # adapte le chemin d'import si le modèle vit ailleurs
+#from dossier.models import PartiePrenante  # adapte le chemin d'import si le modèle vit ailleurs
 
 
-from apps.authentication.models import Chambre
+from dossier.models import Chambre
 
 
 from django.utils import timezone
@@ -246,7 +246,7 @@ def creer_agenda_pour_dossier(dossier: Dossier, payload: dict, utilisateur) -> E
     )
     agenda.full_clean()
     agenda.save()
-    print("l'agenda finale est --> ", agenda)
+    #print("l'agenda finale est --> ", agenda)
 
     return agenda
 

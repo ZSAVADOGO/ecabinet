@@ -169,16 +169,6 @@ def lister_evenements(request):
             if evt.dossier_id and evt.dossier.avocat_referent_id else []
         )
 
-        """ parties_prenantes = [
-            {
-                "id": str(p.id),
-                "nom": p.nom,
-                "role": p.role,
-                "role_display": ROLES_DICT.get(p.role, p.role),
-                "telephone": getattr(p, 'telephone', '') or ''
-            }
-            for p in evt.parties_prenantes.all()
-        ] """
         parties_directes = [_partie_prenante_vers_dict(p) for p in evt.parties_prenantes.all()]
         parties_prenantes = parties_directes or (
             [_partie_prenante_vers_dict(p) for p in evt.dossier.parties_prenantes.all()]

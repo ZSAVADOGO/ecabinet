@@ -178,5 +178,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    console.log("⚙️ eCabinet : Le gestionnaire de fenêtres surgissantes (Modals) est prêt.");
+    //console.log("⚙️ eCabinet : Le gestionnaire de fenêtres surgissantes (Modals) est prêt.");
 });

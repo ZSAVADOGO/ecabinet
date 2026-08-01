@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% block title %}Mon profil | eCabinet{% endblock %}
+{% block content %}
+
+<div class="mb-5">
+    <h1 class="text-lg font-bold text-indigo-950">🙍 Mon profil</h1>
+    <p class="text-xs text-gray-500">Consultez vos informations et gérez la sécurité de votre compte</p>
+</div>
+
+<div x-data="gestionProfil()" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- BLOC 1 : INFORMATIONS PERSONNELLES -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center gap-3 mb-5 pb-4 border-b border-gray-100">
+            <div class="h-14 w-14 rounded-full bg-indigo-700 flex items-center justify-center font-bold text-lg text-white shadow-sm">
+                {{ profil.prenom|slice:":1" }}{{ profil.nom|slice:":1" }}
+            </div>
+            <div>
+                <p class="font-semibold text-gray-800">{{ profil.nom_complet }}</p>
+                <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-100 text-indigo-700">{{ profil.role_libelle }}</span>
+            </div>
+        </div>
+
+        <!-- Identité : lecture seule, gérée par l'administration -->
+        <div class="space-y-3 mb-5">
+            <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Identité <span class="normal-case font-normal">(gérée par l'administration)</span></p>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Email de connexion</label>
+                    <div class="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-500">{{ profil.email }}</div>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Département</label>
+                    <div class="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-500">{{ profil.departement|default:"—" }}</div>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Date de prestation de serment</label>
+                    <div class="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-500">{{ profil.date_prestation_serment|default:"—" }}</div>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Ancienneté</label>
+                    <div class="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 text-sm text-gray-500">{{ profil.annees_experience }} an(s)</div>
+                </div>
+            </div>
+            {% if profil.specialites %}
+            <div>
+                <label class="text-xs text-gray-400 block mb-1">Spécialités</label>
+                <div class="flex flex-wrap gap-1.5">
+                    {% for s in profil.specialites %}
+                        <span class="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[11px] font-medium">{{ s }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Coordonnées : modifiables par l'utilisateur -->
+        <form @submit.prevent="enregistrerCoordonnees()" class="space-y-3 pt-4 border-t border-gray-100">
+            <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Coordonnées <span class="normal-case font-normal text-indigo-500">(modifiables)</span></p>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Téléphone direct</label>
+                    <input x-model="coordonnees.telephone_direct" type="text" placeholder="+226 ..."
+                           class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Téléphone secondaire</label>
+                    <input x-model="coordonnees.telephone2" type="text" placeholder="+226 ..."
+                           class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="px-4 py-2 bg-indigo-950 hover:bg-indigo-900 text-white rounded-md text-sm font-medium transition-colors">
+                    Enregistrer les coordonnées
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- BLOC 2 : SÉCURITÉ -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <p class="text-sm font-semibold text-indigo-950 mb-1">🔐 Sécurité du compte</p>
+        <p class="text-xs text-gray-400 mb-4">Dernier changement de mot de passe : {{ profil.date_dernier_changement_mdp }}</p>
+
+        <form @submit.prevent="changerMotDePasse()" class="space-y-3">
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Mot de passe actuel</label>
+                <input x-model="motDePasse.ancien" type="password" required autocomplete="current-password"
+                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Nouveau mot de passe</label>
+                <input x-model="motDePasse.nouveau" type="password" required autocomplete="new-password" minlength="10"
+                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+                <p class="text-[11px] text-gray-400 mt-1">Au moins 10 caractères, ni trop simple ni trop proche de vos informations personnelles.</p>
+            </div>
+            <div>
+                <label class="text-xs font-semibold text-gray-600 block mb-1">Confirmer le nouveau mot de passe</label>
+                <input x-model="motDePasse.confirmation" type="password" required autocomplete="new-password"
+                       class="w-full border border-gray-200 rounded-md px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-sm font-medium transition-colors">
+                    Changer le mot de passe
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-5 pt-4 border-t border-gray-100 text-xs text-gray-400">
+            <p>Dernière connexion depuis : <span class="text-gray-600 font-medium">{{ profil.derniere_connexion_ip|default:"Inconnue" }}</span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+    function gestionProfil() {
+        return {
+            coordonnees: {
+                telephone_direct: "{{ profil.telephone_direct|default:'' }}",
+                telephone2: "{{ profil.telephone2|default:'' }}",
+            },
+            motDePasse: { ancien: '', nouveau: '', confirmation: '' },
+
+            async enregistrerCoordonnees() {
+                const res = await fetch("{% url 'authentication:api_modifier_profil' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify(this.coordonnees),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    await eCabinetAlerts.succes(data.message, 'Coordonnées mises à jour');
+                } else {
+                    eCabinetAlerts.erreur(data.erreur || 'Une erreur est survenue.');
+                }
+            },
+
+            async changerMotDePasse() {
+                const res = await fetch("{% url 'authentication:api_changer_mot_de_passe' %}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify(this.motDePasse),
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    this.motDePasse = { ancien: '', nouveau: '', confirmation: '' };
+                    await eCabinetAlerts.succes(data.message, 'Mot de passe modifié');
+                } else {
+                    eCabinetAlerts.erreur(data.erreur || 'Une erreur est survenue.');
+                }
+            }
+        };
+    }
+</script>
+{% endblock %}

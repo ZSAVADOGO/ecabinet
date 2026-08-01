@@ -15,6 +15,9 @@ from django.utils import timezone
 #---- Securite
 from django.contrib.auth.decorators import login_required
 from .services import se_connecter, se_deconnecter
+
+from django.contrib.auth import update_session_auth_hash
+
 #----Fin securite
 
 # On importe directement les fonctions autonomes du fichier services, comme pour client.
@@ -24,7 +27,10 @@ from apps.authentication.services import (
     creer_utilisateur,
     modifier_utilisateur,
     supprimer_utilisateur,
-    utilisateur_vers_dict,
+    utilisateur_vers_dict, 
+    obtenir_profil_utilisateur, 
+    modifier_coordonnees_profil, 
+    changer_mot_de_passe_utilisateur,
 )
 
 from apps.core.decorators import capacite_requise
@@ -39,10 +45,42 @@ User = get_user_model()
 # ----- Securite
 
 
-""" @capacite_requise('gerer_utilisateurs')
-def permissions_par_role_view(request):
-    contexte = matrice_permissions()
-    return render(request, "authentication/permissions_par_role.html", contexte) """
+
+
+@login_required
+def mon_profil_view(request):
+    contexte = {"profil": obtenir_profil_utilisateur(request.user)}
+    return render(request, "authentication/mon_profil.html", contexte)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_modifier_profil(request):
+    try:
+        payload = json.loads(request.body)
+        profil = modifier_coordonnees_profil(request.user, payload)
+    except ValidationError as exc:
+        return JsonResponse({"erreur": _message_validation(exc)}, status=400)
+    return JsonResponse({"message": "Coordonnées mises à jour avec succès.", "profil": profil}, status=200)
+
+
+@login_required
+@require_http_methods(["POST"])
+def api_changer_mot_de_passe(request):
+    try:
+        payload = json.loads(request.body)
+        changer_mot_de_passe_utilisateur(
+            request.user,
+            payload.get("ancien_mot_de_passe", ""),
+            payload.get("nouveau_mot_de_passe", ""),
+            payload.get("confirmation", ""),
+        )
+        update_session_auth_hash(request, request.user)  # évite d'être déconnecté juste après le changement
+    except ValidationError as exc:
+        return JsonResponse({"erreur": _message_validation(exc)}, status=400)
+    return JsonResponse({"message": "Mot de passe modifié avec succès."}, status=200)
+
+
 # authentication/views.py
 @capacite_requise('gerer_utilisateurs')
 def permissions_par_role_view(request):
@@ -101,7 +139,6 @@ def changer_mot_de_passe_oblige_view(request):
             request.user.doit_changer_mot_de_passe = False
             request.user.date_dernier_changement_mdp = timezone.now()
             request.user.save()
-            from django.contrib.auth import update_session_auth_hash
             update_session_auth_hash(request, request.user)  # évite une déconnexion immédiate
             return redirect('dashboard:index')
 
